@@ -7,7 +7,12 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.persistence.models import Cadence, CashflowDirection, ConnectionStatus
+from backend.persistence.models import (
+    Cadence,
+    CashflowDirection,
+    CategoryKind,
+    ConnectionStatus,
+)
 
 
 class AccountCreate(BaseModel):
@@ -156,3 +161,103 @@ class CashflowSummaryOut(BaseModel):
     monthly_outflow: Decimal
     monthly_net: Decimal
     item_count: int
+
+
+# --- categorization (Phase 2) --------------------------------------------
+
+
+class CategoryCreate(BaseModel):
+    name: str
+    kind: CategoryKind
+    is_fixed: bool = False
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = None
+    kind: CategoryKind | None = None
+    is_fixed: bool | None = None
+
+
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    kind: CategoryKind
+    is_fixed: bool
+
+
+class RuleCreate(BaseModel):
+    match_pattern: str
+    category_id: uuid.UUID
+    priority: int = 100
+
+
+class RuleUpdate(BaseModel):
+    match_pattern: str | None = None
+    category_id: uuid.UUID | None = None
+    priority: int | None = None
+
+
+class RuleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    match_pattern: str
+    category_id: uuid.UUID
+    priority: int
+
+
+class TransactionCreate(BaseModel):
+    ts: datetime
+    amount: Decimal
+    raw_payee: str | None = None
+    description: str | None = None
+    currency: str | None = None  # defaults to the account currency
+
+
+class TransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    account_id: uuid.UUID
+    ts: datetime
+    amount: Decimal
+    currency: str
+    raw_payee: str | None = None
+    description: str | None = None
+    category_id: uuid.UUID | None = None
+    is_recurring: bool
+
+
+class TransactionUpdate(BaseModel):
+    category_id: uuid.UUID | None = None
+    # If true, remember this payee -> category as a high-priority rule.
+    remember: bool = False
+
+
+class ImportResultOut(BaseModel):
+    imported: int
+    skipped_duplicates: int
+    skipped_invalid: int
+    categorized: int
+
+
+class CategorizeResultOut(BaseModel):
+    categorized: int
+
+
+class RecurringOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    payee: str
+    amount_est: Decimal
+    cadence: str
+    next_due: date | None = None
+    account_id: uuid.UUID
+
+
+class DetectResultOut(BaseModel):
+    detected: int
+    items: list[RecurringOut]

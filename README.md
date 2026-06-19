@@ -12,6 +12,10 @@ Self-hosted, Finanzguru-style personal finance tracker. See [`docs/plan.md`](doc
   set in `.env`. See "Roadmap" below.
 - **Manual cashflow (done):** hand-entered recurring inflows/outflows with a monthly
   summary — the usable stand-in for automatic bank import.
+- **Phase 2 — categorization + recurring (done):** category taxonomy, a rules engine
+  (payee → category), manual reclassify (optionally remembered as a rule), manual
+  transaction entry + **CSV import** of bank statements, and recurring/subscription
+  detection.
 
 ## Stack
 
@@ -107,6 +111,43 @@ curl -s -X PATCH localhost:8000/cashflow/<ID> -d '{"active":false}' -H 'content-
 curl -s -X DELETE localhost:8000/cashflow/<ID>
 ```
 
+## Categorization, transactions & recurring (Phase 2)
+
+```bash
+# Seed a starter category taxonomy, then add a rule (payee substring -> category)
+curl -s -X POST localhost:8000/categories/seed
+GROC=<id of "Groceries" from GET /categories>
+curl -s -X POST localhost:8000/rules -H 'content-type: application/json' \
+  -d "{\"match_pattern\":\"rewe\",\"category_id\":\"$GROC\"}"
+
+# Log a transaction by hand (auto-categorized by the rules)
+curl -s -X POST localhost:8000/accounts/<ACCOUNT_ID>/transactions \
+  -H 'content-type: application/json' \
+  -d '{"ts":"2026-03-01T00:00:00Z","amount":"-23.50","raw_payee":"REWE Markt"}'
+
+# Bulk-import a bank statement CSV (tolerant of ;-delimited, DD.MM.YYYY, "1.234,56")
+curl -s -X POST localhost:8000/accounts/<ACCOUNT_ID>/transactions/import \
+  -F "file=@statement.csv;type=text/csv"
+
+# Reclassify a transaction and remember it as a rule for next time
+curl -s -X PATCH localhost:8000/transactions/<TXN_ID> -H 'content-type: application/json' \
+  -d '{"category_id":"<CAT_ID>","remember":true}'
+
+# Re-run rules over existing transactions; list uncategorized
+curl -s -X POST localhost:8000/transactions/categorize
+curl -s "localhost:8000/transactions?uncategorized=true"
+
+# Detect recurring subscriptions (repeating payee + amount + monthly-ish cadence)
+curl -s -X POST localhost:8000/recurring/detect
+curl -s localhost:8000/recurring
+```
+
+CSV columns are matched case-insensitively against common English/German aliases
+(`date`/`datum`/`buchungstag`, `amount`/`betrag`, `payee`/`name`, `description`/
+`verwendungszweck`); a date and an amount column are required. Re-importing the same file
+is idempotent (deduped by a content hash). Transactions are for spending analysis and do
+**not** affect net worth (which is still balance-based).
+
 ## Roadmap
 
 - **Activate bank linking when GoCardless reopens signups.** The connector, consent flow,
@@ -116,7 +157,8 @@ curl -s -X DELETE localhost:8000/cashflow/<ID>
   `secret_id`/`secret_key` into `.env` as `GOCARDLESS_SECRET_ID`/`GOCARDLESS_SECRET_KEY`,
   restart, then `POST /banks/requisitions` → consent → `POST /banks/requisitions/{id}/finalize`
   → `POST /banks/connections/{id}/sync`. As of 2026-06-19, signups are disabled.
-- Phase 2: categorization + recurring detection. Phase 3: React dashboard.
+- Phase 3: React dashboard (net worth, accounts, cashflow, category breakdown, recurring,
+  transactions with inline recategorization).
 
 ## Security notes (§8)
 

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from backend.persistence.models import (
@@ -18,9 +18,13 @@ from backend.persistence.models import (
     Cadence,
     CashflowDirection,
     CashflowItem,
+    Category,
+    CategoryKind,
     Connection,
     ConnectionStatus,
     NetWorthSnapshot,
+    Recurring,
+    Rule,
     Transaction,
 )
 
@@ -285,3 +289,165 @@ def delete_connection(session: Session, connection_id: uuid.UUID) -> bool:
     session.delete(connection)
     session.flush()
     return True
+
+
+# --- categories (taxonomy) -----------------------------------------------
+
+
+def create_category(
+    session: Session, *, name: str, kind: CategoryKind, is_fixed: bool = False
+) -> Category:
+    category = Category(name=name, kind=kind, is_fixed=is_fixed)
+    session.add(category)
+    session.flush()
+    return category
+
+
+def get_category(session: Session, category_id: uuid.UUID) -> Category | None:
+    return session.get(Category, category_id)
+
+
+def get_category_by_name(session: Session, name: str) -> Category | None:
+    return session.execute(
+        select(Category).where(Category.name == name)
+    ).scalars().first()
+
+
+def list_categories(session: Session) -> list[Category]:
+    return list(session.execute(select(Category).order_by(Category.name)).scalars().all())
+
+
+def update_category(session: Session, category: Category, **fields) -> Category:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(category, key, value)
+    session.flush()
+    return category
+
+
+def delete_category(session: Session, category_id: uuid.UUID) -> bool:
+    """Delete a category, detaching transactions and removing its rules."""
+    category = session.get(Category, category_id)
+    if category is None:
+        return False
+    session.execute(
+        update(Transaction)
+        .where(Transaction.category_id == category_id)
+        .values(category_id=None)
+    )
+    session.execute(delete(Rule).where(Rule.category_id == category_id))
+    session.delete(category)
+    session.flush()
+    return True
+
+
+# --- rules (categorization) ----------------------------------------------
+
+
+def create_rule(
+    session: Session,
+    *,
+    match_pattern: str,
+    category_id: uuid.UUID,
+    priority: int = 100,
+) -> Rule:
+    rule = Rule(match_pattern=match_pattern, category_id=category_id, priority=priority)
+    session.add(rule)
+    session.flush()
+    return rule
+
+
+def get_rule(session: Session, rule_id: uuid.UUID) -> Rule | None:
+    return session.get(Rule, rule_id)
+
+
+def list_rules(session: Session) -> list[Rule]:
+    # Highest priority first; ties broken by pattern for determinism.
+    stmt = select(Rule).order_by(Rule.priority.desc(), Rule.match_pattern)
+    return list(session.execute(stmt).scalars().all())
+
+
+def find_rule_by_pattern(
+    session: Session, match_pattern: str, category_id: uuid.UUID
+) -> Rule | None:
+    stmt = select(Rule).where(
+        Rule.match_pattern == match_pattern, Rule.category_id == category_id
+    )
+    return session.execute(stmt).scalars().first()
+
+
+def update_rule(session: Session, rule: Rule, **fields) -> Rule:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(rule, key, value)
+    session.flush()
+    return rule
+
+
+def delete_rule(session: Session, rule_id: uuid.UUID) -> bool:
+    rule = session.get(Rule, rule_id)
+    if rule is None:
+        return False
+    session.delete(rule)
+    session.flush()
+    return True
+
+
+# --- transactions (read/update; writes go through upsert_transaction) ----
+
+
+def get_transaction(session: Session, txn_id: uuid.UUID) -> Transaction | None:
+    return session.get(Transaction, txn_id)
+
+
+def list_transactions(
+    session: Session,
+    *,
+    account_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    uncategorized: bool = False,
+) -> list[Transaction]:
+    stmt = select(Transaction).order_by(Transaction.ts.desc())
+    if account_id is not None:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if category_id is not None:
+        stmt = stmt.where(Transaction.category_id == category_id)
+    if uncategorized:
+        stmt = stmt.where(Transaction.category_id.is_(None))
+    return list(session.execute(stmt).scalars().all())
+
+
+# --- recurring (detected subscriptions) ----------------------------------
+
+
+def create_recurring(
+    session: Session,
+    *,
+    payee: str,
+    amount_est: Decimal,
+    cadence: str,
+    next_due,
+    account_id: uuid.UUID,
+) -> Recurring:
+    recurring = Recurring(
+        payee=payee,
+        amount_est=amount_est,
+        cadence=cadence,
+        next_due=next_due,
+        account_id=account_id,
+    )
+    session.add(recurring)
+    session.flush()
+    return recurring
+
+
+def list_recurring(session: Session) -> list[Recurring]:
+    return list(
+        session.execute(select(Recurring).order_by(Recurring.next_due)).scalars().all()
+    )
+
+
+def delete_all_recurring(session: Session) -> int:
+    result = session.execute(delete(Recurring))
+    session.flush()
+    return result.rowcount or 0
