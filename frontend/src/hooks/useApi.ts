@@ -17,6 +17,13 @@ export function useApi<T>(path: string): ApiState<T> {
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
+  // Refetch whenever any mutation happens anywhere in the app.
+  useEffect(() => {
+    const onChange = () => setTick((t) => t + 1);
+    window.addEventListener("ft-data-changed", onChange);
+    return () => window.removeEventListener("ft-data-changed", onChange);
+  }, []);
+
   useEffect(() => {
     let active = true;
     setLoading(true);

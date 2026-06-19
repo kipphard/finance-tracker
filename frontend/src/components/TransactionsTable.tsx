@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { apiPatch, apiPost } from "../api/client";
+import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { AccountOut, CategoryOut, TransactionOut } from "../api/types";
 import { money, num, shortDate } from "../lib/format";
 import { Card } from "./Card";
@@ -154,6 +154,106 @@ function TransactionForm({
   );
 }
 
+function EditTransactionForm({
+  txn,
+  onClose,
+}: {
+  txn: TransactionOut;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState(txn.ts.slice(0, 10));
+  const [amount, setAmount] = useState(txn.amount);
+  const [payee, setPayee] = useState(txn.raw_payee ?? "");
+  const [description, setDescription] = useState(txn.description ?? "");
+  const [counterparty, setCounterparty] = useState(txn.counterparty ?? "");
+  const [invoiceNumber, setInvoiceNumber] = useState(txn.invoice_number ?? "");
+  const [vatRate, setVatRate] = useState(txn.vat_rate ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPatch(`/transactions/${txn.id}`, {
+        ts: `${date}T00:00:00Z`,
+        amount,
+        raw_payee: payee || null,
+        description: description || null,
+        counterparty: counterparty || null,
+        invoice_number: invoiceNumber || null,
+        vat_rate: vatRate || null,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Delete this transaction?")) return;
+    setBusy(true);
+    try {
+      await apiDelete(`/transactions/${txn.id}`);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="form" onSubmit={save}>
+      <div className="field-row">
+        <div className="field">
+          <label>Date</label>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Amount (negative = spending)</label>
+          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        </div>
+      </div>
+      <div className="field">
+        <label>Payee</label>
+        <input className="input" value={payee} onChange={(e) => setPayee(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Note</label>
+        <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Counterparty / client</label>
+        <input className="input" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
+      </div>
+      <div className="field-row">
+        <div className="field">
+          <label>Invoice no.</label>
+          <input className="input" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>VAT %</label>
+          <input className="input" type="number" step="0.1" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
+        </div>
+      </div>
+      {error && <div className="error">{error}</div>}
+      <div className="form__actions" style={{ justifyContent: "space-between" }}>
+        <button type="button" className="btn btn--ghost" onClick={remove} disabled={busy}
+          style={{ borderColor: "var(--negative)", color: "var(--negative)" }}>
+          Delete
+        </button>
+        <span style={{ display: "flex", gap: 10 }}>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" type="submit" disabled={busy}>{busy ? "…" : "Save"}</button>
+        </span>
+      </div>
+    </form>
+  );
+}
+
 export function TransactionsTable({ className }: { className?: string }) {
   const txns = useApi<TransactionOut[]>("/transactions");
   const cats = useApi<CategoryOut[]>("/categories");
@@ -162,6 +262,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
   const [attachFor, setAttachFor] = useState<string | null>(null);
+  const [editing, setEditing] = useState<TransactionOut | null>(null);
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
@@ -257,6 +358,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                             {t.invoice_number ? `#${t.invoice_number}` : ""}
                           </div>
                         )}
+                        {t.description && <div className="li-sub">{t.description}</div>}
                       </td>
                       <td className={"amount " + (num(t.amount) >= 0 ? "pos" : "neg")}>
                         {money(t.amount, t.currency)}
@@ -269,10 +371,16 @@ export function TransactionsTable({ className }: { className?: string }) {
                         </select>
                       </td>
                       <td className="amount">
-                        <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
-                          onClick={() => setAttachFor(t.id)} title="Attachments (invoice/receipt)">
-                          📎
-                        </button>
+                        <span style={{ display: "inline-flex", gap: 4 }}>
+                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                            onClick={() => setEditing(t)} title="Edit transaction">
+                            ✎
+                          </button>
+                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                            onClick={() => setAttachFor(t.id)} title="Attachments (invoice/receipt)">
+                            📎
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -294,6 +402,11 @@ export function TransactionsTable({ className }: { className?: string }) {
       )}
       {attachFor && (
         <AttachmentsModal txnId={attachFor} onClose={() => setAttachFor(null)} />
+      )}
+      {editing && (
+        <Modal title="Edit transaction" onClose={() => setEditing(null)}>
+          <EditTransactionForm txn={editing} onClose={() => setEditing(null)} />
+        </Modal>
       )}
     </Card>
   );

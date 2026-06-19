@@ -149,30 +149,41 @@ def get_transaction(txn_id: uuid.UUID, session: SessionDep, user: CurrentUser) -
 
 
 @router.patch("/transactions/{txn_id}", response_model=TransactionOut)
-def reclassify_transaction(
+def update_transaction(
     txn_id: uuid.UUID, payload: TransactionUpdate, session: SessionDep, user: CurrentUser
 ) -> TransactionOut:
+    """Edit any field of a transaction (also used by inline recategorize, which only sends
+    category_id). Only the fields present in the request are changed."""
     txn = repository.get_transaction(session, txn_id, user.id)
     if txn is None:
         raise HTTPException(status_code=404, detail="transaction not found")
-    if payload.category_id is not None:
-        if repository.get_category(session, payload.category_id, user.id) is None:
-            raise HTTPException(status_code=400, detail="unknown category")
-    txn.category_id = payload.category_id
 
-    if payload.remember and payload.category_id is not None and txn.raw_payee:
+    data = payload.model_dump(exclude_unset=True)
+    remember = data.pop("remember", False)
+    if data.get("category_id") is not None:
+        if repository.get_category(session, data["category_id"], user.id) is None:
+            raise HTTPException(status_code=400, detail="unknown category")
+    for key, value in data.items():
+        setattr(txn, key, value)
+
+    if remember and txn.category_id is not None and txn.raw_payee:
         if (
-            repository.find_rule_by_pattern(
-                session, user.id, txn.raw_payee, payload.category_id
-            )
+            repository.find_rule_by_pattern(session, user.id, txn.raw_payee, txn.category_id)
             is None
         ):
             repository.create_rule(
-                session,
-                user_id=user.id,
-                match_pattern=txn.raw_payee,
-                category_id=payload.category_id,
-                priority=200,
+                session, user_id=user.id, match_pattern=txn.raw_payee,
+                category_id=txn.category_id, priority=200,
             )
     session.commit()
     return TransactionOut.model_validate(txn)
+
+
+@router.delete("/transactions/{txn_id}", status_code=204)
+def delete_transaction(
+    txn_id: uuid.UUID, session: SessionDep, user: CurrentUser
+) -> Response:
+    if not repository.delete_transaction(session, txn_id, user.id):
+        raise HTTPException(status_code=404, detail="transaction not found")
+    session.commit()
+    return Response(status_code=204)

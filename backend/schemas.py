@@ -269,6 +269,13 @@ class TransactionOut(BaseModel):
 
 
 class TransactionUpdate(BaseModel):
+    ts: datetime | None = None
+    amount: Decimal | None = None
+    raw_payee: str | None = None
+    description: str | None = None
+    counterparty: str | None = None
+    invoice_number: str | None = None
+    vat_rate: Decimal | None = None
     category_id: uuid.UUID | None = None
     # If true, remember this payee -> category as a high-priority rule.
     remember: bool = False

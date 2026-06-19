@@ -416,6 +416,18 @@ def delete_attachment(
     return True
 
 
+def delete_transaction(
+    session: Session, txn_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    txn = get_transaction(session, txn_id, user_id)
+    if txn is None:
+        return False
+    session.execute(delete(Attachment).where(Attachment.transaction_id == txn_id))
+    session.delete(txn)
+    session.flush()
+    return True
+
+
 def transactions_between(
     session: Session, user_id: uuid.UUID, start: datetime, end: datetime
 ) -> list[Transaction]:

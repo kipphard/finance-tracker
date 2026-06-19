@@ -34,6 +34,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail);
   }
+  // Any successful mutation refreshes every card on the dashboard.
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET") window.dispatchEvent(new Event("ft-data-changed"));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -69,6 +72,7 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
     }
     throw new Error(detail);
   }
+  window.dispatchEvent(new Event("ft-data-changed"));
   return (await res.json()) as T;
 }
 
