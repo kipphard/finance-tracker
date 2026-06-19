@@ -23,10 +23,10 @@ export function CategoryBreakdownCard({ className }: { className?: string }) {
 
           return (
             <>
-              <ResponsiveContainer width="100%" height={210}>
+              <ResponsiveContainer width="100%" height={290}>
                 <PieChart>
                   <Pie data={expenses} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={52} outerRadius={84} paddingAngle={2} stroke="none">
+                    innerRadius={70} outerRadius={112} paddingAngle={2} stroke="none">
                     {expenses.map((_, idx) => (
                       <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}

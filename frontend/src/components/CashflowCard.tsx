@@ -190,7 +190,7 @@ export function CashflowCard({ className }: { className?: string }) {
                 </div>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={150}>
+            <ResponsiveContainer width="100%" height={230}>
               <BarChart
                 data={[
                   {

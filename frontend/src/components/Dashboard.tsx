@@ -44,16 +44,17 @@ export function Dashboard() {
           <NetWorthHero className="col-8" />
           <AlertsCard className="col-4" />
 
-          <CashflowCard className="col-4" />
-          <ForecastCard className="col-4" />
-          <CategoryBreakdownCard className="col-4" />
+          <CashflowCard className="col-6" />
+          <ForecastCard className="col-6" />
+
+          <CategoryBreakdownCard className="col-6" />
+          <BudgetsCard className="col-6" />
 
           <AccountsCard className="col-4" />
-          <BudgetsCard className="col-4" />
           <RecurringCard className="col-4" />
-
           <CategoriesCard className="col-4" />
-          <TransactionsTable className="col-8" />
+
+          <TransactionsTable className="col-12" />
         </div>
       </div>
     </>
