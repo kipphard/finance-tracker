@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from backend.persistence.models import (
     Account,
     Balance,
+    Budget,
     Cadence,
     CashflowDirection,
     CashflowItem,
@@ -336,6 +337,7 @@ def delete_category(session: Session, category_id: uuid.UUID) -> bool:
         .values(category_id=None)
     )
     session.execute(delete(Rule).where(Rule.category_id == category_id))
+    session.execute(delete(Budget).where(Budget.category_id == category_id))
     session.delete(category)
     session.flush()
     return True
@@ -464,3 +466,60 @@ def spending_by_category(session: Session) -> list[tuple]:
         func.count(),
     ).group_by(Transaction.category_id)
     return list(session.execute(stmt).all())
+
+
+def category_spending_between(
+    session: Session, start: datetime, end: datetime
+) -> dict:
+    """{category_id -> signed total} for transactions with start <= ts < end."""
+    stmt = (
+        select(Transaction.category_id, func.coalesce(func.sum(Transaction.amount), 0))
+        .where(Transaction.ts >= start, Transaction.ts < end)
+        .group_by(Transaction.category_id)
+    )
+    return {row[0]: Decimal(str(row[1])) for row in session.execute(stmt).all()}
+
+
+# --- budgets --------------------------------------------------------------
+
+
+def create_budget(
+    session: Session, *, category_id: uuid.UUID, monthly_limit: Decimal
+) -> Budget:
+    budget = Budget(category_id=category_id, monthly_limit=monthly_limit)
+    session.add(budget)
+    session.flush()
+    return budget
+
+
+def get_budget(session: Session, budget_id: uuid.UUID) -> Budget | None:
+    return session.get(Budget, budget_id)
+
+
+def get_budget_by_category(
+    session: Session, category_id: uuid.UUID
+) -> Budget | None:
+    return session.execute(
+        select(Budget).where(Budget.category_id == category_id)
+    ).scalars().first()
+
+
+def list_budgets(session: Session) -> list[Budget]:
+    return list(session.execute(select(Budget)).scalars().all())
+
+
+def update_budget(session: Session, budget: Budget, **fields) -> Budget:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(budget, key, value)
+    session.flush()
+    return budget
+
+
+def delete_budget(session: Session, budget_id: uuid.UUID) -> bool:
+    budget = session.get(Budget, budget_id)
+    if budget is None:
+        return False
+    session.delete(budget)
+    session.flush()
+    return True

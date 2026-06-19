@@ -270,3 +270,54 @@ class CategoryBreakdownItem(BaseModel):
     is_fixed: bool | None = None
     total: Decimal
     count: int
+
+
+# --- budgets / alerts / forecast (Phase 5) --------------------------------
+
+
+class BudgetCreate(BaseModel):
+    category_id: uuid.UUID
+    monthly_limit: Decimal = Field(gt=0)
+
+
+class BudgetUpdate(BaseModel):
+    monthly_limit: Decimal | None = Field(default=None, gt=0)
+
+
+class BudgetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    category_id: uuid.UUID
+    monthly_limit: Decimal
+    created_at: datetime
+
+
+class BudgetStatusOut(BaseModel):
+    budget_id: uuid.UUID
+    category_id: uuid.UUID
+    category_name: str
+    monthly_limit: Decimal
+    spent: Decimal
+    remaining: Decimal
+    pct_used: Decimal
+    over: bool
+    period: str
+
+
+class AlertOut(BaseModel):
+    level: str
+    kind: str
+    message: str
+
+
+class ForecastPointOut(BaseModel):
+    month: str
+    projected: Decimal
+
+
+class ForecastOut(BaseModel):
+    base_currency: str
+    current_total: Decimal
+    monthly_net: Decimal
+    points: list[ForecastPointOut]

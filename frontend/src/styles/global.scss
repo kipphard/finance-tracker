@@ -305,3 +305,58 @@ input {
   color: $negative;
   padding: 12px 0;
 }
+
+// ---- progress bars (budgets) ---------------------------------------------
+.progress {
+  height: 8px;
+  background: #eef0f6;
+  border-radius: 999px;
+  overflow: hidden;
+
+  &__bar {
+    height: 100%;
+    background: $positive;
+    border-radius: 999px;
+    transition: width 0.3s ease;
+
+    &.is-warn {
+      background: #ea580c;
+    }
+    &.is-over {
+      background: $negative;
+    }
+  }
+}
+
+// ---- alerts --------------------------------------------------------------
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  border-left: 3px solid;
+
+  &--danger {
+    background: #fdecea;
+    border-color: $negative;
+    color: #7d211a;
+  }
+  &--warning {
+    background: #fff4e5;
+    border-color: #ea580c;
+    color: #8a4400;
+  }
+  &--info {
+    background: #e8f0fe;
+    border-color: $primary;
+    color: #213a8f;
+  }
+}

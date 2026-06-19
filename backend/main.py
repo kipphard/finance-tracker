@@ -5,9 +5,12 @@ from fastapi import FastAPI
 
 from backend.api import (
     accounts,
+    alerts,
     banks,
+    budgets,
     cashflow,
     categories,
+    forecast,
     health,
     networth,
     recurring,
@@ -41,6 +44,9 @@ app.include_router(rules.router, prefix=API)
 app.include_router(transactions.router, prefix=API)
 app.include_router(recurring.router, prefix=API)
 app.include_router(reports.router, prefix=API)
+app.include_router(budgets.router, prefix=API)
+app.include_router(alerts.router, prefix=API)
+app.include_router(forecast.router, prefix=API)
 
 
 @app.get("/", tags=["root"])

@@ -101,3 +101,40 @@ export interface CategoryBreakdownItem {
   total: string;
   count: number;
 }
+
+export interface BudgetOut {
+  id: string;
+  category_id: string;
+  monthly_limit: string;
+  created_at: string;
+}
+
+export interface BudgetStatusOut {
+  budget_id: string;
+  category_id: string;
+  category_name: string;
+  monthly_limit: string;
+  spent: string;
+  remaining: string;
+  pct_used: string;
+  over: boolean;
+  period: string;
+}
+
+export interface AlertOut {
+  level: "danger" | "warning" | "info";
+  kind: string;
+  message: string;
+}
+
+export interface ForecastPointOut {
+  month: string;
+  projected: string;
+}
+
+export interface ForecastOut {
+  base_currency: string;
+  current_total: string;
+  monthly_net: string;
+  points: ForecastPointOut[];
+}

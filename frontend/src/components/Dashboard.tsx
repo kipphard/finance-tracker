@@ -8,6 +8,9 @@ import { CategoryBreakdownCard } from "./CategoryBreakdownCard";
 import { AccountsCard } from "./AccountsCard";
 import { RecurringCard } from "./RecurringCard";
 import { TransactionsTable } from "./TransactionsTable";
+import { AlertsCard } from "./AlertsCard";
+import { BudgetsCard } from "./BudgetsCard";
+import { ForecastCard } from "./ForecastCard";
 
 export function Dashboard() {
   const nw = useApi<NetWorthOut>("/networth");
@@ -26,10 +29,13 @@ export function Dashboard() {
 
       <div className="container">
         <div className="grid">
+          <AlertsCard />
           <NetWorthCard />
           <NetWorthTrend />
+          <ForecastCard />
           <CashflowCard />
           <CategoryBreakdownCard />
+          <BudgetsCard />
           <AccountsCard />
           <RecurringCard />
           <TransactionsTable />

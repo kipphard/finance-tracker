@@ -196,6 +196,21 @@ class NetWorthSnapshot(Base):
     breakdown_json: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
 
 
+class Budget(Base):
+    """A monthly spending limit for a category (§6 budgets)."""
+
+    __tablename__ = "budgets"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    monthly_limit: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class CashflowItem(Base):
     """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent.
 

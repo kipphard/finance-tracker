@@ -1,0 +1,189 @@
+"""Computed views for Phase 5: budget tracking, alerts, and a simple forecast."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
+
+from sqlalchemy.orm import Session
+
+from backend.cashflow.service import compute_summary
+from backend.networth.aggregator import compute_net_worth
+from backend.persistence import repository
+from backend.persistence.models import ConnectionStatus
+
+_BILL_DUE_WINDOW_DAYS = 7
+_CONSENT_WARN_DAYS = 14
+_NEAR_BUDGET_PCT = Decimal("90")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _q(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def month_range(as_of: datetime) -> tuple[datetime, datetime]:
+    start = as_of.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    end = start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(
+        month=start.month + 1
+    )
+    return start, end
+
+
+def _add_months(year: int, month: int, delta: int) -> tuple[int, int]:
+    idx = (year * 12 + (month - 1)) + delta
+    return idx // 12, idx % 12 + 1
+
+
+# --- budgets --------------------------------------------------------------
+
+
+@dataclass
+class BudgetStatus:
+    budget_id: str
+    category_id: str
+    category_name: str
+    monthly_limit: Decimal
+    spent: Decimal
+    remaining: Decimal
+    pct_used: Decimal
+    over: bool
+    period: str
+
+
+def budget_status(session: Session, as_of: datetime | None = None) -> list[BudgetStatus]:
+    as_of = as_of or _now()
+    start, end = month_range(as_of)
+    spend = repository.category_spending_between(session, start, end)
+    categories = {c.id: c for c in repository.list_categories(session)}
+
+    statuses: list[BudgetStatus] = []
+    for budget in repository.list_budgets(session):
+        category = categories.get(budget.category_id)
+        signed = spend.get(budget.category_id, Decimal(0))
+        spent = max(Decimal(0), -signed)  # outflows count toward the budget
+        limit = Decimal(budget.monthly_limit)
+        remaining = limit - spent
+        pct = (spent / limit * 100) if limit > 0 else Decimal(0)
+        statuses.append(
+            BudgetStatus(
+                budget_id=str(budget.id),
+                category_id=str(budget.category_id),
+                category_name=category.name if category else "?",
+                monthly_limit=_q(limit),
+                spent=_q(spent),
+                remaining=_q(remaining),
+                pct_used=_q(pct),
+                over=spent > limit,
+                period=start.strftime("%Y-%m"),
+            )
+        )
+    statuses.sort(key=lambda s: s.pct_used, reverse=True)
+    return statuses
+
+
+# --- alerts ---------------------------------------------------------------
+
+
+@dataclass
+class Alert:
+    level: str  # "danger" | "warning" | "info"
+    kind: str  # "budget" | "bill" | "consent"
+    message: str
+
+
+def build_alerts(session: Session, as_of: datetime | None = None) -> list[Alert]:
+    as_of = as_of or _now()
+    today = as_of.date()
+    alerts: list[Alert] = []
+
+    for status in budget_status(session, as_of):
+        if status.over:
+            alerts.append(
+                Alert(
+                    "danger",
+                    "budget",
+                    f"Over budget on {status.category_name}: "
+                    f"{status.spent} / {status.monthly_limit}",
+                )
+            )
+        elif status.pct_used >= _NEAR_BUDGET_PCT:
+            alerts.append(
+                Alert(
+                    "warning",
+                    "budget",
+                    f"{status.category_name} at {status.pct_used}% of budget",
+                )
+            )
+
+    for recurring in repository.list_recurring(session):
+        if recurring.next_due is None:
+            continue
+        due: date = recurring.next_due
+        days = (due - today).days
+        if 0 <= days <= _BILL_DUE_WINDOW_DAYS:
+            when = "today" if days == 0 else f"in {days}d"
+            alerts.append(
+                Alert(
+                    "info",
+                    "bill",
+                    f"{recurring.payee} due {when} ({recurring.amount_est})",
+                )
+            )
+
+    for conn in repository.list_connections(session):
+        if conn.status != ConnectionStatus.active or conn.consent_expires_at is None:
+            continue
+        days = (conn.consent_expires_at.date() - today).days
+        if 0 <= days <= _CONSENT_WARN_DAYS:
+            alerts.append(
+                Alert("warning", "consent", f"Bank consent expires in {days}d — re-authorize soon")
+            )
+
+    return alerts
+
+
+# --- forecast -------------------------------------------------------------
+
+
+@dataclass
+class ForecastPoint:
+    month: str
+    projected: Decimal
+
+
+@dataclass
+class Forecast:
+    base_currency: str
+    current_total: Decimal
+    monthly_net: Decimal
+    points: list[ForecastPoint] = field(default_factory=list)
+
+
+def build_forecast(
+    session: Session, months: int = 6, as_of: datetime | None = None
+) -> Forecast:
+    as_of = as_of or _now()
+    net_worth = compute_net_worth(session)
+    summary = compute_summary(session)
+    start_total = net_worth.total
+    monthly_net = summary.monthly_net
+
+    points: list[ForecastPoint] = []
+    for m in range(0, months + 1):
+        year, month = _add_months(as_of.year, as_of.month, m)
+        points.append(
+            ForecastPoint(
+                month=f"{year:04d}-{month:02d}",
+                projected=_q(start_total + monthly_net * m),
+            )
+        )
+    return Forecast(
+        base_currency=net_worth.base_currency,
+        current_total=_q(start_total),
+        monthly_net=_q(monthly_net),
+        points=points,
+    )
