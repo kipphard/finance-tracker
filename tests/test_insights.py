@@ -78,6 +78,19 @@ def test_bill_due_soon_alert(db_session, user):
     assert any(a.kind == "bill" and "Netflix" in a.message for a in alerts)
 
 
+def test_overdue_debt_alert(db_session, user):
+    repository.create_debt(
+        db_session,
+        user_id=user.id,
+        name="Car repair",
+        amount=Decimal("900"),
+        due_date=datetime(2026, 3, 1, tzinfo=timezone.utc).date(),  # before AS_OF -> overdue
+    )
+    db_session.commit()
+    alerts = build_alerts(db_session, user.id, as_of=AS_OF)
+    assert any(a.kind == "debt" and a.level == "danger" for a in alerts)
+
+
 def test_forecast_projection(db_session, user):
     account = _account(db_session, user)
     repository.add_balance(db_session, account_id=account.id, amount=Decimal("1000.00"))

@@ -9,6 +9,7 @@ import { AccountsCard } from "./AccountsCard";
 import { BudgetsCard } from "./BudgetsCard";
 import { RecurringCard } from "./RecurringCard";
 import { CategoriesCard } from "./CategoriesCard";
+import { DebtsCard } from "./DebtsCard";
 import { TransactionsTable } from "./TransactionsTable";
 
 export function Dashboard() {
@@ -50,11 +51,12 @@ export function Dashboard() {
           <CategoryBreakdownCard className="col-6" />
           <BudgetsCard className="col-6" />
 
+          <DebtsCard className="col-4" />
           <AccountsCard className="col-4" />
           <RecurringCard className="col-4" />
-          <CategoriesCard className="col-4" />
 
-          <TransactionsTable className="col-12" />
+          <CategoriesCard className="col-4" />
+          <TransactionsTable className="col-8" />
         </div>
       </div>
     </>

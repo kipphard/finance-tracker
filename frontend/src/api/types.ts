@@ -150,3 +150,12 @@ export interface ForecastOut {
   monthly_net: string;
   points: ForecastPointOut[];
 }
+
+export interface DebtOut {
+  id: string;
+  name: string;
+  amount: string;
+  due_date: string | null;
+  paid: boolean;
+  created_at: string;
+}

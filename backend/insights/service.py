@@ -145,6 +145,20 @@ def build_alerts(session: Session, user_id, as_of: datetime | None = None) -> li
                 Alert("warning", "consent", f"Bank consent expires in {days}d — re-authorize soon")
             )
 
+    for debt in repository.list_debts(session, user_id, unpaid_only=True):
+        if debt.due_date is None:
+            continue
+        days = (debt.due_date - today).days
+        if days < 0:
+            alerts.append(
+                Alert("danger", "debt", f"Overdue: {debt.name} ({debt.amount}) — due {debt.due_date}")
+            )
+        elif days <= _BILL_DUE_WINDOW_DAYS:
+            when = "today" if days == 0 else f"in {days}d"
+            alerts.append(
+                Alert("warning", "debt", f"{debt.name} ({debt.amount}) due {when}")
+            )
+
     return alerts
 
 

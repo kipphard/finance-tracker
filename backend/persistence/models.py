@@ -236,6 +236,22 @@ class Budget(Base):
     )
 
 
+class Debt(Base):
+    """A one-off thing the user needs to pay off (e.g. a car repair), with optional due date."""
+
+    __tablename__ = "debts"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class CashflowItem(Base):
     """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent."""
 

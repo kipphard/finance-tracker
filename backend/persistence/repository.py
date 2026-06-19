@@ -24,6 +24,7 @@ from backend.persistence.models import (
     CategoryKind,
     Connection,
     ConnectionStatus,
+    Debt,
     NetWorthSnapshot,
     Recurring,
     Rule,
@@ -65,6 +66,7 @@ def delete_user(session: Session, user_id: uuid.UUID) -> bool:
         Rule,
         Budget,
         CashflowItem,
+        Debt,
         Category,
         NetWorthSnapshot,
         Connection,
@@ -686,5 +688,53 @@ def delete_budget(session: Session, budget_id: uuid.UUID, user_id: uuid.UUID) ->
     if budget is None:
         return False
     session.delete(budget)
+    session.flush()
+    return True
+
+
+# --- debts (things to pay off) -------------------------------------------
+
+
+def create_debt(
+    session: Session, *, user_id: uuid.UUID, name: str, amount: Decimal, due_date=None
+) -> Debt:
+    debt = Debt(user_id=user_id, name=name, amount=amount, due_date=due_date)
+    session.add(debt)
+    session.flush()
+    return debt
+
+
+def get_debt(session: Session, debt_id: uuid.UUID, user_id: uuid.UUID) -> Debt | None:
+    return session.execute(
+        select(Debt).where(Debt.id == debt_id, Debt.user_id == user_id)
+    ).scalars().first()
+
+
+def list_debts(
+    session: Session, user_id: uuid.UUID, *, unpaid_only: bool = False
+) -> list[Debt]:
+    stmt = (
+        select(Debt)
+        .where(Debt.user_id == user_id)
+        .order_by(Debt.paid, Debt.due_date.is_(None), Debt.due_date, Debt.created_at)
+    )
+    if unpaid_only:
+        stmt = stmt.where(Debt.paid.is_(False))
+    return list(session.execute(stmt).scalars().all())
+
+
+def update_debt(session: Session, debt: Debt, **fields) -> Debt:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(debt, key, value)
+    session.flush()
+    return debt
+
+
+def delete_debt(session: Session, debt_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    debt = get_debt(session, debt_id, user_id)
+    if debt is None:
+        return False
+    session.delete(debt)
     session.flush()
     return True

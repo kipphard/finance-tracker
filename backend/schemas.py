@@ -350,3 +350,30 @@ class ForecastOut(BaseModel):
     current_total: Decimal
     monthly_net: Decimal
     points: list[ForecastPointOut]
+
+
+# --- debts / to pay off ---------------------------------------------------
+
+
+class DebtCreate(BaseModel):
+    name: str
+    amount: Decimal = Field(gt=0)
+    due_date: date | None = None
+
+
+class DebtUpdate(BaseModel):
+    name: str | None = None
+    amount: Decimal | None = Field(default=None, gt=0)
+    due_date: date | None = None
+    paid: bool | None = None
+
+
+class DebtOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    amount: Decimal
+    due_date: date | None = None
+    paid: bool
+    created_at: datetime

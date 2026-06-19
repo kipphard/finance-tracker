@@ -11,6 +11,7 @@ from backend.api import (
     budgets,
     cashflow,
     categories,
+    debts,
     forecast,
     health,
     me,
@@ -51,6 +52,7 @@ app.include_router(reports.router, prefix=API)
 app.include_router(budgets.router, prefix=API)
 app.include_router(alerts.router, prefix=API)
 app.include_router(forecast.router, prefix=API)
+app.include_router(debts.router, prefix=API)
 
 
 @app.get("/", tags=["root"])
