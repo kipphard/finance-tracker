@@ -23,6 +23,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/finance}
       FERNET_KEY: ${FERNET_KEY:?set FERNET_KEY in .env (see .env.example)}
       APP_BASE_CURRENCY: ${APP_BASE_CURRENCY:-EUR}
+      # GoCardless (Phase 1) — empty by default, so the /banks endpoints stay dormant (503)
+      # until you set these in .env. Bank linking is built but inactive (signups disabled).
+      GOCARDLESS_SECRET_ID: ${GOCARDLESS_SECRET_ID:-}
+      GOCARDLESS_SECRET_KEY: ${GOCARDLESS_SECRET_KEY:-}
+      GOCARDLESS_REDIRECT_URL: ${GOCARDLESS_REDIRECT_URL:-http://localhost:8000/banks/callback}
+      GOCARDLESS_COUNTRY: ${GOCARDLESS_COUNTRY:-DE}
     depends_on:
       db:
         condition: service_healthy

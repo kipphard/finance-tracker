@@ -15,7 +15,6 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from backend.config import get_settings
-from backend.connectors.registry import get_connectors
 from backend.persistence import repository
 from backend.persistence.models import NetWorthSnapshot
 
@@ -38,27 +37,31 @@ class NetWorth:
 
 
 def compute_net_worth(session: Session) -> NetWorth:
+    """Sum the latest recorded balance of every account (manual + synced bank).
+
+    Reads from the DB rather than calling connectors live, so this stays fast and never
+    triggers a rate-limited provider request. Freshness depends on the last sync.
+    """
     settings = get_settings()
     base = settings.app_base_currency
 
     by_currency: dict[str, Decimal] = {}
     breakdown: list[BreakdownEntry] = []
 
-    for connector in get_connectors(session):
-        for account in connector.list_accounts():
-            balance = connector.get_balance(str(account.id))
-            currency = balance.currency
-            amount = balance.amount
-            by_currency[currency] = by_currency.get(currency, Decimal("0")) + amount
-            breakdown.append(
-                BreakdownEntry(
-                    account_id=str(account.id),
-                    name=account.name,
-                    connector=account.connector,
-                    currency=currency,
-                    amount=amount,
-                )
+    for account in repository.list_accounts(session):
+        latest = repository.latest_balance(session, account.id)
+        amount = latest.amount if latest is not None else Decimal("0")
+        currency = account.currency
+        by_currency[currency] = by_currency.get(currency, Decimal("0")) + amount
+        breakdown.append(
+            BreakdownEntry(
+                account_id=str(account.id),
+                name=account.name,
+                connector=account.connector,
+                currency=currency,
+                amount=amount,
             )
+        )
 
     total = by_currency.get(base, Decimal("0"))
     return NetWorth(

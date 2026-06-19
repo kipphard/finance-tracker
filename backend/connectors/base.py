@@ -33,13 +33,15 @@ class Balance:
 
 @dataclass(frozen=True)
 class Transaction:
-    id: uuid.UUID
     account_id: uuid.UUID
     ts: datetime
     amount: Decimal
     currency: str
+    # Stable dedupe key (§4.2). Provider transaction id when available, else a content hash.
+    hash: str
     raw_payee: str | None = None
     description: str | None = None
+    external_id: str | None = None
 
 
 @runtime_checkable

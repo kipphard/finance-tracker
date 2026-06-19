@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from backend.api import accounts, health, networth
+from backend.api import accounts, banks, cashflow, health, networth
 from backend.config import get_settings
 
 settings = get_settings()
@@ -17,6 +17,8 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(accounts.router)
 app.include_router(networth.router)
+app.include_router(banks.router)
+app.include_router(cashflow.router)
 
 
 @app.get("/", tags=["root"])

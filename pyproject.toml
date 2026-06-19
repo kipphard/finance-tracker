@@ -16,12 +16,12 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "cryptography>=42",
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "httpx>=0.27",
 ]
 
 [tool.setuptools.packages.find]

@@ -48,6 +48,20 @@ class ConnectionStatus(str, PyEnum):
     error = "error"
 
 
+class CashflowDirection(str, PyEnum):
+    inflow = "inflow"
+    outflow = "outflow"
+
+
+class Cadence(str, PyEnum):
+    one_off = "one_off"
+    weekly = "weekly"
+    biweekly = "biweekly"
+    monthly = "monthly"
+    quarterly = "quarterly"
+    yearly = "yearly"
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -57,6 +71,13 @@ class Account(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     institution: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # For provider-backed accounts (e.g. GoCardless): the linkage and the external id.
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("connections.id", ondelete="CASCADE"), nullable=True
+    )
+    external_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
@@ -150,7 +171,13 @@ class Connection(Base):
     consent_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # Encrypted at rest via Fernet (§8). No real token stored until Phase 1.
+    # GoCardless linkage (the requisition the user consented to).
+    institution_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    requisition_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True
+    )
+    reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Encrypted at rest via Fernet (§8). Reserved for connectors that persist a token.
     access_token: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -167,3 +194,34 @@ class NetWorthSnapshot(Base):
     )
     total: Mapped[Decimal] = mapped_column(Money, nullable=False)
     breakdown_json: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+
+
+class CashflowItem(Base):
+    """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent.
+
+    Powers the monthly cashflow view (§6). These are budget projections, not account
+    balances, so they do not affect net worth.
+    """
+
+    __tablename__ = "cashflow_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    direction: Mapped[CashflowDirection] = mapped_column(
+        Enum(CashflowDirection, name="cashflow_direction"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    cadence: Mapped[Cadence] = mapped_column(
+        Enum(Cadence, name="cashflow_cadence"),
+        default=Cadence.monthly,
+        nullable=False,
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("categories.id"), nullable=True
+    )
+    next_due: Mapped[date | None] = mapped_column(Date, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )

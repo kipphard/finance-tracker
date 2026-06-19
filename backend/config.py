@@ -32,6 +32,20 @@ class Settings(BaseSettings):
     # Currency the net-worth headline total is summed in. No FX conversion in Phase 0.
     app_base_currency: str = "EUR"
 
+    # GoCardless Bank Account Data (Phase 1). Optional: the bank endpoints return 503 until
+    # both credentials are set. Get the pair from the portal's "User Secrets" section.
+    gocardless_secret_id: str | None = None
+    gocardless_secret_key: str | None = None
+    gocardless_base_url: str = "https://bankaccountdata.gocardless.com"
+    # Where the bank sends the user back after consent (SCA). Phase 1 has no frontend yet,
+    # so this points at the backend callback; finalize the requisition from there.
+    gocardless_redirect_url: str = "http://localhost:8000/banks/callback"
+    gocardless_country: str = "DE"
+
+    @property
+    def gocardless_configured(self) -> bool:
+        return bool(self.gocardless_secret_id and self.gocardless_secret_key)
+
     @field_validator("fernet_key")
     @classmethod
     def _validate_fernet_key(cls, value: str) -> str:
