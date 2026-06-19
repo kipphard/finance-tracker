@@ -26,6 +26,7 @@ function TransactionForm({
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [vatRate, setVatRate] = useState("");
   const [description, setDescription] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,16 +81,23 @@ function TransactionForm({
           <input className="input" placeholder="e.g. ACME GmbH" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
         </div>
       </div>
-      <div className="field-row">
-        <div className="field">
-          <label>Invoice no.</label>
-          <input className="input" placeholder="e.g. 2026-014" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+      {showDetails ? (
+        <div className="field-row">
+          <div className="field">
+            <label>Invoice no. (optional)</label>
+            <input className="input" placeholder="e.g. 2026-014" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>VAT % (optional)</label>
+            <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
+          </div>
         </div>
-        <div className="field">
-          <label>VAT %</label>
-          <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
-        </div>
-      </div>
+      ) : (
+        <button type="button" className="btn btn--ghost btn--sm" style={{ alignSelf: "flex-start" }}
+          onClick={() => setShowDetails(true)}>
+          + Invoice details (optional)
+        </button>
+      )}
       <div className="field">
         <label>Note (optional)</label>
         <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
