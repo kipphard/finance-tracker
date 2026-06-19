@@ -42,10 +42,13 @@ cp .env.example .env
 # Generate a Fernet key and paste it into FERNET_KEY in .env:
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
-docker compose up --build
+docker compose up --build      # or: docker-compose up --build (legacy v2 binary)
 ```
 
 API at <http://localhost:8000>, interactive docs at <http://localhost:8000/docs>.
+
+> If port 8000 is already in use, set `API_PORT=8001` (or any free port) in `.env` and
+> use that port in the URLs below.
 
 ## End-to-end net-worth walkthrough
 

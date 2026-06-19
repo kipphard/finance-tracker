@@ -27,7 +27,8 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      # Host port is configurable; set API_PORT in .env if 8000 is already in use.
+      - "${API_PORT:-8000}:8000"
 
 volumes:
   pgdata:
