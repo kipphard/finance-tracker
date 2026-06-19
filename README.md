@@ -1,7 +1,7 @@
 # Finance Tracker — Phase 0 Scaffold
 
 Self-hosted, Finanzguru-style personal finance tracker. This is **Phase 0** of
-[`../finance-tracker-plan.md`](../finance-tracker-plan.md): the scaffold, the
+[`docs/plan.md`](docs/plan.md): the scaffold, the
 `AccountConnector` abstraction (§4.1), a `ManualConnector`, and end-to-end net-worth
 aggregation (§4.5). **No real bank integration yet** — that's Phase 1.
 
