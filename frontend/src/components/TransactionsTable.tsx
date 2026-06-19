@@ -14,11 +14,16 @@ function TransactionForm({
   onClose,
 }: {
   accounts: AccountOut[];
-  onSubmit: (accountId: string, body: any) => Promise<void>;
+  onSubmit: (
+    account: { accountId: string | null; newAccountName: string | null },
+    body: any,
+  ) => Promise<void>;
   onClose: () => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
+  const hasAccounts = accounts.length > 0;
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [newAccountName, setNewAccountName] = useState("Main");
   const [date, setDate] = useState(today);
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState("");
@@ -35,15 +40,21 @@ function TransactionForm({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit(accountId, {
-        ts: `${date}T00:00:00Z`,
-        amount,
-        raw_payee: payee || null,
-        description: description || null,
-        counterparty: counterparty || null,
-        invoice_number: invoiceNumber || null,
-        vat_rate: vatRate || null,
-      });
+      await onSubmit(
+        {
+          accountId: hasAccounts ? accountId : null,
+          newAccountName: hasAccounts ? null : newAccountName.trim() || "Main",
+        },
+        {
+          ts: `${date}T00:00:00Z`,
+          amount,
+          raw_payee: payee || null,
+          description: description || null,
+          counterparty: counterparty || null,
+          invoice_number: invoiceNumber || null,
+          vat_rate: vatRate || null,
+        },
+      );
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -57,9 +68,14 @@ function TransactionForm({
       <div className="field-row">
         <div className="field">
           <label>Account</label>
-          <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          {hasAccounts ? (
+            <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          ) : (
+            <input className="input" placeholder="Account name (e.g. Main)" value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)} />
+          )}
         </div>
         <div className="field">
           <label>Date</label>
@@ -124,19 +140,26 @@ export function TransactionsTable({ className }: { className?: string }) {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
     txns.reload();
   };
-  const addTxn = async (accountId: string, body: any) => {
+  const addTxn = async (
+    account: { accountId: string | null; newAccountName: string | null },
+    body: any,
+  ) => {
+    let accountId = account.accountId;
+    if (!accountId) {
+      const created = await apiPost<AccountOut>("/accounts", {
+        type: "cash",
+        name: account.newAccountName || "Main",
+        currency: "EUR",
+      });
+      accountId = created.id;
+      accounts.reload();
+    }
     await apiPost(`/accounts/${accountId}/transactions`, body);
     txns.reload();
   };
 
-  const hasAccounts = (accounts.data ?? []).length > 0;
   const action = (
-    <button
-      className="btn btn--sm"
-      onClick={() => setAdding(true)}
-      disabled={!hasAccounts}
-      title={hasAccounts ? "" : "Add an account first"}
-    >
+    <button className="btn btn--sm" onClick={() => setAdding(true)}>
       + Transaction
     </button>
   );
