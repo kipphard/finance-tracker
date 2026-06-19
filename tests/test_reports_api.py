@@ -44,16 +44,17 @@ def test_csv_export(client):
     assert "INV-9" in r.text and "ACME GmbH" in r.text
 
 
-def test_post_recurring_to_transactions(client):
+def test_run_recurring_to_transactions(client):
     acc = _account(client)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client.post("/api/cashflow", json={
         "direction": "inflow", "name": "Salary", "amount": "3000", "cadence": "monthly",
-        "account_id": acc,
+        "account_id": acc, "next_due": today,
     })
-    posted = client.post("/api/cashflow/post").json()
-    assert posted["posted"] == 1
-    # Idempotent for the same month.
-    assert client.post("/api/cashflow/post").json()["posted"] == 0
+    ran = client.post("/api/cashflow/run").json()
+    assert ran["posted"] == 1
+    # Idempotent — next_due advanced to next month.
+    assert client.post("/api/cashflow/run").json()["posted"] == 0
 
     txns = client.get("/api/transactions").json()
     assert any(t["raw_payee"] == "Salary" and Decimal(str(t["amount"])) == Decimal("3000") for t in txns)

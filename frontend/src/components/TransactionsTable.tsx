@@ -8,6 +8,17 @@ import { Async } from "./Async";
 import { Modal } from "./Modal";
 import { AttachmentsModal } from "./AttachmentsModal";
 
+// First future occurrence for a recurring template (the one logged now covers "today").
+function nextDue(cadence: string): string {
+  const d = new Date();
+  if (cadence === "weekly") d.setDate(d.getDate() + 7);
+  else if (cadence === "biweekly") d.setDate(d.getDate() + 14);
+  else if (cadence === "monthly") d.setMonth(d.getMonth() + 1);
+  else if (cadence === "quarterly") d.setMonth(d.getMonth() + 3);
+  else if (cadence === "yearly") d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function TransactionForm({
   accounts,
   onSubmit,
@@ -17,6 +28,7 @@ function TransactionForm({
   onSubmit: (
     account: { accountId: string | null; newAccountName: string | null },
     body: any,
+    repeat: string,
   ) => Promise<void>;
   onClose: () => void;
 }) {
@@ -32,6 +44,7 @@ function TransactionForm({
   const [vatRate, setVatRate] = useState("");
   const [description, setDescription] = useState("");
   const [showDetails, setShowDetails] = useState(false);
+  const [repeat, setRepeat] = useState("none");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +67,7 @@ function TransactionForm({
           invoice_number: invoiceNumber || null,
           vat_rate: vatRate || null,
         },
+        repeat,
       );
       onClose();
     } catch (err) {
@@ -93,25 +107,38 @@ function TransactionForm({
           <input className="input" placeholder="e.g. REWE" value={payee} onChange={(e) => setPayee(e.target.value)} />
         </div>
         <div className="field">
-          <label>Counterparty / client</label>
-          <input className="input" placeholder="e.g. ACME GmbH" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
+          <label>Repeat</label>
+          <select className="select" value={repeat} onChange={(e) => setRepeat(e.target.value)}>
+            <option value="none">No — one-off</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Every 2 weeks</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
         </div>
       </div>
       {showDetails ? (
-        <div className="field-row">
+        <>
           <div className="field">
-            <label>Invoice no. (optional)</label>
-            <input className="input" placeholder="e.g. 2026-014" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+            <label>Counterparty / client (optional)</label>
+            <input className="input" placeholder="e.g. ACME GmbH" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
           </div>
-          <div className="field">
-            <label>VAT % (optional)</label>
-            <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
+          <div className="field-row">
+            <div className="field">
+              <label>Invoice no. (optional)</label>
+              <input className="input" placeholder="e.g. 2026-014" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>VAT % (optional)</label>
+              <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         <button type="button" className="btn btn--ghost btn--sm" style={{ alignSelf: "flex-start" }}
           onClick={() => setShowDetails(true)}>
-          + Invoice details (optional)
+          + Invoice / client details (optional)
         </button>
       )}
       <div className="field">
@@ -143,6 +170,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const addTxn = async (
     account: { accountId: string | null; newAccountName: string | null },
     body: any,
+    repeat: string,
   ) => {
     let accountId = account.accountId;
     if (!accountId) {
@@ -155,6 +183,17 @@ export function TransactionsTable({ className }: { className?: string }) {
       accounts.reload();
     }
     await apiPost(`/accounts/${accountId}/transactions`, body);
+    if (repeat && repeat !== "none") {
+      const amt = parseFloat(body.amount);
+      await apiPost("/cashflow", {
+        direction: amt >= 0 ? "inflow" : "outflow",
+        name: body.raw_payee || "Recurring",
+        amount: String(Math.abs(amt) || 0.01),
+        cadence: repeat,
+        account_id: accountId,
+        next_due: nextDue(repeat),
+      });
+    }
     txns.reload();
   };
 

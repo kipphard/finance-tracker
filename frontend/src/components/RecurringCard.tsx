@@ -27,7 +27,7 @@ export function RecurringCard({ className }: { className?: string }) {
   );
 
   return (
-    <Card title="Upcoming & recurring" className={className} action={action}>
+    <Card title="Detected subscriptions" className={className} action={action}>
       <Async state={state}>
         {(items) =>
           items.length === 0 ? (

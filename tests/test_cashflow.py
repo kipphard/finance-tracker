@@ -1,6 +1,7 @@
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from backend.cashflow.service import compute_summary, monthly_amount
+from backend.cashflow.service import compute_summary, materialize_recurring, monthly_amount
 from backend.persistence import repository
 from backend.persistence.models import Cadence, CashflowDirection
 
@@ -56,3 +57,26 @@ def test_one_off_excluded_and_inactive_excluded(db_session, user):
     db_session.commit()
     after = compute_summary(db_session, user.id)
     assert after.monthly_outflow == Decimal("0.00")
+
+
+def test_materialize_recurring(db_session, user):
+    account = repository.create_account(
+        db_session, user_id=user.id, connector="manual", type_="checking", name="Biz", currency="EUR"
+    )
+    item = repository.create_cashflow_item(
+        db_session, user_id=user.id, direction=CashflowDirection.outflow, name="Rent",
+        amount=Decimal("1200"), cadence=Cadence.monthly, currency="EUR",
+        account_id=account.id, next_due=date(2026, 1, 1),
+    )
+    db_session.commit()
+
+    as_of = datetime(2026, 3, 15, tzinfo=timezone.utc)
+    created = materialize_recurring(db_session, user.id, as_of=as_of)
+    db_session.commit()
+    assert created == 3  # Jan 1, Feb 1, Mar 1
+    assert materialize_recurring(db_session, user.id, as_of=as_of) == 0  # idempotent
+
+    txns = repository.list_transactions(db_session, user.id)
+    assert len(txns) == 3
+    assert all(t.amount == Decimal("-1200") for t in txns)  # outflow -> negative
+    assert item.next_due == date(2026, 4, 1)
