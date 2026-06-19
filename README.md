@@ -57,7 +57,8 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 docker compose up --build      # or: docker-compose up --build (legacy v2 binary)
 ```
 
-API at <http://localhost:8000>, interactive docs at <http://localhost:8000/docs>.
+API at <http://localhost:8000>, interactive docs at <http://localhost:8000/api/docs>.
+All API paths are under `/api` (so the dashboard SPA can own `/`); `/health` stays at root.
 
 > If port 8000 is already in use, set `API_PORT=8001` (or any free port) in `.env` and
 > use that port in the URLs below.
@@ -66,23 +67,23 @@ API at <http://localhost:8000>, interactive docs at <http://localhost:8000/docs>
 
 ```bash
 # Add two accounts
-curl -s -X POST localhost:8000/accounts -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/accounts -H 'content-type: application/json' \
   -d '{"type":"checking","name":"Giro","currency":"EUR"}'
-curl -s -X POST localhost:8000/accounts -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/accounts -H 'content-type: application/json' \
   -d '{"type":"cash","name":"Wallet","currency":"EUR"}'
 
 # Add a balance to each (use the ids returned above)
-curl -s -X POST localhost:8000/accounts/<ID1>/balances -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/accounts/<ID1>/balances -H 'content-type: application/json' \
   -d '{"amount":"1000.00"}'
-curl -s -X POST localhost:8000/accounts/<ID2>/balances -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/accounts/<ID2>/balances -H 'content-type: application/json' \
   -d '{"amount":"250.50"}'
 
 # Net worth: headline total + per-account breakdown + by-currency
-curl -s localhost:8000/networth
+curl -s localhost:8000/api/networth
 
 # Snapshot it for the trend chart, then list snapshots
-curl -s -X POST localhost:8000/networth/snapshots
-curl -s localhost:8000/networth/snapshots
+curl -s -X POST localhost:8000/api/networth/snapshots
+curl -s localhost:8000/api/networth/snapshots
 ```
 
 ## Manual cashflow (recurring inflows / outflows)
@@ -94,52 +95,52 @@ affect net worth.
 
 ```bash
 # Add an inflow and some outflows
-curl -s -X POST localhost:8000/cashflow -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/cashflow -H 'content-type: application/json' \
   -d '{"direction":"inflow","name":"Salary","amount":"3000","cadence":"monthly"}'
-curl -s -X POST localhost:8000/cashflow -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/cashflow -H 'content-type: application/json' \
   -d '{"direction":"outflow","name":"Rent","amount":"1200","cadence":"monthly"}'
-curl -s -X POST localhost:8000/cashflow -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/cashflow -H 'content-type: application/json' \
   -d '{"direction":"outflow","name":"Insurance","amount":"1200","cadence":"yearly"}'
 
 # Monthly summary: inflow / outflow / net (everything normalized to a monthly figure)
-curl -s localhost:8000/cashflow/summary
+curl -s localhost:8000/api/cashflow/summary
 # -> {"currency":"EUR","monthly_inflow":"3000.00","monthly_outflow":"1300.00","monthly_net":"1700.00","item_count":3}
 
 # List / edit / remove
-curl -s localhost:8000/cashflow
-curl -s -X PATCH localhost:8000/cashflow/<ID> -d '{"active":false}' -H 'content-type: application/json'
-curl -s -X DELETE localhost:8000/cashflow/<ID>
+curl -s localhost:8000/api/cashflow
+curl -s -X PATCH localhost:8000/api/cashflow/<ID> -d '{"active":false}' -H 'content-type: application/json'
+curl -s -X DELETE localhost:8000/api/cashflow/<ID>
 ```
 
 ## Categorization, transactions & recurring (Phase 2)
 
 ```bash
 # Seed a starter category taxonomy, then add a rule (payee substring -> category)
-curl -s -X POST localhost:8000/categories/seed
+curl -s -X POST localhost:8000/api/categories/seed
 GROC=<id of "Groceries" from GET /categories>
-curl -s -X POST localhost:8000/rules -H 'content-type: application/json' \
+curl -s -X POST localhost:8000/api/rules -H 'content-type: application/json' \
   -d "{\"match_pattern\":\"rewe\",\"category_id\":\"$GROC\"}"
 
 # Log a transaction by hand (auto-categorized by the rules)
-curl -s -X POST localhost:8000/accounts/<ACCOUNT_ID>/transactions \
+curl -s -X POST localhost:8000/api/accounts/<ACCOUNT_ID>/transactions \
   -H 'content-type: application/json' \
   -d '{"ts":"2026-03-01T00:00:00Z","amount":"-23.50","raw_payee":"REWE Markt"}'
 
 # Bulk-import a bank statement CSV (tolerant of ;-delimited, DD.MM.YYYY, "1.234,56")
-curl -s -X POST localhost:8000/accounts/<ACCOUNT_ID>/transactions/import \
+curl -s -X POST localhost:8000/api/accounts/<ACCOUNT_ID>/transactions/import \
   -F "file=@statement.csv;type=text/csv"
 
 # Reclassify a transaction and remember it as a rule for next time
-curl -s -X PATCH localhost:8000/transactions/<TXN_ID> -H 'content-type: application/json' \
+curl -s -X PATCH localhost:8000/api/transactions/<TXN_ID> -H 'content-type: application/json' \
   -d '{"category_id":"<CAT_ID>","remember":true}'
 
 # Re-run rules over existing transactions; list uncategorized
-curl -s -X POST localhost:8000/transactions/categorize
-curl -s "localhost:8000/transactions?uncategorized=true"
+curl -s -X POST localhost:8000/api/transactions/categorize
+curl -s "localhost:8000/api/transactions?uncategorized=true"
 
 # Detect recurring subscriptions (repeating payee + amount + monthly-ish cadence)
-curl -s -X POST localhost:8000/recurring/detect
-curl -s localhost:8000/recurring
+curl -s -X POST localhost:8000/api/recurring/detect
+curl -s localhost:8000/api/recurring
 ```
 
 CSV columns are matched case-insensitively against common English/German aliases
@@ -159,6 +160,24 @@ is idempotent (deduped by a content hash). Transactions are for spending analysi
   → `POST /banks/connections/{id}/sync`. As of 2026-06-19, signups are disabled.
 - Phase 3: React dashboard (net worth, accounts, cashflow, category breakdown, recurring,
   transactions with inline recategorization).
+
+## Frontend (dashboard, Phase 3)
+
+React + Vite + TypeScript + SCSS with Recharts, in `frontend/`. Shows net worth + trend,
+accounts, monthly cashflow, spending by category (fixed vs variable), recurring/upcoming
+bills, and a searchable transaction list with **inline recategorization**.
+
+```bash
+cd frontend
+npm install
+# Run the backend first (any local port), then point the Vite dev proxy at it:
+VITE_API_TARGET=http://127.0.0.1:8000 npm run dev   # http://localhost:5173
+
+npm run build    # production build -> frontend/dist (served by nginx in prod)
+```
+
+The SPA calls the API same-origin at `/api`; in dev, Vite proxies `/api` and `/health` to
+the backend target.
 
 ## Deployment (production)
 

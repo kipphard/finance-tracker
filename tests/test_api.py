@@ -10,42 +10,42 @@ def test_health(client):
 
 def test_net_worth_end_to_end(client):
     a1 = client.post(
-        "/accounts", json={"type": "checking", "name": "Giro", "currency": "EUR"}
+        "/api/accounts", json={"type": "checking", "name": "Giro", "currency": "EUR"}
     )
     assert a1.status_code == 201
     a1_id = a1.json()["id"]
 
     a2 = client.post(
-        "/accounts", json={"type": "cash", "name": "Wallet", "currency": "EUR"}
+        "/api/accounts", json={"type": "cash", "name": "Wallet", "currency": "EUR"}
     )
     a2_id = a2.json()["id"]
 
-    assert client.post(f"/accounts/{a1_id}/balances", json={"amount": "1000.00"}).status_code == 201
-    assert client.post(f"/accounts/{a2_id}/balances", json={"amount": "250.50"}).status_code == 201
+    assert client.post(f"/api/accounts/{a1_id}/balances", json={"amount": "1000.00"}).status_code == 201
+    assert client.post(f"/api/accounts/{a2_id}/balances", json={"amount": "250.50"}).status_code == 201
 
-    net_worth = client.get("/networth").json()
+    net_worth = client.get("/api/networth").json()
     assert Decimal(str(net_worth["total"])) == Decimal("1250.50")
     assert len(net_worth["breakdown"]) == 2
 
-    snapshot = client.post("/networth/snapshots")
+    snapshot = client.post("/api/networth/snapshots")
     assert snapshot.status_code == 201
 
-    snapshots = client.get("/networth/snapshots").json()
+    snapshots = client.get("/api/networth/snapshots").json()
     assert len(snapshots) == 1
     assert Decimal(str(snapshots[0]["total"])) == Decimal("1250.50")
 
 
 def test_list_accounts_includes_latest_balance(client):
     account_id = client.post(
-        "/accounts", json={"type": "checking", "name": "X"}
+        "/api/accounts", json={"type": "checking", "name": "X"}
     ).json()["id"]
-    client.post(f"/accounts/{account_id}/balances", json={"amount": "42.00"})
+    client.post(f"/api/accounts/{account_id}/balances", json={"amount": "42.00"})
 
-    accounts = client.get("/accounts").json()
+    accounts = client.get("/api/accounts").json()
     assert len(accounts) == 1
     assert Decimal(str(accounts[0]["latest_balance"])) == Decimal("42.00")
 
 
 def test_unknown_account_returns_404(client):
-    response = client.get(f"/accounts/{uuid.uuid4()}")
+    response = client.get(f"/api/accounts/{uuid.uuid4()}")
     assert response.status_code == 404

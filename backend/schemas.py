@@ -261,3 +261,12 @@ class RecurringOut(BaseModel):
 class DetectResultOut(BaseModel):
     detected: int
     items: list[RecurringOut]
+
+
+class CategoryBreakdownItem(BaseModel):
+    category_id: uuid.UUID | None = None
+    name: str
+    kind: CategoryKind | None = None
+    is_fixed: bool | None = None
+    total: Decimal
+    count: int

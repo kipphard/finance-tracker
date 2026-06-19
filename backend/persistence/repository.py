@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from backend.persistence.models import (
@@ -451,3 +451,16 @@ def delete_all_recurring(session: Session) -> int:
     result = session.execute(delete(Recurring))
     session.flush()
     return result.rowcount or 0
+
+
+# --- reports --------------------------------------------------------------
+
+
+def spending_by_category(session: Session) -> list[tuple]:
+    """Aggregate transaction amounts grouped by category_id -> (category_id, total, count)."""
+    stmt = select(
+        Transaction.category_id,
+        func.coalesce(func.sum(Transaction.amount), 0),
+        func.count(),
+    ).group_by(Transaction.category_id)
+    return list(session.execute(stmt).all())

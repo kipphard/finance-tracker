@@ -19,6 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: |
+          cd frontend
+          npm ci
+          npm run build
+
       - name: Set up deploy SSH key
         run: |
           mkdir -p ~/.ssh
@@ -32,7 +41,7 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
             --exclude '.git/' --exclude '.venv/' --exclude '__pycache__/' \
             --exclude '.pytest_cache/' --exclude '.env' --exclude '*.egg-info/' \
-            --exclude '.ruff_cache/' \
+            --exclude '.ruff_cache/' --exclude 'frontend/node_modules/' \
             ./ root@REDACTED:/opt/finance-tracker/
 
       - name: Install deps, migrate, restart
