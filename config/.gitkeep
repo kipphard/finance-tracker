@@ -1,0 +1,1 @@
+# Home for non-secret runtime config (per §12 of the plan). Secrets live in .env, not here.
