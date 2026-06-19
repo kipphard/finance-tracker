@@ -297,6 +297,9 @@ def upsert_transaction(
     hash: str,
     raw_payee: str | None = None,
     description: str | None = None,
+    counterparty: str | None = None,
+    invoice_number: str | None = None,
+    vat_rate: Decimal | None = None,
 ) -> tuple[Transaction, bool]:
     """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
@@ -314,6 +317,9 @@ def upsert_transaction(
         currency=currency,
         raw_payee=raw_payee,
         description=description,
+        counterparty=counterparty,
+        invoice_number=invoice_number,
+        vat_rate=vat_rate,
         hash=hash,
     )
     session.add(txn)
@@ -350,6 +356,21 @@ def list_transactions(
         stmt = stmt.where(Transaction.category_id == category_id)
     if uncategorized:
         stmt = stmt.where(Transaction.category_id.is_(None))
+    return list(session.execute(stmt).scalars().all())
+
+
+def transactions_between(
+    session: Session, user_id: uuid.UUID, start: datetime, end: datetime
+) -> list[Transaction]:
+    stmt = (
+        select(Transaction)
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.ts >= start,
+            Transaction.ts < end,
+        )
+        .order_by(Transaction.ts)
+    )
     return list(session.execute(stmt).scalars().all())
 
 
@@ -572,6 +593,7 @@ def create_cashflow_item(
     cadence: Cadence,
     currency: str,
     category_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
     next_due=None,
 ) -> CashflowItem:
     item = CashflowItem(
@@ -582,6 +604,7 @@ def create_cashflow_item(
         cadence=cadence,
         currency=currency,
         category_id=category_id,
+        account_id=account_id,
         next_due=next_due,
     )
     session.add(item)

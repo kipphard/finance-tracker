@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Response
@@ -10,12 +11,13 @@ from backend.api.deps import CurrentUser, SessionDep
 from backend.cashflow.service import compute_summary, monthly_amount
 from backend.config import get_settings
 from backend.persistence import repository
-from backend.persistence.models import CashflowDirection, CashflowItem
+from backend.persistence.models import Cadence, CashflowDirection, CashflowItem
 from backend.schemas import (
     CashflowItemCreate,
     CashflowItemOut,
     CashflowItemUpdate,
     CashflowSummaryOut,
+    PostResultOut,
 )
 
 router = APIRouter(prefix="/cashflow", tags=["cashflow"])
@@ -40,10 +42,43 @@ def add_item(
         cadence=payload.cadence,
         currency=payload.currency or get_settings().app_base_currency,
         category_id=payload.category_id,
+        account_id=payload.account_id,
         next_due=payload.next_due,
     )
     session.commit()
     return _item_out(item)
+
+
+@router.post("/post", response_model=PostResultOut)
+def post_recurring(session: SessionDep, user: CurrentUser) -> PostResultOut:
+    """Materialize active recurring items (that have a target account) as transactions for the
+    current month. Idempotent — re-running the same month won't duplicate."""
+    now = datetime.now(timezone.utc)
+    period = f"{now.year:04d}-{now.month:02d}"
+    period_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    posted = skipped = 0
+    for item in repository.list_cashflow_items(session, user.id, active_only=True):
+        if item.account_id is None or item.cadence == Cadence.one_off:
+            skipped += 1
+            continue
+        if repository.get_account(session, item.account_id, user.id) is None:
+            skipped += 1
+            continue
+        amount = item.amount if item.direction == CashflowDirection.inflow else -item.amount
+        _, created = repository.upsert_transaction(
+            session,
+            user_id=user.id,
+            account_id=item.account_id,
+            ts=period_start,
+            amount=amount,
+            currency=item.currency,
+            hash=f"cf:{item.id}:{period}",
+            raw_payee=item.name,
+        )
+        posted += 1 if created else 0
+        skipped += 0 if created else 1
+    session.commit()
+    return PostResultOut(posted=posted, skipped=skipped)
 
 
 @router.get("", response_model=list[CashflowItemOut])

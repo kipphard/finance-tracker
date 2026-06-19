@@ -45,6 +45,9 @@ def add_transaction(
         hash=uuid.uuid4().hex,
         raw_payee=payload.raw_payee,
         description=payload.description,
+        counterparty=payload.counterparty,
+        invoice_number=payload.invoice_number,
+        vat_rate=payload.vat_rate,
     )
     categorize_transaction(session, user.id, txn)
     session.commit()

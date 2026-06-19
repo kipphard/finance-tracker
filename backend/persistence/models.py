@@ -23,6 +23,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
 )
@@ -153,6 +154,10 @@ class Transaction(Base):
     )
     is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Accounting/freelancer fields.
+    counterparty: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    vat_rate: Mapped[Decimal | None] = mapped_column(Numeric(6, 3), nullable=True)
 
 
 class Rule(Base):
@@ -272,6 +277,10 @@ class CashflowItem(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("categories.id"), nullable=True
+    )
+    # Optional target account so the item can be auto-posted as a transaction.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )
     next_due: Mapped[date | None] = mapped_column(Date, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -69,6 +69,7 @@ export interface CashflowItemOut {
   cadence: Cadence;
   currency: string;
   category_id: string | null;
+  account_id: string | null;
   next_due: string | null;
   active: boolean;
   created_at: string;
@@ -94,6 +95,32 @@ export interface TransactionOut {
   description: string | null;
   category_id: string | null;
   is_recurring: boolean;
+  counterparty: string | null;
+  invoice_number: string | null;
+  vat_rate: string | null;
+}
+
+export interface MonthlyCashflowPoint {
+  month: string;
+  inflow: string;
+  outflow: string;
+  net: string;
+}
+
+export interface CategoryTotal {
+  name: string;
+  kind: string | null;
+  total: string;
+  count: number;
+}
+
+export interface IncomeExpenseReport {
+  start: string;
+  end: string;
+  income: string;
+  expense: string;
+  net: string;
+  by_category: CategoryTotal[];
 }
 
 export interface RecurringOut {

@@ -21,6 +21,9 @@ function TransactionForm({
   const [date, setDate] = useState(today);
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState("");
+  const [counterparty, setCounterparty] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [vatRate, setVatRate] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +38,9 @@ function TransactionForm({
         amount,
         raw_payee: payee || null,
         description: description || null,
+        counterparty: counterparty || null,
+        invoice_number: invoiceNumber || null,
+        vat_rate: vatRate || null,
       });
       onClose();
     } catch (err) {
@@ -63,9 +69,25 @@ function TransactionForm({
         <input className="input" type="number" step="0.01" placeholder="-12.34" value={amount}
           onChange={(e) => setAmount(e.target.value)} required autoFocus />
       </div>
-      <div className="field">
-        <label>Payee</label>
-        <input className="input" placeholder="e.g. REWE" value={payee} onChange={(e) => setPayee(e.target.value)} />
+      <div className="field-row">
+        <div className="field">
+          <label>Payee</label>
+          <input className="input" placeholder="e.g. REWE" value={payee} onChange={(e) => setPayee(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Counterparty / client</label>
+          <input className="input" placeholder="e.g. ACME GmbH" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
+        </div>
+      </div>
+      <div className="field-row">
+        <div className="field">
+          <label>Invoice no.</label>
+          <input className="input" placeholder="e.g. 2026-014" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>VAT %</label>
+          <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
+        </div>
       </div>
       <div className="field">
         <label>Note (optional)</label>
@@ -151,8 +173,17 @@ export function TransactionsTable({ className }: { className?: string }) {
                     <tr key={t.id}>
                       <td>{shortDate(t.ts)}</td>
                       <td>
-                        {t.raw_payee || "—"}{" "}
-                        {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
+                        <div>
+                          {t.raw_payee || "—"}{" "}
+                          {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
+                        </div>
+                        {(t.counterparty || t.invoice_number) && (
+                          <div className="li-sub">
+                            {t.counterparty}
+                            {t.counterparty && t.invoice_number ? " · " : ""}
+                            {t.invoice_number ? `#${t.invoice_number}` : ""}
+                          </div>
+                        )}
                       </td>
                       <td className={"amount " + (num(t.amount) >= 0 ? "pos" : "neg")}>
                         {money(t.amount, t.currency)}

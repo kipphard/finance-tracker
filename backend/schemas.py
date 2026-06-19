@@ -156,6 +156,7 @@ class CashflowItemCreate(BaseModel):
     cadence: Cadence = Cadence.monthly
     currency: str | None = None  # defaults to the configured base currency
     category_id: uuid.UUID | None = None
+    account_id: uuid.UUID | None = None  # target account for auto-posting
     next_due: date | None = None
 
 
@@ -163,6 +164,7 @@ class CashflowItemUpdate(BaseModel):
     name: str | None = None
     amount: Decimal | None = Field(default=None, gt=0)
     cadence: Cadence | None = None
+    account_id: uuid.UUID | None = None
     next_due: date | None = None
     active: bool | None = None
 
@@ -177,6 +179,7 @@ class CashflowItemOut(BaseModel):
     cadence: Cadence
     currency: str
     category_id: uuid.UUID | None = None
+    account_id: uuid.UUID | None = None
     next_due: date | None = None
     active: bool
     created_at: datetime
@@ -243,6 +246,9 @@ class TransactionCreate(BaseModel):
     raw_payee: str | None = None
     description: str | None = None
     currency: str | None = None  # defaults to the account currency
+    counterparty: str | None = None
+    invoice_number: str | None = None
+    vat_rate: Decimal | None = None
 
 
 class TransactionOut(BaseModel):
@@ -257,6 +263,9 @@ class TransactionOut(BaseModel):
     description: str | None = None
     category_id: uuid.UUID | None = None
     is_recurring: bool
+    counterparty: str | None = None
+    invoice_number: str | None = None
+    vat_rate: Decimal | None = None
 
 
 class TransactionUpdate(BaseModel):
@@ -377,3 +386,34 @@ class DebtOut(BaseModel):
     due_date: date | None = None
     paid: bool
     created_at: datetime
+
+
+# --- accounting reports (freelancer) --------------------------------------
+
+
+class MonthlyCashflowPoint(BaseModel):
+    month: str
+    inflow: Decimal
+    outflow: Decimal
+    net: Decimal
+
+
+class CategoryTotalOut(BaseModel):
+    name: str
+    kind: str | None = None
+    total: Decimal
+    count: int
+
+
+class IncomeExpenseOut(BaseModel):
+    start: str
+    end: str
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+    by_category: list[CategoryTotalOut]
+
+
+class PostResultOut(BaseModel):
+    posted: int
+    skipped: int

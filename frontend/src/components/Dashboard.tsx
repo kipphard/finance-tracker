@@ -3,6 +3,8 @@ import { useTheme } from "../theme";
 import { NetWorthHero } from "./NetWorthHero";
 import { AlertsCard } from "./AlertsCard";
 import { CashflowCard } from "./CashflowCard";
+import { MonthlyCashflowCard } from "./MonthlyCashflowCard";
+import { IncomeExpenseCard } from "./IncomeExpenseCard";
 import { ForecastCard } from "./ForecastCard";
 import { CategoryBreakdownCard } from "./CategoryBreakdownCard";
 import { AccountsCard } from "./AccountsCard";
@@ -44,6 +46,9 @@ export function Dashboard() {
         <div className="grid">
           <NetWorthHero className="col-8" />
           <AlertsCard className="col-4" />
+
+          <MonthlyCashflowCard className="col-8" />
+          <IncomeExpenseCard className="col-4" />
 
           <CashflowCard className="col-6" />
           <ForecastCard className="col-6" />
