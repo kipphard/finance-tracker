@@ -45,6 +45,46 @@ export const apiPatch = <T>(path: string, body: unknown) =>
   req<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 export const apiDelete = (path: string) => req<void>(path, { method: "DELETE" });
 
+// Multipart file upload with auth.
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(BASE + path, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (res.status === 401 && token) {
+    setToken(null);
+    window.dispatchEvent(new Event("ft-unauthorized"));
+  }
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = String(body.detail);
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail);
+  }
+  return (await res.json()) as T;
+}
+
+// Fetch a file with auth and open it in a new tab (e.g. view a PDF).
+export async function apiOpen(path: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(BASE + path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 // Fetch a file with auth and trigger a browser download.
 export async function apiDownload(path: string, filename: string): Promise<void> {
   const token = getToken();

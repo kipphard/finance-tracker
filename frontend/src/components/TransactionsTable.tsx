@@ -6,6 +6,7 @@ import { money, num, shortDate } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
+import { AttachmentsModal } from "./AttachmentsModal";
 
 function TransactionForm({
   accounts,
@@ -109,6 +110,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [attachFor, setAttachFor] = useState<string | null>(null);
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
@@ -166,6 +168,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                     <th>Payee</th>
                     <th className="amount">Amount</th>
                     <th>Category</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -195,6 +198,12 @@ export function TransactionsTable({ className }: { className?: string }) {
                           {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </td>
+                      <td className="amount">
+                        <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                          onClick={() => setAttachFor(t.id)} title="Attachments (invoice/receipt)">
+                          📎
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -212,6 +221,9 @@ export function TransactionsTable({ className }: { className?: string }) {
             onSubmit={addTxn}
           />
         </Modal>
+      )}
+      {attachFor && (
+        <AttachmentsModal txnId={attachFor} onClose={() => setAttachFor(null)} />
       )}
     </Card>
   );

@@ -417,3 +417,14 @@ class IncomeExpenseOut(BaseModel):
 class PostResultOut(BaseModel):
     posted: int
     skipped: int
+
+
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    transaction_id: uuid.UUID
+    filename: str
+    content_type: str
+    size: int
+    created_at: datetime

@@ -178,6 +178,15 @@ export interface ForecastOut {
   points: ForecastPointOut[];
 }
 
+export interface AttachmentOut {
+  id: string;
+  transaction_id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  created_at: string;
+}
+
 export interface DebtOut {
   id: string;
   name: string;

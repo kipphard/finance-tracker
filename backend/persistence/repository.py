@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend.persistence.models import (
     Account,
+    Attachment,
     Balance,
     Budget,
     Cadence,
@@ -60,6 +61,7 @@ def delete_user(session: Session, user_id: uuid.UUID) -> bool:
     if account_ids:
         session.execute(delete(Balance).where(Balance.account_id.in_(account_ids)))
     for model in (
+        Attachment,
         Transaction,
         Recurring,
         Account,
@@ -357,6 +359,61 @@ def list_transactions(
     if uncategorized:
         stmt = stmt.where(Transaction.category_id.is_(None))
     return list(session.execute(stmt).scalars().all())
+
+
+def create_attachment(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    transaction_id: uuid.UUID,
+    filename: str,
+    content_type: str,
+    size: int,
+    data: bytes,
+) -> Attachment:
+    attachment = Attachment(
+        user_id=user_id,
+        transaction_id=transaction_id,
+        filename=filename,
+        content_type=content_type,
+        size=size,
+        data=data,
+    )
+    session.add(attachment)
+    session.flush()
+    return attachment
+
+
+def list_attachments(
+    session: Session, transaction_id: uuid.UUID, user_id: uuid.UUID
+) -> list[Attachment]:
+    stmt = (
+        select(Attachment)
+        .where(Attachment.transaction_id == transaction_id, Attachment.user_id == user_id)
+        .order_by(Attachment.created_at)
+    )
+    return list(session.execute(stmt).scalars().all())
+
+
+def get_attachment(
+    session: Session, attachment_id: uuid.UUID, user_id: uuid.UUID
+) -> Attachment | None:
+    return session.execute(
+        select(Attachment).where(
+            Attachment.id == attachment_id, Attachment.user_id == user_id
+        )
+    ).scalars().first()
+
+
+def delete_attachment(
+    session: Session, attachment_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    attachment = get_attachment(session, attachment_id, user_id)
+    if attachment is None:
+        return False
+    session.delete(attachment)
+    session.flush()
+    return True
 
 
 def transactions_between(
