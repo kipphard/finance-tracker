@@ -1,6 +1,4 @@
-"""Manual cashflow endpoints: add/list/edit/delete recurring inflows & outflows, plus a
-monthly summary. This is the hand-entered version of the §6 cashflow view (no bank needed).
-"""
+"""Manual cashflow endpoints: add/list/edit/delete recurring inflows & outflows + summary."""
 from __future__ import annotations
 
 import uuid
@@ -8,7 +6,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Response
 
-from backend.api.deps import SessionDep
+from backend.api.deps import CurrentUser, SessionDep
 from backend.cashflow.service import compute_summary, monthly_amount
 from backend.config import get_settings
 from backend.persistence import repository
@@ -30,9 +28,12 @@ def _item_out(item: CashflowItem) -> CashflowItemOut:
 
 
 @router.post("", response_model=CashflowItemOut, status_code=201)
-def add_item(payload: CashflowItemCreate, session: SessionDep) -> CashflowItemOut:
+def add_item(
+    payload: CashflowItemCreate, session: SessionDep, user: CurrentUser
+) -> CashflowItemOut:
     item = repository.create_cashflow_item(
         session,
+        user_id=user.id,
         direction=payload.direction,
         name=payload.name,
         amount=payload.amount,
@@ -47,18 +48,17 @@ def add_item(payload: CashflowItemCreate, session: SessionDep) -> CashflowItemOu
 
 @router.get("", response_model=list[CashflowItemOut])
 def list_items(
-    session: SessionDep, direction: CashflowDirection | None = None
+    session: SessionDep, user: CurrentUser, direction: CashflowDirection | None = None
 ) -> list[CashflowItemOut]:
     return [
         _item_out(i)
-        for i in repository.list_cashflow_items(session, direction=direction)
+        for i in repository.list_cashflow_items(session, user.id, direction=direction)
     ]
 
 
-# Declared before /{item_id} so "summary" isn't parsed as a UUID path param.
 @router.get("/summary", response_model=CashflowSummaryOut)
-def summary(session: SessionDep) -> CashflowSummaryOut:
-    result = compute_summary(session)
+def summary(session: SessionDep, user: CurrentUser) -> CashflowSummaryOut:
+    result = compute_summary(session, user.id)
     return CashflowSummaryOut(
         currency=result.currency,
         monthly_inflow=result.monthly_inflow,
@@ -69,8 +69,8 @@ def summary(session: SessionDep) -> CashflowSummaryOut:
 
 
 @router.get("/{item_id}", response_model=CashflowItemOut)
-def get_item(item_id: uuid.UUID, session: SessionDep) -> CashflowItemOut:
-    item = repository.get_cashflow_item(session, item_id)
+def get_item(item_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> CashflowItemOut:
+    item = repository.get_cashflow_item(session, item_id, user.id)
     if item is None:
         raise HTTPException(status_code=404, detail="cashflow item not found")
     return _item_out(item)
@@ -78,21 +78,19 @@ def get_item(item_id: uuid.UUID, session: SessionDep) -> CashflowItemOut:
 
 @router.patch("/{item_id}", response_model=CashflowItemOut)
 def update_item(
-    item_id: uuid.UUID, payload: CashflowItemUpdate, session: SessionDep
+    item_id: uuid.UUID, payload: CashflowItemUpdate, session: SessionDep, user: CurrentUser
 ) -> CashflowItemOut:
-    item = repository.get_cashflow_item(session, item_id)
+    item = repository.get_cashflow_item(session, item_id, user.id)
     if item is None:
         raise HTTPException(status_code=404, detail="cashflow item not found")
-    repository.update_cashflow_item(
-        session, item, **payload.model_dump(exclude_unset=True)
-    )
+    repository.update_cashflow_item(session, item, **payload.model_dump(exclude_unset=True))
     session.commit()
     return _item_out(item)
 
 
 @router.delete("/{item_id}", status_code=204)
-def delete_item(item_id: uuid.UUID, session: SessionDep) -> Response:
-    if not repository.delete_cashflow_item(session, item_id):
+def delete_item(item_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> Response:
+    if not repository.delete_cashflow_item(session, item_id, user.id):
         raise HTTPException(status_code=404, detail="cashflow item not found")
     session.commit()
     return Response(status_code=204)

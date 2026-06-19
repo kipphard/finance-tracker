@@ -5,7 +5,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 
-from backend.api.deps import SessionDep
+from backend.api.deps import CurrentUser, SessionDep
 from backend.connectors.manual import ManualConnector
 from backend.persistence import repository
 from backend.schemas import AccountCreate, AccountOut, BalanceCreate, BalanceOut
@@ -21,8 +21,10 @@ def _account_out(session, account) -> AccountOut:
 
 
 @router.post("", response_model=AccountOut, status_code=201)
-def create_account(payload: AccountCreate, session: SessionDep) -> AccountOut:
-    connector = ManualConnector(session)
+def create_account(
+    payload: AccountCreate, session: SessionDep, user: CurrentUser
+) -> AccountOut:
+    connector = ManualConnector(session, user.id)
     account = connector.add_account(
         type=payload.type,
         name=payload.name,
@@ -34,13 +36,13 @@ def create_account(payload: AccountCreate, session: SessionDep) -> AccountOut:
 
 
 @router.get("", response_model=list[AccountOut])
-def list_accounts(session: SessionDep) -> list[AccountOut]:
-    return [_account_out(session, a) for a in repository.list_accounts(session)]
+def list_accounts(session: SessionDep, user: CurrentUser) -> list[AccountOut]:
+    return [_account_out(session, a) for a in repository.list_accounts(session, user.id)]
 
 
 @router.get("/{account_id}", response_model=AccountOut)
-def get_account(account_id: uuid.UUID, session: SessionDep) -> AccountOut:
-    account = repository.get_account(session, account_id)
+def get_account(account_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> AccountOut:
+    account = repository.get_account(session, account_id, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     return _account_out(session, account)
@@ -48,11 +50,11 @@ def get_account(account_id: uuid.UUID, session: SessionDep) -> AccountOut:
 
 @router.post("/{account_id}/balances", response_model=BalanceOut, status_code=201)
 def add_balance(
-    account_id: uuid.UUID, payload: BalanceCreate, session: SessionDep
+    account_id: uuid.UUID, payload: BalanceCreate, session: SessionDep, user: CurrentUser
 ) -> BalanceOut:
-    if repository.get_account(session, account_id) is None:
+    if repository.get_account(session, account_id, user.id) is None:
         raise HTTPException(status_code=404, detail="account not found")
-    connector = ManualConnector(session)
+    connector = ManualConnector(session, user.id)
     balance = connector.add_balance(
         account_id=account_id, amount=payload.amount, ts=payload.ts
     )
@@ -61,8 +63,10 @@ def add_balance(
 
 
 @router.get("/{account_id}/balances", response_model=list[BalanceOut])
-def list_balances(account_id: uuid.UUID, session: SessionDep) -> list[BalanceOut]:
-    if repository.get_account(session, account_id) is None:
+def list_balances(
+    account_id: uuid.UUID, session: SessionDep, user: CurrentUser
+) -> list[BalanceOut]:
+    if repository.get_account(session, account_id, user.id) is None:
         raise HTTPException(status_code=404, detail="account not found")
     return [
         BalanceOut.model_validate(b)

@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     def gocardless_configured(self) -> bool:
         return bool(self.gocardless_secret_id and self.gocardless_secret_key)
 
+    # Auth (Phase 6). JWT signing secret falls back to the Fernet key if unset, so no extra
+    # server secret is required. Tokens are HS256 bearer tokens.
+    jwt_secret: str | None = None
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
+
+    @property
+    def effective_jwt_secret(self) -> str:
+        return self.jwt_secret or self.fernet_key
+
     @field_validator("fernet_key")
     @classmethod
     def _validate_fernet_key(cls, value: str) -> str:

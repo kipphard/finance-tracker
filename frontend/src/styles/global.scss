@@ -59,6 +59,20 @@ a {
     font-size: 18px;
   }
 
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
   &__total {
     text-align: right;
     .label {
@@ -71,6 +85,35 @@ a {
       font-size: 26px;
       font-weight: 700;
     }
+  }
+}
+
+// ---- auth screen ---------------------------------------------------------
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 12px;
+  box-shadow: $shadow;
+  padding: 32px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  h1 {
+    font-size: 22px;
+  }
+  p {
+    margin: 0;
   }
 }
 

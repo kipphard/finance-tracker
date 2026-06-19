@@ -38,8 +38,8 @@ def _cadence_from_days(days: float) -> str | None:
     return None
 
 
-def detect_recurring(session: Session) -> list[Recurring]:
-    transactions = repository.list_transactions(session)
+def detect_recurring(session: Session, user_id) -> list[Recurring]:
+    transactions = repository.list_transactions(session, user_id)
 
     groups: dict[tuple, list] = defaultdict(list)
     for txn in transactions:
@@ -48,7 +48,7 @@ def detect_recurring(session: Session) -> list[Recurring]:
         sign = "neg" if txn.amount < 0 else "pos"
         groups[(txn.account_id, _normalize_payee(txn.raw_payee), sign)].append(txn)
 
-    repository.delete_all_recurring(session)
+    repository.delete_all_recurring(session, user_id)
 
     created: list[Recurring] = []
     for (account_id, _payee, _sign), items in groups.items():
@@ -73,6 +73,7 @@ def detect_recurring(session: Session) -> list[Recurring]:
 
         recurring = repository.create_recurring(
             session,
+            user_id=user_id,
             payee=items[0].raw_payee,
             amount_est=amount_est,
             cadence=cadence,

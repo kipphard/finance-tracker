@@ -17,8 +17,9 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
+from backend.auth.security import hash_password  # noqa: E402
 from backend.main import app  # noqa: E402
-from backend.persistence import models  # noqa: E402,F401  (register tables)
+from backend.persistence import models, repository  # noqa: E402,F401  (register tables)
 from backend.persistence.database import Base, get_session  # noqa: E402
 
 
@@ -54,6 +55,25 @@ def db_session(session_factory):
 
 
 @pytest.fixture
+def user(db_session):
+    """A persisted user for service-level (repository) tests."""
+    u = repository.create_user(
+        db_session, email="svc@example.com", password_hash=hash_password("password123")
+    )
+    db_session.commit()
+    return u
+
+
+def _register(test_client: TestClient, email: str) -> TestClient:
+    resp = test_client.post(
+        "/api/auth/register", json={"email": email, "password": "password123"}
+    )
+    assert resp.status_code == 201, resp.text
+    test_client.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"
+    return test_client
+
+
+@pytest.fixture
 def client(session_factory):
     def _override():
         session = session_factory()
@@ -64,5 +84,13 @@ def client(session_factory):
 
     app.dependency_overrides[get_session] = _override
     with TestClient(app) as test_client:
+        _register(test_client, "user-a@example.com")
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def second_client(client):
+    """A second authenticated client (different user, same DB) for isolation tests."""
+    other = TestClient(app)  # shares the app + the get_session override from `client`
+    return _register(other, "user-b@example.com")

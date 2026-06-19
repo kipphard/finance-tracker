@@ -1,5 +1,17 @@
 // Mirrors the backend pydantic schemas. Decimals come over the wire as strings.
 
+export interface UserOut {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: UserOut;
+}
+
 export interface AccountOut {
   id: string;
   connector: string;

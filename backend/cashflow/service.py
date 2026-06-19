@@ -41,9 +41,9 @@ class CashflowSummary:
     item_count: int
 
 
-def compute_summary(session: Session) -> CashflowSummary:
+def compute_summary(session: Session, user_id) -> CashflowSummary:
     base = get_settings().app_base_currency
-    items = repository.list_cashflow_items(session, active_only=True)
+    items = repository.list_cashflow_items(session, user_id, active_only=True)
 
     total_in = Decimal(0)
     total_out = Decimal(0)

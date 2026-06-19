@@ -6,7 +6,7 @@ import uuid
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
 
-from backend.api.deps import SessionDep
+from backend.api.deps import CurrentUser, SessionDep
 from backend.categorize.engine import categorize_transaction, recategorize_all
 from backend.csv_import import parse_transactions_csv
 from backend.persistence import repository
@@ -27,19 +27,17 @@ def _content_hash(account_id, ts, amount, payee, description) -> str:
 
 
 @router.post(
-    "/accounts/{account_id}/transactions",
-    response_model=TransactionOut,
-    status_code=201,
+    "/accounts/{account_id}/transactions", response_model=TransactionOut, status_code=201
 )
 def add_transaction(
-    account_id: uuid.UUID, payload: TransactionCreate, session: SessionDep
+    account_id: uuid.UUID, payload: TransactionCreate, session: SessionDep, user: CurrentUser
 ) -> TransactionOut:
-    account = repository.get_account(session, account_id)
+    account = repository.get_account(session, account_id, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
-    # Manual entries get a unique hash so identical real transactions aren't deduped away.
     txn, _ = repository.upsert_transaction(
         session,
+        user_id=user.id,
         account_id=account_id,
         ts=payload.ts,
         amount=payload.amount,
@@ -48,7 +46,7 @@ def add_transaction(
         raw_payee=payload.raw_payee,
         description=payload.description,
     )
-    categorize_transaction(session, txn)
+    categorize_transaction(session, user.id, txn)
     session.commit()
     return TransactionOut.model_validate(txn)
 
@@ -59,9 +57,12 @@ def add_transaction(
     status_code=201,
 )
 def import_transactions(
-    account_id: uuid.UUID, session: SessionDep, file: UploadFile = File(...)
+    account_id: uuid.UUID,
+    session: SessionDep,
+    user: CurrentUser,
+    file: UploadFile = File(...),
 ) -> ImportResultOut:
-    account = repository.get_account(session, account_id)
+    account = repository.get_account(session, account_id, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     content = file.file.read().decode("utf-8-sig")
@@ -74,6 +75,7 @@ def import_transactions(
     for row in parsed.rows:
         txn, created = repository.upsert_transaction(
             session,
+            user_id=user.id,
             account_id=account_id,
             ts=row.ts,
             amount=row.amount,
@@ -86,7 +88,7 @@ def import_transactions(
             duplicates += 1
             continue
         imported += 1
-        if categorize_transaction(session, txn):
+        if categorize_transaction(session, user.id, txn):
             categorized += 1
     session.commit()
     return ImportResultOut(
@@ -99,19 +101,20 @@ def import_transactions(
 
 @router.get("/accounts/{account_id}/transactions", response_model=list[TransactionOut])
 def list_account_transactions(
-    account_id: uuid.UUID, session: SessionDep
+    account_id: uuid.UUID, session: SessionDep, user: CurrentUser
 ) -> list[TransactionOut]:
-    if repository.get_account(session, account_id) is None:
+    if repository.get_account(session, account_id, user.id) is None:
         raise HTTPException(status_code=404, detail="account not found")
     return [
         TransactionOut.model_validate(t)
-        for t in repository.list_transactions(session, account_id=account_id)
+        for t in repository.list_transactions(session, user.id, account_id=account_id)
     ]
 
 
 @router.get("/transactions", response_model=list[TransactionOut])
 def list_transactions(
     session: SessionDep,
+    user: CurrentUser,
     account_id: uuid.UUID | None = None,
     category_id: uuid.UUID | None = None,
     uncategorized: bool = False,
@@ -119,9 +122,7 @@ def list_transactions(
     return [
         TransactionOut.model_validate(t)
         for t in repository.list_transactions(
-            session,
-            account_id=account_id,
-            category_id=category_id,
+            session, user.id, account_id=account_id, category_id=category_id,
             uncategorized=uncategorized,
         )
     ]
@@ -129,16 +130,16 @@ def list_transactions(
 
 @router.post("/transactions/categorize", response_model=CategorizeResultOut)
 def categorize_existing(
-    session: SessionDep, only_uncategorized: bool = True
+    session: SessionDep, user: CurrentUser, only_uncategorized: bool = True
 ) -> CategorizeResultOut:
-    count = recategorize_all(session, only_uncategorized=only_uncategorized)
+    count = recategorize_all(session, user.id, only_uncategorized=only_uncategorized)
     session.commit()
     return CategorizeResultOut(categorized=count)
 
 
 @router.get("/transactions/{txn_id}", response_model=TransactionOut)
-def get_transaction(txn_id: uuid.UUID, session: SessionDep) -> TransactionOut:
-    txn = repository.get_transaction(session, txn_id)
+def get_transaction(txn_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> TransactionOut:
+    txn = repository.get_transaction(session, txn_id, user.id)
     if txn is None:
         raise HTTPException(status_code=404, detail="transaction not found")
     return TransactionOut.model_validate(txn)
@@ -146,26 +147,26 @@ def get_transaction(txn_id: uuid.UUID, session: SessionDep) -> TransactionOut:
 
 @router.patch("/transactions/{txn_id}", response_model=TransactionOut)
 def reclassify_transaction(
-    txn_id: uuid.UUID, payload: TransactionUpdate, session: SessionDep
+    txn_id: uuid.UUID, payload: TransactionUpdate, session: SessionDep, user: CurrentUser
 ) -> TransactionOut:
-    txn = repository.get_transaction(session, txn_id)
+    txn = repository.get_transaction(session, txn_id, user.id)
     if txn is None:
         raise HTTPException(status_code=404, detail="transaction not found")
     if payload.category_id is not None:
-        if repository.get_category(session, payload.category_id) is None:
+        if repository.get_category(session, payload.category_id, user.id) is None:
             raise HTTPException(status_code=400, detail="unknown category")
     txn.category_id = payload.category_id
 
     if payload.remember and payload.category_id is not None and txn.raw_payee:
         if (
             repository.find_rule_by_pattern(
-                session, txn.raw_payee, payload.category_id
+                session, user.id, txn.raw_payee, payload.category_id
             )
             is None
         ):
-            # User-taught rules outrank the default priority (100).
             repository.create_rule(
                 session,
+                user_id=user.id,
                 match_pattern=txn.raw_payee,
                 category_id=payload.category_id,
                 priority=200,

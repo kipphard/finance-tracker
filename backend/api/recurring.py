@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from backend.api.deps import SessionDep
+from backend.api.deps import CurrentUser, SessionDep
 from backend.categorize.recurring import detect_recurring
 from backend.persistence import repository
 from backend.schemas import DetectResultOut, RecurringOut
@@ -12,8 +12,8 @@ router = APIRouter(prefix="/recurring", tags=["recurring"])
 
 
 @router.post("/detect", response_model=DetectResultOut)
-def detect(session: SessionDep) -> DetectResultOut:
-    items = detect_recurring(session)
+def detect(session: SessionDep, user: CurrentUser) -> DetectResultOut:
+    items = detect_recurring(session, user.id)
     session.commit()
     return DetectResultOut(
         detected=len(items),
@@ -22,5 +22,5 @@ def detect(session: SessionDep) -> DetectResultOut:
 
 
 @router.get("", response_model=list[RecurringOut])
-def list_recurring(session: SessionDep) -> list[RecurringOut]:
-    return [RecurringOut.model_validate(r) for r in repository.list_recurring(session)]
+def list_recurring(session: SessionDep, user: CurrentUser) -> list[RecurringOut]:
+    return [RecurringOut.model_validate(r) for r in repository.list_recurring(session, user.id)]

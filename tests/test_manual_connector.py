@@ -4,8 +4,8 @@ from decimal import Decimal
 from backend.connectors.manual import ManualConnector
 
 
-def test_add_and_list_accounts(db_session):
-    connector = ManualConnector(db_session)
+def test_add_and_list_accounts(db_session, user):
+    connector = ManualConnector(db_session, user.id)
     connector.add_account(type="checking", name="Giro", currency="EUR")
     db_session.commit()
 
@@ -15,8 +15,8 @@ def test_add_and_list_accounts(db_session):
     assert accounts[0].connector == "manual"
 
 
-def test_add_balance_and_get_latest(db_session):
-    connector = ManualConnector(db_session)
+def test_add_balance_and_get_latest(db_session, user):
+    connector = ManualConnector(db_session, user.id)
     account = connector.add_account(type="cash", name="Wallet", currency="EUR")
     db_session.commit()
 
@@ -28,16 +28,16 @@ def test_add_balance_and_get_latest(db_session):
     assert balance.currency == "EUR"
 
 
-def test_get_balance_zero_when_no_entries(db_session):
-    connector = ManualConnector(db_session)
+def test_get_balance_zero_when_no_entries(db_session, user):
+    connector = ManualConnector(db_session, user.id)
     account = connector.add_account(type="cash", name="Empty", currency="EUR")
     db_session.commit()
 
     assert connector.get_balance(str(account.id)).amount == Decimal("0")
 
 
-def test_get_transactions_is_empty(db_session):
-    connector = ManualConnector(db_session)
+def test_get_transactions_is_empty(db_session, user):
+    connector = ManualConnector(db_session, user.id)
     account = connector.add_account(type="cash", name="X", currency="EUR")
     db_session.commit()
 

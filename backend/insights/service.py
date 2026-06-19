@@ -54,14 +54,16 @@ class BudgetStatus:
     period: str
 
 
-def budget_status(session: Session, as_of: datetime | None = None) -> list[BudgetStatus]:
+def budget_status(
+    session: Session, user_id, as_of: datetime | None = None
+) -> list[BudgetStatus]:
     as_of = as_of or _now()
     start, end = month_range(as_of)
-    spend = repository.category_spending_between(session, start, end)
-    categories = {c.id: c for c in repository.list_categories(session)}
+    spend = repository.category_spending_between(session, user_id, start, end)
+    categories = {c.id: c for c in repository.list_categories(session, user_id)}
 
     statuses: list[BudgetStatus] = []
-    for budget in repository.list_budgets(session):
+    for budget in repository.list_budgets(session, user_id):
         category = categories.get(budget.category_id)
         signed = spend.get(budget.category_id, Decimal(0))
         spent = max(Decimal(0), -signed)  # outflows count toward the budget
@@ -95,12 +97,12 @@ class Alert:
     message: str
 
 
-def build_alerts(session: Session, as_of: datetime | None = None) -> list[Alert]:
+def build_alerts(session: Session, user_id, as_of: datetime | None = None) -> list[Alert]:
     as_of = as_of or _now()
     today = as_of.date()
     alerts: list[Alert] = []
 
-    for status in budget_status(session, as_of):
+    for status in budget_status(session, user_id, as_of):
         if status.over:
             alerts.append(
                 Alert(
@@ -119,7 +121,7 @@ def build_alerts(session: Session, as_of: datetime | None = None) -> list[Alert]
                 )
             )
 
-    for recurring in repository.list_recurring(session):
+    for recurring in repository.list_recurring(session, user_id):
         if recurring.next_due is None:
             continue
         due: date = recurring.next_due
@@ -134,7 +136,7 @@ def build_alerts(session: Session, as_of: datetime | None = None) -> list[Alert]
                 )
             )
 
-    for conn in repository.list_connections(session):
+    for conn in repository.list_connections(session, user_id):
         if conn.status != ConnectionStatus.active or conn.consent_expires_at is None:
             continue
         days = (conn.consent_expires_at.date() - today).days
@@ -164,11 +166,11 @@ class Forecast:
 
 
 def build_forecast(
-    session: Session, months: int = 6, as_of: datetime | None = None
+    session: Session, user_id, months: int = 6, as_of: datetime | None = None
 ) -> Forecast:
     as_of = as_of or _now()
-    net_worth = compute_net_worth(session)
-    summary = compute_summary(session)
+    net_worth = compute_net_worth(session, user_id)
+    summary = compute_summary(session, user_id)
     start_total = net_worth.total
     monthly_net = summary.monthly_net
 

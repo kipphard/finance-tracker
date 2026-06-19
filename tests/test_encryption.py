@@ -8,10 +8,13 @@ def test_fernet_roundtrip():
     assert decrypt(encrypt("hello-token")) == "hello-token"
 
 
-def test_encrypted_column_stores_ciphertext(db_session):
+def test_encrypted_column_stores_ciphertext(db_session, user):
     secret = "super-secret-access-token"
     conn = Connection(
-        connector="manual", status=ConnectionStatus.pending, access_token=secret
+        user_id=user.id,
+        connector="manual",
+        status=ConnectionStatus.pending,
+        access_token=secret,
     )
     db_session.add(conn)
     db_session.commit()

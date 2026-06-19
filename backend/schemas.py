@@ -7,12 +7,41 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pydantic import EmailStr
+
 from backend.persistence.models import (
     Cadence,
     CashflowDirection,
     CategoryKind,
     ConnectionStatus,
 )
+
+
+# --- auth (Phase 6) -------------------------------------------------------
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: EmailStr
+    created_at: datetime
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
 
 
 class AccountCreate(BaseModel):

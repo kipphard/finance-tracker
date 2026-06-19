@@ -1,11 +1,29 @@
 // Thin fetch wrapper. The SPA is served same-origin as the API under /api.
+// A bearer token (when present) is attached to every request; a 401 on an authenticated
+// request clears the token and signals the app to return to the login screen.
 const BASE = "/api";
+const TOKEN_KEY = "ft_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(BASE + path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(BASE + path, { ...init, headers });
+
+  if (res.status === 401 && token) {
+    setToken(null);
+    window.dispatchEvent(new Event("ft-unauthorized"));
+  }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {

@@ -1,7 +1,8 @@
-"""Thin query helpers shared by connectors, the aggregator, and the API.
+"""Query helpers, all scoped to a user (Phase 6 isolation).
 
-These add + flush (so server-side ids/defaults populate) but do not commit; the caller
-controls the transaction boundary.
+Every read/write is filtered by `user_id` so one user can never see or touch another's
+data. `balances` is reached only through user-owned accounts (the caller scopes the account
+first), so it has no direct user_id.
 """
 from __future__ import annotations
 
@@ -27,12 +28,60 @@ from backend.persistence.models import (
     Recurring,
     Rule,
     Transaction,
+    User,
 )
+
+
+# --- users ----------------------------------------------------------------
+
+
+def create_user(session: Session, *, email: str, password_hash: str) -> User:
+    user = User(email=email, password_hash=password_hash)
+    session.add(user)
+    session.flush()
+    return user
+
+
+def get_user(session: Session, user_id: uuid.UUID) -> User | None:
+    return session.get(User, user_id)
+
+
+def get_user_by_email(session: Session, email: str) -> User | None:
+    return session.execute(select(User).where(User.email == email)).scalars().first()
+
+
+def delete_user(session: Session, user_id: uuid.UUID) -> bool:
+    """GDPR: purge a user and all of their data."""
+    user = session.get(User, user_id)
+    if user is None:
+        return False
+    account_ids = [a.id for a in list_accounts(session, user_id)]
+    if account_ids:
+        session.execute(delete(Balance).where(Balance.account_id.in_(account_ids)))
+    for model in (
+        Transaction,
+        Recurring,
+        Account,
+        Rule,
+        Budget,
+        CashflowItem,
+        Category,
+        NetWorthSnapshot,
+        Connection,
+    ):
+        session.execute(delete(model).where(model.user_id == user_id))
+    session.delete(user)
+    session.flush()
+    return True
+
+
+# --- accounts -------------------------------------------------------------
 
 
 def create_account(
     session: Session,
     *,
+    user_id: uuid.UUID,
     connector: str,
     type_: str,
     name: str,
@@ -42,6 +91,7 @@ def create_account(
     external_id: str | None = None,
 ) -> Account:
     account = Account(
+        user_id=user_id,
         connector=connector,
         type=type_,
         name=name,
@@ -55,28 +105,38 @@ def create_account(
     return account
 
 
-def get_account_by_external_id(session: Session, external_id: str) -> Account | None:
-    stmt = select(Account).where(Account.external_id == external_id)
-    return session.execute(stmt).scalars().first()
+def get_account(
+    session: Session, account_id: uuid.UUID, user_id: uuid.UUID
+) -> Account | None:
+    return session.execute(
+        select(Account).where(Account.id == account_id, Account.user_id == user_id)
+    ).scalars().first()
 
 
-def get_account(session: Session, account_id: uuid.UUID) -> Account | None:
-    return session.get(Account, account_id)
+def get_account_by_external_id(
+    session: Session, user_id: uuid.UUID, external_id: str
+) -> Account | None:
+    return session.execute(
+        select(Account).where(
+            Account.user_id == user_id, Account.external_id == external_id
+        )
+    ).scalars().first()
 
 
-def list_accounts(session: Session, connector: str | None = None) -> list[Account]:
-    stmt = select(Account).order_by(Account.created_at)
+def list_accounts(
+    session: Session, user_id: uuid.UUID, connector: str | None = None
+) -> list[Account]:
+    stmt = select(Account).where(Account.user_id == user_id).order_by(Account.created_at)
     if connector is not None:
         stmt = stmt.where(Account.connector == connector)
     return list(session.execute(stmt).scalars().all())
 
 
+# --- balances (scoped via a user-owned account) ---------------------------
+
+
 def add_balance(
-    session: Session,
-    *,
-    account_id: uuid.UUID,
-    amount: Decimal,
-    ts: datetime | None = None,
+    session: Session, *, account_id: uuid.UUID, amount: Decimal, ts: datetime | None = None
 ) -> Balance:
     balance = Balance(account_id=account_id, amount=amount)
     if ts is not None:
@@ -105,17 +165,24 @@ def latest_balance(session: Session, account_id: uuid.UUID) -> Balance | None:
     return session.execute(stmt).scalars().first()
 
 
+# --- net worth snapshots --------------------------------------------------
+
+
 def save_snapshot(
-    session: Session, *, total: Decimal, breakdown: dict
+    session: Session, *, user_id: uuid.UUID, total: Decimal, breakdown: dict
 ) -> NetWorthSnapshot:
-    snapshot = NetWorthSnapshot(total=total, breakdown_json=breakdown)
+    snapshot = NetWorthSnapshot(user_id=user_id, total=total, breakdown_json=breakdown)
     session.add(snapshot)
     session.flush()
     return snapshot
 
 
-def list_snapshots(session: Session) -> list[NetWorthSnapshot]:
-    stmt = select(NetWorthSnapshot).order_by(NetWorthSnapshot.ts.desc())
+def list_snapshots(session: Session, user_id: uuid.UUID) -> list[NetWorthSnapshot]:
+    stmt = (
+        select(NetWorthSnapshot)
+        .where(NetWorthSnapshot.user_id == user_id)
+        .order_by(NetWorthSnapshot.ts.desc())
+    )
     return list(session.execute(stmt).scalars().all())
 
 
@@ -125,6 +192,7 @@ def list_snapshots(session: Session) -> list[NetWorthSnapshot]:
 def create_connection(
     session: Session,
     *,
+    user_id: uuid.UUID,
     connector: str,
     status: ConnectionStatus = ConnectionStatus.pending,
     institution_id: str | None = None,
@@ -133,6 +201,7 @@ def create_connection(
     consent_expires_at: datetime | None = None,
 ) -> Connection:
     connection = Connection(
+        user_id=user_id,
         connector=connector,
         status=status,
         institution_id=institution_id,
@@ -145,26 +214,44 @@ def create_connection(
     return connection
 
 
-def get_connection(session: Session, connection_id: uuid.UUID) -> Connection | None:
-    return session.get(Connection, connection_id)
+def get_connection(
+    session: Session, connection_id: uuid.UUID, user_id: uuid.UUID
+) -> Connection | None:
+    return session.execute(
+        select(Connection).where(
+            Connection.id == connection_id, Connection.user_id == user_id
+        )
+    ).scalars().first()
 
 
 def get_connection_by_requisition(
-    session: Session, requisition_id: str
+    session: Session, user_id: uuid.UUID, requisition_id: str
 ) -> Connection | None:
-    stmt = select(Connection).where(Connection.requisition_id == requisition_id)
-    return session.execute(stmt).scalars().first()
+    return session.execute(
+        select(Connection).where(
+            Connection.user_id == user_id, Connection.requisition_id == requisition_id
+        )
+    ).scalars().first()
 
 
-def get_connection_by_reference(session: Session, reference: str) -> Connection | None:
-    stmt = select(Connection).where(Connection.reference == reference)
-    return session.execute(stmt).scalars().first()
+def get_connection_by_reference(
+    session: Session, user_id: uuid.UUID, reference: str
+) -> Connection | None:
+    return session.execute(
+        select(Connection).where(
+            Connection.user_id == user_id, Connection.reference == reference
+        )
+    ).scalars().first()
 
 
 def list_connections(
-    session: Session, connector: str | None = None
+    session: Session, user_id: uuid.UUID, connector: str | None = None
 ) -> list[Connection]:
-    stmt = select(Connection).order_by(Connection.created_at)
+    stmt = (
+        select(Connection)
+        .where(Connection.user_id == user_id)
+        .order_by(Connection.created_at)
+    )
     if connector is not None:
         stmt = stmt.where(Connection.connector == connector)
     return list(session.execute(stmt).scalars().all())
@@ -177,9 +264,30 @@ def list_accounts_for_connection(
     return list(session.execute(stmt).scalars().all())
 
 
+def delete_connection(
+    session: Session, connection_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    """Purge a connection and all of its accounts/balances/transactions (§8)."""
+    connection = get_connection(session, connection_id, user_id)
+    if connection is None:
+        return False
+    account_ids = [a.id for a in list_accounts_for_connection(session, connection_id)]
+    if account_ids:
+        session.execute(delete(Balance).where(Balance.account_id.in_(account_ids)))
+        session.execute(delete(Transaction).where(Transaction.account_id.in_(account_ids)))
+        session.execute(delete(Account).where(Account.id.in_(account_ids)))
+    session.delete(connection)
+    session.flush()
+    return True
+
+
+# --- transactions ---------------------------------------------------------
+
+
 def upsert_transaction(
     session: Session,
     *,
+    user_id: uuid.UUID,
     account_id: uuid.UUID,
     ts: datetime,
     amount: Decimal,
@@ -188,13 +296,16 @@ def upsert_transaction(
     raw_payee: str | None = None,
     description: str | None = None,
 ) -> tuple[Transaction, bool]:
-    """Insert a transaction or return the existing one (deduped by stable hash). §4.2."""
+    """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
-        select(Transaction).where(Transaction.hash == hash)
+        select(Transaction).where(
+            Transaction.user_id == user_id, Transaction.hash == hash
+        )
     ).scalars().first()
     if existing is not None:
         return existing, False
     txn = Transaction(
+        user_id=user_id,
         account_id=account_id,
         ts=ts,
         amount=amount,
@@ -208,114 +319,77 @@ def upsert_transaction(
     return txn, True
 
 
-# --- cashflow items -------------------------------------------------------
+def get_transaction(
+    session: Session, txn_id: uuid.UUID, user_id: uuid.UUID
+) -> Transaction | None:
+    return session.execute(
+        select(Transaction).where(
+            Transaction.id == txn_id, Transaction.user_id == user_id
+        )
+    ).scalars().first()
 
 
-def create_cashflow_item(
+def list_transactions(
     session: Session,
+    user_id: uuid.UUID,
     *,
-    direction: CashflowDirection,
-    name: str,
-    amount: Decimal,
-    cadence: Cadence,
-    currency: str,
+    account_id: uuid.UUID | None = None,
     category_id: uuid.UUID | None = None,
-    next_due=None,
-) -> CashflowItem:
-    item = CashflowItem(
-        direction=direction,
-        name=name,
-        amount=amount,
-        cadence=cadence,
-        currency=currency,
-        category_id=category_id,
-        next_due=next_due,
+    uncategorized: bool = False,
+) -> list[Transaction]:
+    stmt = (
+        select(Transaction)
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.ts.desc())
     )
-    session.add(item)
-    session.flush()
-    return item
-
-
-def get_cashflow_item(session: Session, item_id: uuid.UUID) -> CashflowItem | None:
-    return session.get(CashflowItem, item_id)
-
-
-def list_cashflow_items(
-    session: Session,
-    *,
-    direction: CashflowDirection | None = None,
-    active_only: bool = False,
-) -> list[CashflowItem]:
-    stmt = select(CashflowItem).order_by(CashflowItem.created_at)
-    if direction is not None:
-        stmt = stmt.where(CashflowItem.direction == direction)
-    if active_only:
-        stmt = stmt.where(CashflowItem.active.is_(True))
+    if account_id is not None:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if category_id is not None:
+        stmt = stmt.where(Transaction.category_id == category_id)
+    if uncategorized:
+        stmt = stmt.where(Transaction.category_id.is_(None))
     return list(session.execute(stmt).scalars().all())
 
 
-def update_cashflow_item(
-    session: Session, item: CashflowItem, **fields
-) -> CashflowItem:
-    for key, value in fields.items():
-        if value is not None:
-            setattr(item, key, value)
-    session.flush()
-    return item
-
-
-def delete_cashflow_item(session: Session, item_id: uuid.UUID) -> bool:
-    item = session.get(CashflowItem, item_id)
-    if item is None:
-        return False
-    session.delete(item)
-    session.flush()
-    return True
-
-
-def delete_connection(session: Session, connection_id: uuid.UUID) -> bool:
-    """Purge a connection and all of its accounts/balances/transactions (§8)."""
-    connection = session.get(Connection, connection_id)
-    if connection is None:
-        return False
-    account_ids = [
-        a.id for a in list_accounts_for_connection(session, connection_id)
-    ]
-    if account_ids:
-        session.execute(delete(Balance).where(Balance.account_id.in_(account_ids)))
-        session.execute(
-            delete(Transaction).where(Transaction.account_id.in_(account_ids))
-        )
-        session.execute(delete(Account).where(Account.id.in_(account_ids)))
-    session.delete(connection)
-    session.flush()
-    return True
-
-
-# --- categories (taxonomy) -----------------------------------------------
+# --- categories -----------------------------------------------------------
 
 
 def create_category(
-    session: Session, *, name: str, kind: CategoryKind, is_fixed: bool = False
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    name: str,
+    kind: CategoryKind,
+    is_fixed: bool = False,
 ) -> Category:
-    category = Category(name=name, kind=kind, is_fixed=is_fixed)
+    category = Category(user_id=user_id, name=name, kind=kind, is_fixed=is_fixed)
     session.add(category)
     session.flush()
     return category
 
 
-def get_category(session: Session, category_id: uuid.UUID) -> Category | None:
-    return session.get(Category, category_id)
-
-
-def get_category_by_name(session: Session, name: str) -> Category | None:
+def get_category(
+    session: Session, category_id: uuid.UUID, user_id: uuid.UUID
+) -> Category | None:
     return session.execute(
-        select(Category).where(Category.name == name)
+        select(Category).where(Category.id == category_id, Category.user_id == user_id)
     ).scalars().first()
 
 
-def list_categories(session: Session) -> list[Category]:
-    return list(session.execute(select(Category).order_by(Category.name)).scalars().all())
+def get_category_by_name(
+    session: Session, user_id: uuid.UUID, name: str
+) -> Category | None:
+    return session.execute(
+        select(Category).where(Category.user_id == user_id, Category.name == name)
+    ).scalars().first()
+
+
+def list_categories(session: Session, user_id: uuid.UUID) -> list[Category]:
+    return list(
+        session.execute(
+            select(Category).where(Category.user_id == user_id).order_by(Category.name)
+        ).scalars().all()
+    )
 
 
 def update_category(session: Session, category: Category, **fields) -> Category:
@@ -326,9 +400,10 @@ def update_category(session: Session, category: Category, **fields) -> Category:
     return category
 
 
-def delete_category(session: Session, category_id: uuid.UUID) -> bool:
-    """Delete a category, detaching transactions and removing its rules."""
-    category = session.get(Category, category_id)
+def delete_category(
+    session: Session, category_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    category = get_category(session, category_id, user_id)
     if category is None:
         return False
     session.execute(
@@ -343,39 +418,53 @@ def delete_category(session: Session, category_id: uuid.UUID) -> bool:
     return True
 
 
-# --- rules (categorization) ----------------------------------------------
+# --- rules ----------------------------------------------------------------
 
 
 def create_rule(
     session: Session,
     *,
+    user_id: uuid.UUID,
     match_pattern: str,
     category_id: uuid.UUID,
     priority: int = 100,
 ) -> Rule:
-    rule = Rule(match_pattern=match_pattern, category_id=category_id, priority=priority)
+    rule = Rule(
+        user_id=user_id,
+        match_pattern=match_pattern,
+        category_id=category_id,
+        priority=priority,
+    )
     session.add(rule)
     session.flush()
     return rule
 
 
-def get_rule(session: Session, rule_id: uuid.UUID) -> Rule | None:
-    return session.get(Rule, rule_id)
+def get_rule(session: Session, rule_id: uuid.UUID, user_id: uuid.UUID) -> Rule | None:
+    return session.execute(
+        select(Rule).where(Rule.id == rule_id, Rule.user_id == user_id)
+    ).scalars().first()
 
 
-def list_rules(session: Session) -> list[Rule]:
-    # Highest priority first; ties broken by pattern for determinism.
-    stmt = select(Rule).order_by(Rule.priority.desc(), Rule.match_pattern)
+def list_rules(session: Session, user_id: uuid.UUID) -> list[Rule]:
+    stmt = (
+        select(Rule)
+        .where(Rule.user_id == user_id)
+        .order_by(Rule.priority.desc(), Rule.match_pattern)
+    )
     return list(session.execute(stmt).scalars().all())
 
 
 def find_rule_by_pattern(
-    session: Session, match_pattern: str, category_id: uuid.UUID
+    session: Session, user_id: uuid.UUID, match_pattern: str, category_id: uuid.UUID
 ) -> Rule | None:
-    stmt = select(Rule).where(
-        Rule.match_pattern == match_pattern, Rule.category_id == category_id
-    )
-    return session.execute(stmt).scalars().first()
+    return session.execute(
+        select(Rule).where(
+            Rule.user_id == user_id,
+            Rule.match_pattern == match_pattern,
+            Rule.category_id == category_id,
+        )
+    ).scalars().first()
 
 
 def update_rule(session: Session, rule: Rule, **fields) -> Rule:
@@ -386,8 +475,8 @@ def update_rule(session: Session, rule: Rule, **fields) -> Rule:
     return rule
 
 
-def delete_rule(session: Session, rule_id: uuid.UUID) -> bool:
-    rule = session.get(Rule, rule_id)
+def delete_rule(session: Session, rule_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    rule = get_rule(session, rule_id, user_id)
     if rule is None:
         return False
     session.delete(rule)
@@ -395,36 +484,13 @@ def delete_rule(session: Session, rule_id: uuid.UUID) -> bool:
     return True
 
 
-# --- transactions (read/update; writes go through upsert_transaction) ----
-
-
-def get_transaction(session: Session, txn_id: uuid.UUID) -> Transaction | None:
-    return session.get(Transaction, txn_id)
-
-
-def list_transactions(
-    session: Session,
-    *,
-    account_id: uuid.UUID | None = None,
-    category_id: uuid.UUID | None = None,
-    uncategorized: bool = False,
-) -> list[Transaction]:
-    stmt = select(Transaction).order_by(Transaction.ts.desc())
-    if account_id is not None:
-        stmt = stmt.where(Transaction.account_id == account_id)
-    if category_id is not None:
-        stmt = stmt.where(Transaction.category_id == category_id)
-    if uncategorized:
-        stmt = stmt.where(Transaction.category_id.is_(None))
-    return list(session.execute(stmt).scalars().all())
-
-
-# --- recurring (detected subscriptions) ----------------------------------
+# --- recurring ------------------------------------------------------------
 
 
 def create_recurring(
     session: Session,
     *,
+    user_id: uuid.UUID,
     payee: str,
     amount_est: Decimal,
     cadence: str,
@@ -432,6 +498,7 @@ def create_recurring(
     account_id: uuid.UUID,
 ) -> Recurring:
     recurring = Recurring(
+        user_id=user_id,
         payee=payee,
         amount_est=amount_est,
         cadence=cadence,
@@ -443,14 +510,18 @@ def create_recurring(
     return recurring
 
 
-def list_recurring(session: Session) -> list[Recurring]:
+def list_recurring(session: Session, user_id: uuid.UUID) -> list[Recurring]:
     return list(
-        session.execute(select(Recurring).order_by(Recurring.next_due)).scalars().all()
+        session.execute(
+            select(Recurring)
+            .where(Recurring.user_id == user_id)
+            .order_by(Recurring.next_due)
+        ).scalars().all()
     )
 
 
-def delete_all_recurring(session: Session) -> int:
-    result = session.execute(delete(Recurring))
+def delete_all_recurring(session: Session, user_id: uuid.UUID) -> int:
+    result = session.execute(delete(Recurring).where(Recurring.user_id == user_id))
     session.flush()
     return result.rowcount or 0
 
@@ -458,54 +529,148 @@ def delete_all_recurring(session: Session) -> int:
 # --- reports --------------------------------------------------------------
 
 
-def spending_by_category(session: Session) -> list[tuple]:
-    """Aggregate transaction amounts grouped by category_id -> (category_id, total, count)."""
-    stmt = select(
-        Transaction.category_id,
-        func.coalesce(func.sum(Transaction.amount), 0),
-        func.count(),
-    ).group_by(Transaction.category_id)
+def spending_by_category(session: Session, user_id: uuid.UUID) -> list[tuple]:
+    stmt = (
+        select(
+            Transaction.category_id,
+            func.coalesce(func.sum(Transaction.amount), 0),
+            func.count(),
+        )
+        .where(Transaction.user_id == user_id)
+        .group_by(Transaction.category_id)
+    )
     return list(session.execute(stmt).all())
 
 
 def category_spending_between(
-    session: Session, start: datetime, end: datetime
+    session: Session, user_id: uuid.UUID, start: datetime, end: datetime
 ) -> dict:
-    """{category_id -> signed total} for transactions with start <= ts < end."""
     stmt = (
         select(Transaction.category_id, func.coalesce(func.sum(Transaction.amount), 0))
-        .where(Transaction.ts >= start, Transaction.ts < end)
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.ts >= start,
+            Transaction.ts < end,
+        )
         .group_by(Transaction.category_id)
     )
     return {row[0]: Decimal(str(row[1])) for row in session.execute(stmt).all()}
+
+
+# --- cashflow items -------------------------------------------------------
+
+
+def create_cashflow_item(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    direction: CashflowDirection,
+    name: str,
+    amount: Decimal,
+    cadence: Cadence,
+    currency: str,
+    category_id: uuid.UUID | None = None,
+    next_due=None,
+) -> CashflowItem:
+    item = CashflowItem(
+        user_id=user_id,
+        direction=direction,
+        name=name,
+        amount=amount,
+        cadence=cadence,
+        currency=currency,
+        category_id=category_id,
+        next_due=next_due,
+    )
+    session.add(item)
+    session.flush()
+    return item
+
+
+def get_cashflow_item(
+    session: Session, item_id: uuid.UUID, user_id: uuid.UUID
+) -> CashflowItem | None:
+    return session.execute(
+        select(CashflowItem).where(
+            CashflowItem.id == item_id, CashflowItem.user_id == user_id
+        )
+    ).scalars().first()
+
+
+def list_cashflow_items(
+    session: Session,
+    user_id: uuid.UUID,
+    *,
+    direction: CashflowDirection | None = None,
+    active_only: bool = False,
+) -> list[CashflowItem]:
+    stmt = (
+        select(CashflowItem)
+        .where(CashflowItem.user_id == user_id)
+        .order_by(CashflowItem.created_at)
+    )
+    if direction is not None:
+        stmt = stmt.where(CashflowItem.direction == direction)
+    if active_only:
+        stmt = stmt.where(CashflowItem.active.is_(True))
+    return list(session.execute(stmt).scalars().all())
+
+
+def update_cashflow_item(session: Session, item: CashflowItem, **fields) -> CashflowItem:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(item, key, value)
+    session.flush()
+    return item
+
+
+def delete_cashflow_item(
+    session: Session, item_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    item = get_cashflow_item(session, item_id, user_id)
+    if item is None:
+        return False
+    session.delete(item)
+    session.flush()
+    return True
 
 
 # --- budgets --------------------------------------------------------------
 
 
 def create_budget(
-    session: Session, *, category_id: uuid.UUID, monthly_limit: Decimal
+    session: Session, *, user_id: uuid.UUID, category_id: uuid.UUID, monthly_limit: Decimal
 ) -> Budget:
-    budget = Budget(category_id=category_id, monthly_limit=monthly_limit)
+    budget = Budget(user_id=user_id, category_id=category_id, monthly_limit=monthly_limit)
     session.add(budget)
     session.flush()
     return budget
 
 
-def get_budget(session: Session, budget_id: uuid.UUID) -> Budget | None:
-    return session.get(Budget, budget_id)
-
-
-def get_budget_by_category(
-    session: Session, category_id: uuid.UUID
+def get_budget(
+    session: Session, budget_id: uuid.UUID, user_id: uuid.UUID
 ) -> Budget | None:
     return session.execute(
-        select(Budget).where(Budget.category_id == category_id)
+        select(Budget).where(Budget.id == budget_id, Budget.user_id == user_id)
     ).scalars().first()
 
 
-def list_budgets(session: Session) -> list[Budget]:
-    return list(session.execute(select(Budget)).scalars().all())
+def get_budget_by_category(
+    session: Session, user_id: uuid.UUID, category_id: uuid.UUID
+) -> Budget | None:
+    return session.execute(
+        select(Budget).where(
+            Budget.user_id == user_id, Budget.category_id == category_id
+        )
+    ).scalars().first()
+
+
+def list_budgets(session: Session, user_id: uuid.UUID) -> list[Budget]:
+    return list(
+        session.execute(
+            select(Budget).where(Budget.user_id == user_id)
+        ).scalars().all()
+    )
 
 
 def update_budget(session: Session, budget: Budget, **fields) -> Budget:
@@ -516,8 +681,8 @@ def update_budget(session: Session, budget: Budget, **fields) -> Budget:
     return budget
 
 
-def delete_budget(session: Session, budget_id: uuid.UUID) -> bool:
-    budget = session.get(Budget, budget_id)
+def delete_budget(session: Session, budget_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    budget = get_budget(session, budget_id, user_id)
     if budget is None:
         return False
     session.delete(budget)

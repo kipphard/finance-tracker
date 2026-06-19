@@ -34,10 +34,11 @@ class SyncResult:
 def import_requisition_accounts(
     session: Session, connection: Connection, client: GoCardlessClient
 ) -> list[Account]:
+    user_id = connection.user_id
     requisition = client.get_requisition(connection.requisition_id)
     created: list[Account] = []
     for external_id in requisition.get("accounts", []):
-        if repository.get_account_by_external_id(session, external_id) is not None:
+        if repository.get_account_by_external_id(session, user_id, external_id) is not None:
             continue
         details = client.get_account_details(external_id).get("account", {})
         name = (
@@ -48,6 +49,7 @@ def import_requisition_accounts(
         )
         account = repository.create_account(
             session,
+            user_id=user_id,
             connector=BankConnector.name,
             type_="bank",
             name=name,
@@ -91,6 +93,7 @@ def sync_connection(
         for txn in connector.get_transactions(str(account.id), since):
             _, created = repository.upsert_transaction(
                 session,
+                user_id=connection.user_id,
                 account_id=account.id,
                 ts=txn.ts,
                 amount=txn.amount,

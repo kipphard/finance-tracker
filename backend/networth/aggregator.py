@@ -36,8 +36,8 @@ class NetWorth:
     breakdown: list[BreakdownEntry] = field(default_factory=list)
 
 
-def compute_net_worth(session: Session) -> NetWorth:
-    """Sum the latest recorded balance of every account (manual + synced bank).
+def compute_net_worth(session: Session, user_id) -> NetWorth:
+    """Sum the latest recorded balance of every account (manual + synced bank) for a user.
 
     Reads from the DB rather than calling connectors live, so this stays fast and never
     triggers a rate-limited provider request. Freshness depends on the last sync.
@@ -48,7 +48,7 @@ def compute_net_worth(session: Session) -> NetWorth:
     by_currency: dict[str, Decimal] = {}
     breakdown: list[BreakdownEntry] = []
 
-    for account in repository.list_accounts(session):
+    for account in repository.list_accounts(session, user_id):
         latest = repository.latest_balance(session, account.id)
         amount = latest.amount if latest is not None else Decimal("0")
         currency = account.currency
@@ -72,9 +72,9 @@ def compute_net_worth(session: Session) -> NetWorth:
     )
 
 
-def take_snapshot(session: Session) -> NetWorthSnapshot:
+def take_snapshot(session: Session, user_id) -> NetWorthSnapshot:
     """Compute current net worth and persist a snapshot row (commits)."""
-    net_worth = compute_net_worth(session)
+    net_worth = compute_net_worth(session, user_id)
     breakdown_json = {
         "base_currency": net_worth.base_currency,
         "by_currency": {k: str(v) for k, v in net_worth.by_currency.items()},
@@ -90,7 +90,7 @@ def take_snapshot(session: Session) -> NetWorthSnapshot:
         ],
     }
     snapshot = repository.save_snapshot(
-        session, total=net_worth.total, breakdown=breakdown_json
+        session, user_id=user_id, total=net_worth.total, breakdown=breakdown_json
     )
     session.commit()
     return snapshot

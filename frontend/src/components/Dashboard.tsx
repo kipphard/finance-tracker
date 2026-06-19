@@ -1,4 +1,5 @@
 import { useApi } from "../hooks/useApi";
+import { useAuth } from "../auth";
 import type { NetWorthOut } from "../api/types";
 import { money } from "../lib/format";
 import { NetWorthCard } from "./NetWorthCard";
@@ -14,15 +15,24 @@ import { ForecastCard } from "./ForecastCard";
 
 export function Dashboard() {
   const nw = useApi<NetWorthOut>("/networth");
+  const { user, logout } = useAuth();
 
   return (
     <>
       <header className="topbar">
         <div className="topbar__title">💰 Finance Tracker</div>
-        <div className="topbar__total">
-          <div className="label">Net worth</div>
-          <div className="value">
-            {nw.data ? money(nw.data.total, nw.data.base_currency) : "…"}
+        <div className="topbar__right">
+          <div className="topbar__total">
+            <div className="label">Net worth</div>
+            <div className="value">
+              {nw.data ? money(nw.data.total, nw.data.base_currency) : "…"}
+            </div>
+          </div>
+          <div className="topbar__user">
+            <span className="muted">{user?.email}</span>
+            <button className="btn btn--ghost" onClick={logout}>
+              Log out
+            </button>
           </div>
         </div>
       </header>

@@ -52,13 +52,14 @@ def _select_balance(balances: list[dict]) -> dict | None:
 class BankConnector:
     name = "gocardless"
 
-    def __init__(self, session: Session, client: GoCardlessClient) -> None:
+    def __init__(self, session: Session, user_id: uuid.UUID, client: GoCardlessClient) -> None:
         self.session = session
+        self.user_id = user_id
         self.client = client
 
     def _account(self, account_id: str | uuid.UUID) -> AccountModel:
         aid = account_id if isinstance(account_id, uuid.UUID) else uuid.UUID(str(account_id))
-        account = repository.get_account(self.session, aid)
+        account = repository.get_account(self.session, aid, self.user_id)
         if account is None or account.external_id is None:
             raise KeyError(f"no GoCardless account for id {aid}")
         return account
@@ -73,7 +74,7 @@ class BankConnector:
                 currency=a.currency,
                 institution=a.institution,
             )
-            for a in repository.list_accounts(self.session, connector=self.name)
+            for a in repository.list_accounts(self.session, self.user_id, connector=self.name)
         ]
 
     def get_balance(self, account_id: str | uuid.UUID) -> Balance:

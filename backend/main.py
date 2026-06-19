@@ -6,12 +6,14 @@ from fastapi import FastAPI
 from backend.api import (
     accounts,
     alerts,
+    auth,
     banks,
     budgets,
     cashflow,
     categories,
     forecast,
     health,
+    me,
     networth,
     recurring,
     reports,
@@ -34,7 +36,9 @@ app = FastAPI(
 )
 
 API = "/api"
-app.include_router(health.router)  # stays at /health
+app.include_router(health.router)  # stays at /health, public
+app.include_router(auth.router, prefix=API)  # register/login public; /me authed
+app.include_router(me.router, prefix=API)
 app.include_router(accounts.router, prefix=API)
 app.include_router(networth.router, prefix=API)
 app.include_router(banks.router, prefix=API)

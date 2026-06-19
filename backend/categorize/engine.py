@@ -18,34 +18,34 @@ def _text(txn: Transaction) -> str:
     return f"{txn.raw_payee or ''} {txn.description or ''}".strip().lower()
 
 
-def find_category_for_text(session: Session, text: str) -> uuid.UUID | None:
+def find_category_for_text(session: Session, user_id, text: str) -> uuid.UUID | None:
     haystack = text.lower()
-    for rule in repository.list_rules(session):  # highest priority first
+    for rule in repository.list_rules(session, user_id):  # highest priority first
         if rule.match_pattern and rule.match_pattern.lower() in haystack:
             return rule.category_id
     return None
 
 
 def categorize_transaction(
-    session: Session, txn: Transaction, *, force: bool = False
+    session: Session, user_id, txn: Transaction, *, force: bool = False
 ) -> bool:
     """Set txn.category_id from the rules. Returns True if it changed."""
     if txn.category_id is not None and not force:
         return False
-    category_id = find_category_for_text(session, _text(txn))
+    category_id = find_category_for_text(session, user_id, _text(txn))
     if category_id is None or category_id == txn.category_id:
         return False
     txn.category_id = category_id
     return True
 
 
-def recategorize_all(session: Session, *, only_uncategorized: bool = True) -> int:
+def recategorize_all(session: Session, user_id, *, only_uncategorized: bool = True) -> int:
     """Re-run the rules over existing transactions. Returns how many changed."""
     changed = 0
-    for txn in repository.list_transactions(session):
+    for txn in repository.list_transactions(session, user_id):
         if only_uncategorized and txn.category_id is not None:
             continue
-        if categorize_transaction(session, txn, force=not only_uncategorized):
+        if categorize_transaction(session, user_id, txn, force=not only_uncategorized):
             changed += 1
     session.flush()
     return changed

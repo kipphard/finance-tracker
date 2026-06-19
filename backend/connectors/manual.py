@@ -25,8 +25,9 @@ def _to_uuid(account_id: str | uuid.UUID) -> uuid.UUID:
 class ManualConnector:
     name = "manual"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, user_id: uuid.UUID) -> None:
         self.session = session
+        self.user_id = user_id
 
     # --- AccountConnector protocol (read) ---------------------------------
 
@@ -40,12 +41,12 @@ class ManualConnector:
                 currency=a.currency,
                 institution=a.institution,
             )
-            for a in repository.list_accounts(self.session, connector=self.name)
+            for a in repository.list_accounts(self.session, self.user_id, connector=self.name)
         ]
 
     def get_balance(self, account_id: str | uuid.UUID) -> Balance:
         aid = _to_uuid(account_id)
-        account = repository.get_account(self.session, aid)
+        account = repository.get_account(self.session, aid, self.user_id)
         if account is None:
             raise KeyError(f"account {aid} not found")
         latest = repository.latest_balance(self.session, aid)
@@ -71,6 +72,7 @@ class ManualConnector:
     ) -> AccountModel:
         return repository.create_account(
             self.session,
+            user_id=self.user_id,
             connector=self.name,
             type_=type,
             name=name,
