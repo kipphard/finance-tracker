@@ -160,6 +160,24 @@ is idempotent (deduped by a content hash). Transactions are for spending analysi
 - Phase 3: React dashboard (net worth, accounts, cashflow, category breakdown, recurring,
   transactions with inline recategorization).
 
+## Deployment (production)
+
+Runs at **https://finance-tracker.kipphard.com** on the Hetzner box, **not** in Docker —
+it follows the host's pattern: a **systemd** service running `uvicorn` on `127.0.0.1:8002`
+behind nginx, against the host's **system PostgreSQL** (a dedicated `finance` role + DB).
+
+- **Service:** `/etc/systemd/system/finance-tracker.service` (runs `alembic upgrade head`
+  as `ExecStartPre`, then uvicorn). Code in `/opt/finance-tracker`; secrets in
+  `/opt/finance-tracker/.env` (chmod 600, server-only — never committed).
+- **nginx vhost:** `finance-tracker.kipphard.com` → `127.0.0.1:8002`, reusing the shared
+  `*.kipphard.com` Cloudflare origin cert (no per-vhost `real_ip_header`).
+- **Push-to-deploy:** `.github/workflows/deploy.yml` rsyncs to the server and restarts the
+  service on push to `main`. Needs repo secret `DEPLOY_SSH_KEY`; GitHub Actions billing
+  must be active. First deploy was done manually via rsync/SSH.
+- **Dev model:** edit + test locally (`pytest`, `docker compose up` for a local stack) →
+  push → it deploys to and runs on the server (the single live instance). Development and
+  tests still happen locally; only the running app lives on the server.
+
 ## Security notes (§8)
 
 - Access tokens are encrypted at rest with Fernet (`EncryptedString` column type). The

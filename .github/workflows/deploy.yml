@@ -1,0 +1,48 @@
+name: Deploy
+
+# Push-to-deploy: rsync the repo to the Hetzner box and restart the systemd service.
+# Requires repo secret DEPLOY_SSH_KEY (the deploy key that authorizes root@REDACTED).
+# The server keeps its own /opt/finance-tracker/.env (excluded from rsync) and .venv.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-finance-tracker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up deploy SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H REDACTED >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync code to server
+        run: |
+          rsync -rlptz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            --exclude '.git/' --exclude '.venv/' --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' --exclude '.env' --exclude '*.egg-info/' \
+            --exclude '.ruff_cache/' \
+            ./ root@REDACTED:/opt/finance-tracker/
+
+      - name: Install deps, migrate, restart
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@REDACTED 'bash -se' <<'EOS'
+          set -euo pipefail
+          cd /opt/finance-tracker
+          .venv/bin/pip install --quiet -e .
+          set -a; . ./.env; set +a
+          .venv/bin/alembic upgrade head
+          systemctl restart finance-tracker
+          systemctl is-active finance-tracker
+          EOS
