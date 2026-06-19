@@ -6,7 +6,7 @@ import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
-export function BudgetsCard() {
+export function BudgetsCard({ className }: { className?: string }) {
   const statuses = useApi<BudgetStatusOut[]>("/budgets/status");
   const budgets = useApi<BudgetOut[]>("/budgets");
   const categories = useApi<CategoryOut[]>("/categories");
@@ -44,7 +44,7 @@ export function BudgetsCard() {
   };
 
   return (
-    <Card title="Budgets">
+    <Card title="Budgets" className={className}>
       <div className="toolbar">
         <select
           className="select"

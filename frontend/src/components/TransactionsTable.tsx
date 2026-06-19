@@ -1,45 +1,123 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { apiPatch } from "../api/client";
-import type { CategoryOut, TransactionOut } from "../api/types";
+import { apiPatch, apiPost } from "../api/client";
+import type { AccountOut, CategoryOut, TransactionOut } from "../api/types";
 import { money, num, shortDate } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
+import { Modal } from "./Modal";
 
-export function TransactionsTable() {
+function TransactionForm({
+  accounts,
+  onSubmit,
+  onClose,
+}: {
+  accounts: AccountOut[];
+  onSubmit: (accountId: string, body: any) => Promise<void>;
+  onClose: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [date, setDate] = useState(today);
+  const [amount, setAmount] = useState("");
+  const [payee, setPayee] = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit(accountId, {
+        ts: `${date}T00:00:00Z`,
+        amount,
+        raw_payee: payee || null,
+        description: description || null,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="field-row">
+        <div className="field">
+          <label>Account</label>
+          <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>Date</label>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Amount (negative = spending)</label>
+        <input className="input" type="number" step="0.01" placeholder="-12.34" value={amount}
+          onChange={(e) => setAmount(e.target.value)} required autoFocus />
+      </div>
+      <div className="field">
+        <label>Payee</label>
+        <input className="input" placeholder="e.g. REWE" value={payee} onChange={(e) => setPayee(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Note (optional)</label>
+        <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+      {error && <div className="error">{error}</div>}
+      <div className="form__actions">
+        <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+        <button className="btn" type="submit" disabled={busy}>{busy ? "…" : "Add transaction"}</button>
+      </div>
+    </form>
+  );
+}
+
+export function TransactionsTable({ className }: { className?: string }) {
   const txns = useApi<TransactionOut[]>("/transactions");
   const cats = useApi<CategoryOut[]>("/categories");
+  const accounts = useApi<AccountOut[]>("/accounts");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all"); // all | uncategorized | <category_id>
+  const [filter, setFilter] = useState("all");
+  const [adding, setAdding] = useState(false);
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
     txns.reload();
   };
+  const addTxn = async (accountId: string, body: any) => {
+    await apiPost(`/accounts/${accountId}/transactions`, body);
+    txns.reload();
+  };
 
-  const action = <span className="muted">{txns.data?.length ?? 0} total</span>;
+  const hasAccounts = (accounts.data ?? []).length > 0;
+  const action = (
+    <button
+      className="btn btn--sm"
+      onClick={() => setAdding(true)}
+      disabled={!hasAccounts}
+      title={hasAccounts ? "" : "Add an account first"}
+    >
+      + Transaction
+    </button>
+  );
 
   return (
-    <Card title="Transactions" action={action} wide>
+    <Card title="Transactions" className={className} action={action}>
       <div className="toolbar">
-        <input
-          className="input"
-          placeholder="Search payee / description…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <select
-          className="select"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
+        <input className="input" placeholder="Search payee / description…" value={query}
+          onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180 }} />
+        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All categories</option>
           <option value="uncategorized">Uncategorized</option>
-          {cats.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
+          {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
@@ -56,57 +134,54 @@ export function TransactionsTable() {
                 (t.description || "").toLowerCase().includes(q),
             );
           if (rows.length === 0)
-            return (
-              <div className="empty">
-                No matching transactions. Add one or import a CSV via the API.
-              </div>
-            );
+            return <div className="empty">No transactions yet — add one or import a CSV.</div>;
           return (
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Payee</th>
-                  <th>Description</th>
-                  <th className="amount">Amount</th>
-                  <th>Category</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((t) => (
-                  <tr key={t.id}>
-                    <td>{shortDate(t.ts)}</td>
-                    <td>
-                      {t.raw_payee || "—"}{" "}
-                      {t.is_recurring && (
-                        <span className="badge badge--recurring">recurring</span>
-                      )}
-                    </td>
-                    <td className="muted">{t.description || "—"}</td>
-                    <td className={"amount " + (num(t.amount) >= 0 ? "pos" : "neg")}>
-                      {money(t.amount, t.currency)}
-                    </td>
-                    <td>
-                      <select
-                        className="select"
-                        value={t.category_id || ""}
-                        onChange={(e) => recategorize(t.id, e.target.value)}
-                      >
-                        <option value="">— none —</option>
-                        {cats.data?.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Payee</th>
+                    <th className="amount">Amount</th>
+                    <th>Category</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((t) => (
+                    <tr key={t.id}>
+                      <td>{shortDate(t.ts)}</td>
+                      <td>
+                        {t.raw_payee || "—"}{" "}
+                        {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
+                      </td>
+                      <td className={"amount " + (num(t.amount) >= 0 ? "pos" : "neg")}>
+                        {money(t.amount, t.currency)}
+                      </td>
+                      <td>
+                        <select className="select" value={t.category_id || ""}
+                          onChange={(e) => recategorize(t.id, e.target.value)}>
+                          <option value="">— none —</option>
+                          {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }}
       </Async>
+
+      {adding && (
+        <Modal title="Add transaction" onClose={() => setAdding(false)}>
+          <TransactionForm
+            accounts={accounts.data ?? []}
+            onClose={() => setAdding(false)}
+            onSubmit={addTxn}
+          />
+        </Modal>
+      )}
     </Card>
   );
 }

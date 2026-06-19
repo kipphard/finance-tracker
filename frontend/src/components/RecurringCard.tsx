@@ -6,7 +6,7 @@ import { money, num, shortDate } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
-export function RecurringCard() {
+export function RecurringCard({ className }: { className?: string }) {
   const state = useApi<RecurringOut[]>("/recurring");
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +27,7 @@ export function RecurringCard() {
   );
 
   return (
-    <Card title="Upcoming & recurring" action={action}>
+    <Card title="Upcoming & recurring" className={className} action={action}>
       <Async state={state}>
         {(items) =>
           items.length === 0 ? (

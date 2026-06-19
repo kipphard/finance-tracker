@@ -3,19 +3,19 @@ import type { ReactNode } from "react";
 export function Card({
   title,
   action,
-  wide,
+  className,
   children,
 }: {
   title: string;
   action?: ReactNode;
-  wide?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className={"card" + (wide ? " span-2" : "")}>
+    <section className={"card " + (className ?? "")}>
       <header className="card__head">
         <h2>{title}</h2>
-        {action}
+        {action && <div className="card__actions">{action}</div>}
       </header>
       <div className="card__body">{children}</div>
     </section>

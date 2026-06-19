@@ -3,10 +3,10 @@ import type { AlertOut } from "../api/types";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
-export function AlertsCard() {
+export function AlertsCard({ className }: { className?: string }) {
   const state = useApi<AlertOut[]>("/alerts");
   return (
-    <Card title="Alerts">
+    <Card title="Alerts" className={className}>
       <Async state={state}>
         {(alerts) =>
           alerts.length === 0 ? (

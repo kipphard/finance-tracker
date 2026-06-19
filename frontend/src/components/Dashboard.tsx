@@ -1,36 +1,38 @@
-import { useApi } from "../hooks/useApi";
 import { useAuth } from "../auth";
-import type { NetWorthOut } from "../api/types";
-import { money } from "../lib/format";
-import { NetWorthCard } from "./NetWorthCard";
-import { NetWorthTrend } from "./NetWorthTrend";
+import { useTheme } from "../theme";
+import { NetWorthHero } from "./NetWorthHero";
+import { AlertsCard } from "./AlertsCard";
 import { CashflowCard } from "./CashflowCard";
+import { ForecastCard } from "./ForecastCard";
 import { CategoryBreakdownCard } from "./CategoryBreakdownCard";
 import { AccountsCard } from "./AccountsCard";
-import { RecurringCard } from "./RecurringCard";
-import { TransactionsTable } from "./TransactionsTable";
-import { AlertsCard } from "./AlertsCard";
 import { BudgetsCard } from "./BudgetsCard";
-import { ForecastCard } from "./ForecastCard";
+import { RecurringCard } from "./RecurringCard";
+import { CategoriesCard } from "./CategoriesCard";
+import { TransactionsTable } from "./TransactionsTable";
 
 export function Dashboard() {
-  const nw = useApi<NetWorthOut>("/networth");
   const { user, logout } = useAuth();
+  const { theme, toggle } = useTheme();
 
   return (
     <>
       <header className="topbar">
-        <div className="topbar__title">💰 Finance Tracker</div>
+        <div className="topbar__title">
+          <span>💰</span> Finance Tracker
+        </div>
         <div className="topbar__right">
-          <div className="topbar__total">
-            <div className="label">Net worth</div>
-            <div className="value">
-              {nw.data ? money(nw.data.total, nw.data.base_currency) : "…"}
-            </div>
-          </div>
+          <button
+            className="icon-btn"
+            onClick={toggle}
+            aria-label="Toggle theme"
+            title="Toggle light / dark"
+          >
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
           <div className="topbar__user">
             <span className="muted">{user?.email}</span>
-            <button className="btn btn--ghost" onClick={logout}>
+            <button className="btn btn--ghost btn--sm" onClick={logout}>
               Log out
             </button>
           </div>
@@ -39,16 +41,19 @@ export function Dashboard() {
 
       <div className="container">
         <div className="grid">
-          <AlertsCard />
-          <NetWorthCard />
-          <NetWorthTrend />
-          <ForecastCard />
-          <CashflowCard />
-          <CategoryBreakdownCard />
-          <BudgetsCard />
-          <AccountsCard />
-          <RecurringCard />
-          <TransactionsTable />
+          <NetWorthHero className="col-8" />
+          <AlertsCard className="col-4" />
+
+          <CashflowCard className="col-4" />
+          <ForecastCard className="col-4" />
+          <CategoryBreakdownCard className="col-4" />
+
+          <AccountsCard className="col-4" />
+          <BudgetsCard className="col-4" />
+          <RecurringCard className="col-4" />
+
+          <CategoriesCard className="col-4" />
+          <TransactionsTable className="col-8" />
         </div>
       </div>
     </>
