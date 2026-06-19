@@ -55,7 +55,7 @@ export function ForecastCard({ className }: { className?: string }) {
                 </AreaChart>
               </ResponsiveContainer>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                Projected from recurring cashflow ({money(f.monthly_net)}/mo). Not advice.
+                Projected from your recent monthly net ({money(f.monthly_net)}/mo). Not advice.
               </div>
             </>
           );

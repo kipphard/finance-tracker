@@ -7,10 +7,10 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.orm import Session
 
-from backend.cashflow.service import compute_summary
 from backend.networth.aggregator import compute_net_worth
 from backend.persistence import repository
 from backend.persistence.models import ConnectionStatus
+from backend.reporting import monthly_cashflow
 
 _BILL_DUE_WINDOW_DAYS = 7
 _CONSENT_WARN_DAYS = 14
@@ -184,9 +184,16 @@ def build_forecast(
 ) -> Forecast:
     as_of = as_of or _now()
     net_worth = compute_net_worth(session, user_id)
-    summary = compute_summary(session, user_id)
     start_total = net_worth.total
-    monthly_net = summary.monthly_net
+
+    # Project from the average monthly net of the last *completed* months of actual
+    # transactions (transaction-first; no manual planning needed).
+    history = monthly_cashflow(session, user_id, months=4, as_of=as_of)
+    completed = history[:-1]  # drop the current, partial month
+    if completed:
+        monthly_net = _q(sum((p.net for p in completed), Decimal(0)) / len(completed))
+    else:
+        monthly_net = Decimal("0.00")
 
     points: list[ForecastPoint] = []
     for m in range(0, months + 1):

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from backend.insights.service import budget_status, build_alerts, build_forecast
 from backend.persistence import repository
-from backend.persistence.models import Cadence, CashflowDirection, CategoryKind
+from backend.persistence.models import CategoryKind
 
 AS_OF = datetime(2026, 3, 15, tzinfo=timezone.utc)
 
@@ -91,23 +91,26 @@ def test_overdue_debt_alert(db_session, user):
     assert any(a.kind == "debt" and a.level == "danger" for a in alerts)
 
 
-def test_forecast_projection(db_session, user):
+def test_forecast_from_transaction_history(db_session, user):
     account = _account(db_session, user)
     repository.add_balance(db_session, account_id=account.id, amount=Decimal("1000.00"))
-    repository.create_cashflow_item(
-        db_session,
-        user_id=user.id,
-        direction=CashflowDirection.inflow,
-        name="Salary",
-        amount=Decimal("500"),
-        cadence=Cadence.monthly,
-        currency="EUR",
-    )
+    # +500 net in each of the 3 completed months before AS_OF (Dec 2025, Jan, Feb 2026).
+    for year, month in [(2025, 12), (2026, 1), (2026, 2)]:
+        repository.upsert_transaction(
+            db_session,
+            user_id=user.id,
+            account_id=account.id,
+            ts=datetime(year, month, 10, tzinfo=timezone.utc),
+            amount=Decimal("500.00"),
+            currency="EUR",
+            hash=uuid.uuid4().hex,
+            raw_payee="Income",
+        )
     db_session.commit()
 
     forecast = build_forecast(db_session, user.id, months=3, as_of=AS_OF)
     assert forecast.current_total == Decimal("1000.00")
-    assert forecast.monthly_net == Decimal("500.00")
+    assert forecast.monthly_net == Decimal("500.00")  # avg of the 3 completed months
     assert len(forecast.points) == 4
     assert forecast.points[0].projected == Decimal("1000.00")
     assert forecast.points[3].projected == Decimal("2500.00")
