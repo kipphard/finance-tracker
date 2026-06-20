@@ -212,13 +212,16 @@ function TransactionForm({
 function EditTransactionForm({
   txn,
   accounts,
+  seriesCount,
   onClose,
 }: {
   txn: TransactionOut;
   accounts: AccountOut[];
+  seriesCount: number;
   onClose: () => void;
 }) {
   const [accountId, setAccountId] = useState(txn.account_id);
+  const [applyToSeries, setApplyToSeries] = useState(false);
   const [date, setDate] = useState(txn.ts.slice(0, 10));
   const [amount, setAmount] = useState(txn.amount);
   const [payee, setPayee] = useState(txn.raw_payee ?? "");
@@ -236,7 +239,7 @@ function EditTransactionForm({
     setBusy(true);
     setError(null);
     try {
-      await apiPatch(`/transactions/${txn.id}`, {
+      await apiPatch(`/transactions/${txn.id}${applyToSeries ? "?scope=series" : ""}`, {
         account_id: accountId,
         ts: `${date}T00:00:00Z`,
         amount,
@@ -321,6 +324,17 @@ function EditTransactionForm({
           <span className="muted">Kept in lists &amp; exports (e.g. freelancing for taxes).</span>
         </span>
       </label>
+      {seriesCount > 1 && (
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13,
+          padding: "8px 10px", borderRadius: 8, background: "rgba(99,102,241,0.10)" }}>
+          <input type="checkbox" checked={applyToSeries} onChange={(e) => setApplyToSeries(e.target.checked)}
+            style={{ marginTop: 3 }} />
+          <span>
+            Apply to all <b>{seriesCount}</b> entries in this recurring series.{" "}
+            <span className="muted">Changes every field except the date (each keeps its own).</span>
+          </span>
+        </label>
+      )}
       {error && <div className="error">{error}</div>}
       <div className="form__actions" style={{ justifyContent: "space-between" }}>
         <button type="button" className="btn btn--ghost" onClick={remove} disabled={busy}
@@ -585,7 +599,9 @@ export function TransactionsTable({ className }: { className?: string }) {
       )}
       {editing && (
         <Modal title="Edit transaction" onClose={() => setEditing(null)}>
-          <EditTransactionForm txn={editing} accounts={accounts.data ?? []} onClose={() => setEditing(null)} />
+          <EditTransactionForm txn={editing} accounts={accounts.data ?? []}
+            seriesCount={editing.series_id ? (txns.data ?? []).filter((t) => t.series_id === editing.series_id).length : 0}
+            onClose={() => setEditing(null)} />
         </Modal>
       )}
     </Card>

@@ -172,6 +172,10 @@ class Transaction(Base):
     # Both legs of an account-to-account transfer are flagged so they drop out of the
     # income/expense, cashflow and category-breakdown reports (internal moves, not spending).
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Links transactions that belong to one recurring/backfilled series, so they can be
+    # edited together. For materialized recurring it's the cashflow item id; for a backfill it's
+    # a fresh id shared by the batch.
+    series_id: Mapped[uuid.UUID | None] = mapped_column(GUID, nullable=True, index=True)
 
 
 class Rule(Base):

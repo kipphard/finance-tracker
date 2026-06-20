@@ -82,6 +82,29 @@ def test_backfill_series_creates_one_per_month(client):
     assert Decimal(str(main["latest_balance"])) == Decimal("0")  # excluded → off balance
 
 
+def test_edit_series_scope_applies_to_all_but_keeps_dates(client):
+    acc = client.post("/api/accounts", json={"type": "cash", "name": "X"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions/series", json={
+        "start": "2026-01-01", "end": "2026-03-01", "cadence": "monthly",
+        "amount": "500", "raw_payee": "Retainer"})
+    series = [t for t in client.get("/api/transactions").json() if t["raw_payee"] == "Retainer"]
+    sid = series[0]["series_id"]
+    assert sid and all(t["series_id"] == sid for t in series) and len(series) == 3
+
+    # scope=series → amount + payee change everywhere, dates untouched
+    client.patch(f"/api/transactions/{series[0]['id']}?scope=series",
+                 json={"amount": "600", "raw_payee": "Retainer v2"})
+    updated = [t for t in client.get("/api/transactions").json() if t["series_id"] == sid]
+    assert all(Decimal(str(t["amount"])) == Decimal("600") and t["raw_payee"] == "Retainer v2" for t in updated)
+    assert sorted(t["ts"][:10] for t in updated) == ["2026-01-01", "2026-02-01", "2026-03-01"]
+
+    # default scope (single) only touches the one
+    client.patch(f"/api/transactions/{updated[0]['id']}", json={"raw_payee": "Just me"})
+    after = {t["id"]: t for t in client.get("/api/transactions").json()}
+    assert after[updated[0]["id"]]["raw_payee"] == "Just me"
+    assert sum(1 for t in after.values() if t["series_id"] == sid and t["raw_payee"] == "Retainer v2") == 2
+
+
 def test_backfill_series_rejects_reversed_range(client):
     acc = client.post("/api/accounts", json={"type": "cash", "name": "X"}).json()["id"]
     r = client.post(f"/api/accounts/{acc}/transactions/series", json={

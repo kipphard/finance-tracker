@@ -102,6 +102,7 @@ export interface TransactionOut {
   excluded: boolean;
   tags: string[];
   is_transfer: boolean;
+  series_id: string | null;
 }
 
 export interface MonthlyCashflowPoint {

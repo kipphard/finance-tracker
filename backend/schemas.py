@@ -281,6 +281,7 @@ class TransactionOut(BaseModel):
     excluded: bool = False
     tags: list[str] = []
     is_transfer: bool = False
+    series_id: uuid.UUID | None = None
 
 
 class TransactionUpdate(BaseModel):

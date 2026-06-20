@@ -115,6 +115,7 @@ def materialize_recurring(session: Session, user_id, as_of: datetime | None = No
                 currency=item.currency,
                 hash=f"cf:{item.id}:{due.isoformat()}",
                 raw_payee=item.name,
+                series_id=item.id,  # all occurrences of this recurring item share a series
             )
             if was_created:
                 if item.category_id:

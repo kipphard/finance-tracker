@@ -372,6 +372,7 @@ def upsert_transaction(
     excluded: bool = False,
     tags: list[str] | None = None,
     is_transfer: bool = False,
+    series_id: uuid.UUID | None = None,
 ) -> tuple[Transaction, bool]:
     """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
@@ -395,11 +396,24 @@ def upsert_transaction(
         excluded=excluded,
         tags=normalize_tags(tags),
         is_transfer=is_transfer,
+        series_id=series_id,
         hash=hash,
     )
     session.add(txn)
     session.flush()
     return txn, True
+
+
+def list_transactions_in_series(
+    session: Session, user_id: uuid.UUID, series_id: uuid.UUID
+) -> list[Transaction]:
+    return list(
+        session.execute(
+            select(Transaction).where(
+                Transaction.user_id == user_id, Transaction.series_id == series_id
+            )
+        ).scalars().all()
+    )
 
 
 def get_transaction(

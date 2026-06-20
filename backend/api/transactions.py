@@ -6,7 +6,7 @@ import hashlib
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile
 
 from backend.api.deps import CurrentUser, SessionDep
 from backend.categorize.engine import categorize_transaction, recategorize_all
@@ -105,6 +105,7 @@ def add_transaction_series(
     if payload.end < payload.start:
         raise HTTPException(status_code=400, detail="end must be on or after start")
 
+    series_id = uuid.uuid4()  # links the batch so it can be edited together later
     created = 0
     d = payload.start
     while d <= payload.end:
@@ -126,6 +127,7 @@ def add_transaction_series(
             vat_rate=payload.vat_rate,
             excluded=payload.excluded,
             tags=payload.tags,
+            series_id=series_id,
         )
         categorize_transaction(session, user.id, txn)
         created += 1
@@ -276,10 +278,14 @@ def get_transaction(txn_id: uuid.UUID, session: SessionDep, user: CurrentUser) -
 
 @router.patch("/transactions/{txn_id}", response_model=TransactionOut)
 def update_transaction(
-    txn_id: uuid.UUID, payload: TransactionUpdate, session: SessionDep, user: CurrentUser
+    txn_id: uuid.UUID,
+    payload: TransactionUpdate,
+    session: SessionDep,
+    user: CurrentUser,
+    scope: str = Query("single"),
 ) -> TransactionOut:
-    """Edit any field of a transaction (also used by inline recategorize, which only sends
-    category_id). Only the fields present in the request are changed."""
+    """Edit a transaction. With ?scope=series the same changes (except the date) are applied to
+    every transaction sharing this one's series_id — i.e. the whole recurring/backfilled series."""
     txn = repository.get_transaction(session, txn_id, user.id)
     if txn is None:
         raise HTTPException(status_code=404, detail="transaction not found")
@@ -296,6 +302,16 @@ def update_transaction(
         data["tags"] = repository.normalize_tags(data["tags"])
     for key, value in data.items():
         setattr(txn, key, value)
+
+    # Apply to the rest of the series (keep each occurrence's own date).
+    if scope == "series" and txn.series_id is not None:
+        shared = {k: v for k, v in data.items() if k != "ts"}
+        if shared:
+            for other in repository.list_transactions_in_series(session, user.id, txn.series_id):
+                if other.id == txn.id:
+                    continue
+                for key, value in shared.items():
+                    setattr(other, key, value)
 
     if remember and txn.category_id is not None and txn.raw_payee:
         if (
