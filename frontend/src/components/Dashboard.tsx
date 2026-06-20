@@ -19,13 +19,15 @@ import { DebtsCard } from "./DebtsCard";
 import { EmergencyFundCard } from "./EmergencyFundCard";
 import { AllocationCard } from "./AllocationCard";
 import { TransactionsTable } from "./TransactionsTable";
+import { PlaybookCard } from "./PlaybookCard";
 
 // Cards that span the full width of the dashboard grid.
-const WIDE = new Set(["networth", "cashflow", "transactions"]);
+const WIDE = new Set(["playbook", "networth", "cashflow", "transactions"]);
 
 // Default top-to-bottom priority. Forecast sits high (above spending-by-category
 // and detected subscriptions); categories at the very bottom. Users can drag to reorder.
 const DEFAULT_ORDER = [
+  "playbook",
   "networth",
   "income",
   "forecast",
@@ -59,6 +61,7 @@ export function Dashboard() {
   }, []);
 
   const cards: Record<string, ReactNode> = {
+    playbook: <PlaybookCard />,
     networth: <NetWorthHero />,
     income: <IncomeExpenseCard />,
     forecast: <ForecastCard />,
