@@ -280,6 +280,7 @@ class TransactionOut(BaseModel):
     vat_rate: Decimal | None = None
     excluded: bool = False
     tags: list[str] = []
+    is_transfer: bool = False
 
 
 class TransactionUpdate(BaseModel):
@@ -304,6 +305,7 @@ class TransferCreate(BaseModel):
     amount: Decimal = Field(gt=0)
     ts: datetime | None = None
     note: str | None = None
+    tags: list[str] = []
 
 
 class TransferOut(BaseModel):

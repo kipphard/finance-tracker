@@ -101,6 +101,7 @@ export interface TransactionOut {
   vat_rate: string | null;
   excluded: boolean;
   tags: string[];
+  is_transfer: boolean;
 }
 
 export interface MonthlyCashflowPoint {

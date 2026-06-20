@@ -137,6 +137,7 @@ function TransferForm({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,6 +156,7 @@ function TransferForm({
         amount,
         ts: `${date}T00:00:00Z`,
         note: note || null,
+        tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
       });
       onClose();
     } catch (err) {
@@ -194,6 +196,11 @@ function TransferForm({
         <label>Note (optional)</label>
         <input className="input" placeholder="e.g. move savings to broker" value={note}
           onChange={(e) => setNote(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Tags (optional)</label>
+        <input className="input" placeholder="e.g. investment" value={tags}
+          onChange={(e) => setTags(e.target.value)} />
       </div>
       {error && <div className="error">{error}</div>}
       <div className="form__actions">

@@ -169,6 +169,9 @@ class Transaction(Base):
     excluded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Free-text tags (lowercased), orthogonal to the single category — e.g. ["freelance"].
     tags: Mapped[list] = mapped_column(JSONType, default=list, nullable=False)
+    # Both legs of an account-to-account transfer are flagged so they drop out of the
+    # income/expense, cashflow and category-breakdown reports (internal moves, not spending).
+    is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class Rule(Base):

@@ -83,6 +83,8 @@ def create_transfer(
         hash=uuid.uuid4().hex,
         raw_payee=f"Transfer to {dst.name}",
         description=payload.note,
+        tags=payload.tags,
+        is_transfer=True,
     )
     in_txn, _ = repository.upsert_transaction(
         session,
@@ -94,6 +96,8 @@ def create_transfer(
         hash=uuid.uuid4().hex,
         raw_payee=f"Transfer from {src.name}",
         description=payload.note,
+        tags=payload.tags,
+        is_transfer=True,
     )
     session.commit()
     return TransferOut(

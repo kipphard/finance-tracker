@@ -469,6 +469,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                         <div>
                           {t.raw_payee || "—"}{" "}
                           {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
+                          {t.is_transfer && <span className="badge badge--off">transfer</span>}
                           {t.excluded && <span className="badge badge--off">off-balance</span>}
                         </div>
                         {(t.counterparty || t.invoice_number) && (

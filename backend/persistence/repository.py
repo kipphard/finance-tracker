@@ -371,6 +371,7 @@ def upsert_transaction(
     vat_rate: Decimal | None = None,
     excluded: bool = False,
     tags: list[str] | None = None,
+    is_transfer: bool = False,
 ) -> tuple[Transaction, bool]:
     """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
@@ -393,6 +394,7 @@ def upsert_transaction(
         vat_rate=vat_rate,
         excluded=excluded,
         tags=normalize_tags(tags),
+        is_transfer=is_transfer,
         hash=hash,
     )
     session.add(txn)
@@ -508,6 +510,7 @@ def transactions_between(
             Transaction.user_id == user_id,
             Transaction.ts >= start,
             Transaction.ts < end,
+            Transaction.is_transfer.is_(False),  # internal moves aren't income/expense
         )
         .order_by(Transaction.ts)
     )
@@ -699,7 +702,7 @@ def spending_by_category(session: Session, user_id: uuid.UUID) -> list[tuple]:
             func.coalesce(func.sum(Transaction.amount), 0),
             func.count(),
         )
-        .where(Transaction.user_id == user_id)
+        .where(Transaction.user_id == user_id, Transaction.is_transfer.is_(False))
         .group_by(Transaction.category_id)
     )
     return list(session.execute(stmt).all())

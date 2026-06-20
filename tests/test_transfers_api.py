@@ -1,4 +1,25 @@
+from datetime import datetime, timezone
 from decimal import Decimal
+
+_MONTH_TS = datetime.now(timezone.utc).strftime("%Y-%m-01T00:00:00Z")
+
+
+def test_transfer_excluded_from_reports_and_carries_tags(client):
+    a = client.post("/api/accounts", json={"type": "cash", "name": "Main"}).json()["id"]
+    b = client.post("/api/accounts", json={"type": "cash", "name": "Broker"}).json()["id"]
+    client.post(f"/api/accounts/{a}/transactions",
+                json={"ts": _MONTH_TS, "amount": "2000", "raw_payee": "seed"})
+    client.post("/api/transfers", json={
+        "from_account_id": a, "to_account_id": b, "amount": "1000",
+        "ts": _MONTH_TS, "tags": ["Investment"]})
+
+    ie = client.get("/api/reports/income-expense").json()
+    assert Decimal(str(ie["income"])) == Decimal("2000.00")  # +1000 transfer leg excluded
+    assert Decimal(str(ie["expense"])) == Decimal("0.00")  # -1000 transfer leg excluded
+
+    legs = [t for t in client.get("/api/transactions").json() if t["is_transfer"]]
+    assert len(legs) == 2
+    assert all(t["tags"] == ["investment"] for t in legs)  # normalized + applied to both legs
 
 
 def test_transfer_moves_balance_between_accounts(client):

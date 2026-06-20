@@ -12,7 +12,9 @@ export function CategoryBreakdownCard({ className }: { className?: string }) {
   const cats = useApi<CategoryOut[]>("/categories");
   const [tag, setTag] = useState("all");
 
-  const allTags = [...new Set((txns.data ?? []).flatMap((t) => t.tags ?? []))].sort();
+  const allTags = [
+    ...new Set((txns.data ?? []).filter((t) => !t.is_transfer).flatMap((t) => t.tags ?? [])),
+  ].sort();
   const action =
     allTags.length > 0 ? (
       <select className="select" value={tag} onChange={(e) => setTag(e.target.value)} style={{ fontSize: 13 }}>
@@ -28,7 +30,8 @@ export function CategoryBreakdownCard({ className }: { className?: string }) {
       <Async state={txns}>
         {(list) => {
           const catMap = new Map((cats.data ?? []).map((c) => [c.id, c]));
-          const filtered = tag === "all" ? list : list.filter((t) => (t.tags ?? []).includes(tag));
+          const spendable = list.filter((t) => !t.is_transfer); // transfers aren't spending
+          const filtered = tag === "all" ? spendable : spendable.filter((t) => (t.tags ?? []).includes(tag));
 
           // Sum each category's signed total, then keep the spending (negative) side.
           const byCat = new Map<string, number>();
