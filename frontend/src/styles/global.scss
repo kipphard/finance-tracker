@@ -305,7 +305,13 @@ li.is-dragging {
 }
 
 .alloc__pct {
-  width: 62px;
+  width: 72px;
+  text-align: right;
+  padding: 4px 6px;
+}
+
+.alloc__amt {
+  width: 96px;
   text-align: right;
   padding: 4px 6px;
 }

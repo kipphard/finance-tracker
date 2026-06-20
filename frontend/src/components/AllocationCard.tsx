@@ -236,7 +236,7 @@ export function AllocationCard({ className }: { className?: string }) {
                                         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
                                           <span className="muted" style={{ fontSize: 11 }}>pay</span>
                                           <input
-                                            className="input alloc__pct"
+                                            className="input alloc__amt"
                                             type="number"
                                             min="0"
                                             step="0.01"
