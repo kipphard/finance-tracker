@@ -40,6 +40,17 @@ export function ForecastCard({ className }: { className?: string }) {
           for (const s of f.series) labelFor[s.key] = s.label;
           const effView = accountSeries.length === 0 ? "total" : view;
 
+          // "By account": zoom the Y-axis to the data range (+ padding) so small differences
+          // between balances are visible, instead of starting at 0.
+          const accVals = accountSeries.flatMap((s) => s.points.map((p) => num(p.projected)));
+          const accLo = accVals.length ? Math.min(...accVals) : 0;
+          const accHi = accVals.length ? Math.max(...accVals) : 0;
+          const accPad = Math.max((accHi - accLo) * 0.15, accHi * 0.01, 1);
+          const accDomain: [number, number] = [
+            Math.max(0, Math.floor(accLo - accPad)),
+            Math.ceil(accHi + accPad),
+          ];
+
           return (
             <>
               <div className="metric-row">
@@ -81,6 +92,8 @@ export function ForecastCard({ className }: { className?: string }) {
                   <CartesianGrid strokeDasharray="3 3" stroke={grid} />
                   <XAxis dataKey="month" tick={{ fill: axis, fontSize: 12 }} stroke={grid} />
                   <YAxis tick={{ fill: axis, fontSize: 12 }} stroke={grid} width={72}
+                    domain={effView === "accounts" ? accDomain : [0, "auto"]}
+                    allowDecimals={false}
                     tickFormatter={(v) => money(v)} />
                   <Tooltip
                     formatter={(v: number, key: string) => [money(v), labelFor[key] ?? key]}
