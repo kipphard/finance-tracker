@@ -3,6 +3,7 @@ import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { AccountOut, CategoryOut, TransactionOut } from "../api/types";
 import { money, num, shortDate } from "../lib/format";
+import { useManualOrder } from "../hooks/useManualOrder";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
@@ -264,6 +265,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [adding, setAdding] = useState(false);
   const [attachFor, setAttachFor] = useState<string | null>(null);
   const [editing, setEditing] = useState<TransactionOut | null>(null);
+  const dnd = useManualOrder("ft_order_transactions");
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
@@ -335,11 +337,18 @@ export function TransactionsTable({ className }: { className?: string }) {
                 (t.raw_payee || "").toLowerCase().includes(q) ||
                 (t.description || "").toLowerCase().includes(q),
             );
+          const byId = Object.fromEntries(list.map((t) => [t.id, t]));
+          const dateOf = (id: string) => (byId[id]?.ts ?? "").slice(0, 10);
+          const eff = dnd.reconcile(list.map((t) => t.id));
+          const mi = (id: string) => eff.indexOf(id);
+          const dateSort = sort === "date-asc" || sort === "date-desc";
           rows = [...rows].sort((a, b) => {
-            if (sort === "date-asc") return a.ts.localeCompare(b.ts);
             if (sort === "amount-asc") return num(a.amount) - num(b.amount);
             if (sort === "amount-desc") return num(b.amount) - num(a.amount);
-            return b.ts.localeCompare(a.ts); // date-desc (default)
+            const da = a.ts.slice(0, 10);
+            const db = b.ts.slice(0, 10);
+            if (da !== db) return sort === "date-asc" ? da.localeCompare(db) : db.localeCompare(da);
+            return mi(a.id) - mi(b.id); // same day → manual order
           });
           if (rows.length === 0)
             return <div className="empty">No transactions yet — add one or import a CSV.</div>;
@@ -348,6 +357,7 @@ export function TransactionsTable({ className }: { className?: string }) {
               <table>
                 <thead>
                   <tr>
+                    <th className="grip-cell"></th>
                     <th>Date</th>
                     <th>Payee</th>
                     <th className="amount">Amount</th>
@@ -357,7 +367,34 @@ export function TransactionsTable({ className }: { className?: string }) {
                 </thead>
                 <tbody>
                   {rows.map((t) => (
-                    <tr key={t.id}>
+                    <tr
+                      key={t.id}
+                      className={dnd.dragging === t.id ? "is-dragging" : ""}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={() =>
+                        dateSort && dnd.over(t.id, (from, to) => dateOf(from) === dateOf(to))
+                      }
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        dnd.end();
+                      }}
+                    >
+                      <td className="grip-cell">
+                        <span
+                          className={"row-grip" + (dateSort ? "" : " is-disabled")}
+                          draggable={dateSort}
+                          title={dateSort ? "Drag to reorder (same date)" : "Sort by date to reorder"}
+                          onDragStart={(e) => {
+                            dnd.start(t.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            const tr = (e.currentTarget as HTMLElement).closest("tr");
+                            if (tr) e.dataTransfer.setDragImage(tr, 16, 16);
+                          }}
+                          onDragEnd={dnd.end}
+                        >
+                          ⠿
+                        </span>
+                      </td>
                       <td>{shortDate(t.ts)}</td>
                       <td>
                         <div>

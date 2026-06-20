@@ -233,6 +233,43 @@ a {
   }
 }
 
+// ===== Row drag handle (reorder items inside a card) ======================
+.row-grip {
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 5px;
+  display: inline-block;
+
+  &:hover {
+    color: var(--text);
+    background: rgba(127, 127, 127, 0.14);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &.is-disabled {
+    cursor: default;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}
+
+.grip-cell {
+  width: 26px;
+  padding-right: 0 !important;
+  text-align: center;
+}
+
+tr.is-dragging,
+li.is-dragging {
+  opacity: 0.4;
+}
+
 // ===== Allocation card ====================================================
 .alloc__leftover {
   font-size: 26px;

@@ -3,6 +3,7 @@ import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { AccountOut } from "../api/types";
 import { money, num, titleCase } from "../lib/format";
+import { useManualOrder } from "../hooks/useManualOrder";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
@@ -113,6 +114,7 @@ function AccountForm({
 export function AccountsCard({ className }: { className?: string }) {
   const state = useApi<AccountOut[]>("/accounts");
   const [modal, setModal] = useState<{ edit?: AccountOut } | null>(null);
+  const dnd = useManualOrder("ft_order_accounts");
 
   const create = async (v: any) => {
     const acc = await apiPost<AccountOut>("/accounts", { name: v.name, type: v.type, currency: v.currency });
@@ -157,33 +159,66 @@ export function AccountsCard({ className }: { className?: string }) {
           accounts.length === 0 ? (
             <div className="empty">No accounts yet — add one to start tracking.</div>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th className="amount">Balance</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...accounts].sort((a, b) => a.name.localeCompare(b.name)).map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.name}</td>
-                    <td>{titleCase(a.type)}</td>
-                    <td className="amount">
-                      {a.latest_balance != null ? money(a.latest_balance, a.currency) : money(0, a.currency)}
-                    </td>
-                    <td className="amount">
-                      <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
-                        onClick={() => setModal({ edit: a })} title="Edit account">
-                        ✎
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            (() => {
+              const byName = [...accounts].sort((a, b) => a.name.localeCompare(b.name));
+              const eff = dnd.reconcile(byName.map((a) => a.id));
+              const ordered = [...accounts].sort((a, b) => eff.indexOf(a.id) - eff.indexOf(b.id));
+              return (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="grip-cell"></th>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th className="amount">Balance</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ordered.map((a) => (
+                      <tr
+                        key={a.id}
+                        className={dnd.dragging === a.id ? "is-dragging" : ""}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnter={() => dnd.over(a.id)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          dnd.end();
+                        }}
+                      >
+                        <td className="grip-cell">
+                          <span
+                            className="row-grip"
+                            draggable
+                            title="Drag to reorder"
+                            onDragStart={(e) => {
+                              dnd.start(a.id);
+                              e.dataTransfer.effectAllowed = "move";
+                              const tr = (e.currentTarget as HTMLElement).closest("tr");
+                              if (tr) e.dataTransfer.setDragImage(tr, 16, 16);
+                            }}
+                            onDragEnd={dnd.end}
+                          >
+                            ⠿
+                          </span>
+                        </td>
+                        <td>{a.name}</td>
+                        <td>{titleCase(a.type)}</td>
+                        <td className="amount">
+                          {a.latest_balance != null ? money(a.latest_balance, a.currency) : money(0, a.currency)}
+                        </td>
+                        <td className="amount">
+                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                            onClick={() => setModal({ edit: a })} title="Edit account">
+                            ✎
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()
           )
         }
       </Async>
