@@ -4,10 +4,12 @@ import type { ReactNode } from "react";
 export function Modal({
   title,
   onClose,
+  className,
   children,
 }: {
   title: string;
   onClose: () => void;
+  className?: string;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -20,7 +22,7 @@ export function Modal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className={"modal " + (className ?? "")} onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <h3>{title}</h3>
           <button className="icon-btn" onClick={onClose} aria-label="Close">

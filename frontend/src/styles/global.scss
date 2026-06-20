@@ -755,6 +755,10 @@ input {
   max-width: 420px;
   overflow: hidden;
 
+  &--wide {
+    max-width: 920px;
+  }
+
   &__head {
     display: flex;
     align-items: center;

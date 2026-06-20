@@ -77,6 +77,16 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
 }
 
 // Fetch a file with auth and open it in a new tab (e.g. view a PDF).
+// Fetch a file with auth and return an object URL (caller must revokeObjectURL when done).
+export async function apiBlobUrl(path: string): Promise<string> {
+  const token = getToken();
+  const res = await fetch(BASE + path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return URL.createObjectURL(await res.blob());
+}
+
 export async function apiOpen(path: string): Promise<void> {
   // Open the tab synchronously (inside the click gesture) so the popup blocker doesn't kill it,
   // then point it at the fetched blob once it's ready.
