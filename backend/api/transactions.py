@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
 
@@ -16,6 +17,8 @@ from backend.schemas import (
     TransactionCreate,
     TransactionOut,
     TransactionUpdate,
+    TransferCreate,
+    TransferOut,
 )
 
 router = APIRouter(tags=["transactions"])
@@ -52,6 +55,48 @@ def add_transaction(
     categorize_transaction(session, user.id, txn)
     session.commit()
     return TransactionOut.model_validate(txn)
+
+
+@router.post("/transfers", response_model=TransferOut, status_code=201)
+def create_transfer(
+    payload: TransferCreate, session: SessionDep, user: CurrentUser
+) -> TransferOut:
+    """Move money between two of the user's accounts in one step: books a matching outflow on
+    the source and inflow on the destination. Net worth is unchanged (the two legs cancel)."""
+    if payload.from_account_id == payload.to_account_id:
+        raise HTTPException(status_code=400, detail="cannot transfer to the same account")
+    src = repository.get_account(session, payload.from_account_id, user.id)
+    dst = repository.get_account(session, payload.to_account_id, user.id)
+    if src is None or dst is None:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    ts = payload.ts or datetime.now(timezone.utc)
+    out_txn, _ = repository.upsert_transaction(
+        session,
+        user_id=user.id,
+        account_id=src.id,
+        ts=ts,
+        amount=-payload.amount,
+        currency=src.currency,
+        hash=uuid.uuid4().hex,
+        raw_payee=f"Transfer to {dst.name}",
+        description=payload.note,
+    )
+    in_txn, _ = repository.upsert_transaction(
+        session,
+        user_id=user.id,
+        account_id=dst.id,
+        ts=ts,
+        amount=payload.amount,
+        currency=dst.currency,
+        hash=uuid.uuid4().hex,
+        raw_payee=f"Transfer from {src.name}",
+        description=payload.note,
+    )
+    session.commit()
+    return TransferOut(
+        from_transaction_id=out_txn.id, to_transaction_id=in_txn.id, amount=payload.amount
+    )
 
 
 @router.post(

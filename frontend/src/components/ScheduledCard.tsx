@@ -17,10 +17,10 @@ export function ScheduledCard({ className }: { className?: string }) {
     <Card title="Scheduled (auto-repeats)" className={className}>
       <Async state={state}>
         {(items) => {
-          // Recurring-transaction templates = active items with a target account.
-          const templates = items.filter(
-            (i) => i.active && i.account_id && i.cadence !== "one_off",
-          );
+          // All active recurring items. Those with a target account auto-post transactions;
+          // those without still count toward the monthly plan (income / fixed costs), so we
+          // show them here too — otherwise they'd silently skew the numbers while staying hidden.
+          const templates = items.filter((i) => i.active && i.cadence !== "one_off");
           if (templates.length === 0)
             return (
               <div className="empty">
@@ -35,7 +35,8 @@ export function ScheduledCard({ className }: { className?: string }) {
                   <span>
                     <span className="li-main">{t.name}</span>{" "}
                     <span className="li-sub">
-                      · {titleCase(t.cadence)} · next {shortDate(t.next_due)}
+                      · {titleCase(t.cadence)} ·{" "}
+                      {t.account_id ? `next ${shortDate(t.next_due)}` : "budget only"}
                     </span>
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 10 }}>

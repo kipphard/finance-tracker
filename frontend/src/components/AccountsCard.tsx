@@ -111,10 +111,96 @@ function AccountForm({
   );
 }
 
+function TransferForm({
+  accounts,
+  onSubmit,
+  onClose,
+}: {
+  accounts: AccountOut[];
+  onSubmit: (v: any) => Promise<void>;
+  onClose: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(accounts[0]?.id ?? "");
+  const [to, setTo] = useState(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? "");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(today);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (from === to) {
+      setError("Pick two different accounts");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit({
+        from_account_id: from,
+        to_account_id: to,
+        amount,
+        ts: `${date}T00:00:00Z`,
+        note: note || null,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="form" onSubmit={submit}>
+      <div className="field-row">
+        <div className="field">
+          <label>From</label>
+          <select className="select" value={from} onChange={(e) => setFrom(e.target.value)}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>To</label>
+          <select className="select" value={to} onChange={(e) => setTo(e.target.value)}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="field-row">
+        <div className="field">
+          <label>Amount</label>
+          <input className="input" type="number" step="0.01" min="0" placeholder="1000.00"
+            value={amount} onChange={(e) => setAmount(e.target.value)} required autoFocus />
+        </div>
+        <div className="field">
+          <label>Date</label>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Note (optional)</label>
+        <input className="input" placeholder="e.g. move savings to broker" value={note}
+          onChange={(e) => setNote(e.target.value)} />
+      </div>
+      {error && <div className="error">{error}</div>}
+      <div className="form__actions">
+        <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+        <button className="btn" type="submit" disabled={busy || !amount || from === to}>
+          {busy ? "…" : "Transfer"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function AccountsCard({ className }: { className?: string }) {
   const state = useApi<AccountOut[]>("/accounts");
   const [modal, setModal] = useState<{ edit?: AccountOut } | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
   const dnd = useManualOrder("ft_order_accounts");
+  const accountList = state.data ?? [];
 
   const create = async (v: any) => {
     const acc = await apiPost<AccountOut>("/accounts", { name: v.name, type: v.type, currency: v.currency });
@@ -147,9 +233,20 @@ export function AccountsCard({ className }: { className?: string }) {
     await apiDelete(`/accounts/${id}`);
     state.reload();
   };
+  const transfer = async (v: any) => {
+    await apiPost("/transfers", v);
+    state.reload();
+  };
 
   const action = (
-    <button className="btn btn--sm" onClick={() => setModal({})}>+ Account</button>
+    <span style={{ display: "flex", gap: 8 }}>
+      {accountList.length >= 2 && (
+        <button className="btn btn--ghost btn--sm" onClick={() => setTransferOpen(true)}>
+          ⇄ Transfer
+        </button>
+      )}
+      <button className="btn btn--sm" onClick={() => setModal({})}>+ Account</button>
+    </span>
   );
 
   return (
@@ -230,6 +327,16 @@ export function AccountsCard({ className }: { className?: string }) {
             onClose={() => setModal(null)}
             onSubmit={(v) => (modal.edit ? edit(modal.edit, v) : create(v))}
             onDelete={modal.edit ? () => remove(modal.edit!.id) : undefined}
+          />
+        </Modal>
+      )}
+
+      {transferOpen && (
+        <Modal title="Transfer between accounts" onClose={() => setTransferOpen(false)}>
+          <TransferForm
+            accounts={accountList}
+            onClose={() => setTransferOpen(false)}
+            onSubmit={transfer}
           />
         </Modal>
       )}

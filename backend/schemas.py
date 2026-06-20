@@ -288,6 +288,20 @@ class TransactionUpdate(BaseModel):
     remember: bool = False
 
 
+class TransferCreate(BaseModel):
+    from_account_id: uuid.UUID
+    to_account_id: uuid.UUID
+    amount: Decimal = Field(gt=0)
+    ts: datetime | None = None
+    note: str | None = None
+
+
+class TransferOut(BaseModel):
+    from_transaction_id: uuid.UUID
+    to_transaction_id: uuid.UUID
+    amount: Decimal
+
+
 class ImportResultOut(BaseModel):
     imported: int
     skipped_duplicates: int
