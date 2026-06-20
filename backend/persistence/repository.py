@@ -27,6 +27,7 @@ from backend.persistence.models import (
     Connection,
     ConnectionStatus,
     Debt,
+    EmergencyFund,
     NetWorthSnapshot,
     Recurring,
     Rule,
@@ -888,6 +889,30 @@ def delete_allocation(
     session.delete(allocation)
     session.flush()
     return True
+
+
+# --- emergency fund -------------------------------------------------------
+
+
+def get_emergency_fund(session: Session, user_id: uuid.UUID) -> EmergencyFund:
+    """Return the user's emergency-fund row, creating a default (3× fixed costs) on first use."""
+    fund = session.execute(
+        select(EmergencyFund).where(EmergencyFund.user_id == user_id)
+    ).scalars().first()
+    if fund is None:
+        fund = EmergencyFund(user_id=user_id)
+        session.add(fund)
+        session.flush()
+    return fund
+
+
+def update_emergency_fund(session: Session, fund: EmergencyFund, **fields) -> EmergencyFund:
+    # Unlike other updaters this sets fields even when None, so a custom target can be cleared
+    # (target_amount = None) to fall back to the N× multiplier.
+    for key, value in fields.items():
+        setattr(fund, key, value)
+    session.flush()
+    return fund
 
 
 # --- debts (things to pay off) -------------------------------------------

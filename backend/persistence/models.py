@@ -297,6 +297,24 @@ class Allocation(Base):
     )
 
 
+class EmergencyFund(Base):
+    """Per-user emergency-fund goal: a target that is N× monthly fixed costs (or a custom
+    amount), plus how much has been set aside so far. One row per user."""
+
+    __tablename__ = "emergency_funds"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    target_months: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    target_amount: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # custom override
+    current_amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class CashflowItem(Base):
     """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent."""
 

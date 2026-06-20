@@ -197,6 +197,16 @@ export interface DebtOut {
   created_at: string;
 }
 
+export interface EmergencyFundOut {
+  target_months: number;
+  target_amount: string | null;
+  current_amount: string;
+  monthly_fixed: string;
+  target: string;
+  gap: string;
+  funded_pct: string;
+}
+
 export interface AllocationBucketOut {
   id: string;
   name: string;

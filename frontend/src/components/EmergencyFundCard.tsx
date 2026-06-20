@@ -1,0 +1,88 @@
+import { useState } from "react";
+import { useApi } from "../hooks/useApi";
+import { apiPatch } from "../api/client";
+import type { EmergencyFundOut } from "../api/types";
+import { money, num } from "../lib/format";
+import { Card } from "./Card";
+import { Async } from "./Async";
+
+export function EmergencyFundCard({ className }: { className?: string }) {
+  const state = useApi<EmergencyFundOut>("/emergency-fund");
+  const [busy, setBusy] = useState(false);
+
+  const patch = async (body: Record<string, unknown>) => {
+    setBusy(true);
+    try {
+      await apiPatch("/emergency-fund", body);
+      state.reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card title="Emergency fund" className={className}>
+      <Async state={state}>
+        {(f) => {
+          const custom = f.target_amount !== null;
+          const pct = num(f.funded_pct);
+          const gap = num(f.gap);
+          return (
+            <>
+              <div className="ef__row">
+                <span className="muted" style={{ fontSize: 12 }}>Target</span>
+                {custom ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input className="input alloc__amt" type="number" min="0" step="50" disabled={busy}
+                      defaultValue={String(num(f.target_amount ?? 0))}
+                      onBlur={(e) => patch({ target_amount: e.target.value || "0" })} />
+                    <span className="muted">€</span>
+                    <button className="btn btn--ghost btn--sm" onClick={() => patch({ target_amount: null })}>
+                      × fixed
+                    </button>
+                  </span>
+                ) : (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input className="input alloc__pct" type="number" min="0" step="1" disabled={busy}
+                      defaultValue={String(f.target_months)}
+                      onBlur={(e) => patch({ target_months: parseInt(e.target.value || "0", 10) })} />
+                    <span className="muted">× fixed ({money(f.monthly_fixed)})</span>
+                    <button className="btn btn--ghost btn--sm"
+                      onClick={() => patch({ target_amount: String(num(f.target) || 0) })}>
+                      custom
+                    </button>
+                  </span>
+                )}
+              </div>
+              <div className="ef__target">
+                {money(f.target)}{" "}
+                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>goal</span>
+              </div>
+
+              <div className="progress" style={{ margin: "12px 0 8px" }}>
+                <div className="progress__bar"
+                  style={{ width: Math.min(100, pct) + "%", background: gap <= 0 ? "#10b981" : undefined }} />
+              </div>
+
+              <div className="ef__row">
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>Saved</span>
+                  <input className="input alloc__amt" type="number" min="0" step="50" disabled={busy}
+                    defaultValue={String(num(f.current_amount))}
+                    onBlur={(e) => patch({ current_amount: e.target.value || "0" })} />
+                  <span className="muted">€</span>
+                </span>
+                <span className={gap > 0 ? "neg" : "pos"} style={{ fontWeight: 600 }}>
+                  {gap > 0 ? `${money(f.gap)} to go` : "Fully funded 🎉"}
+                </span>
+              </div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {pct.toFixed(0)}% funded · {f.target_months}× your monthly fixed costs is a common buffer.
+              </div>
+            </>
+          );
+        }}
+      </Async>
+    </Card>
+  );
+}

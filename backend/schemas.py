@@ -412,6 +412,22 @@ class AllocationPlanOut(BaseModel):
     buckets: list[AllocationBucketOut]
 
 
+class EmergencyFundUpdate(BaseModel):
+    target_months: int | None = Field(default=None, ge=0, le=120)
+    target_amount: Decimal | None = Field(default=None, ge=0)  # custom override; null = N× fixed
+    current_amount: Decimal | None = Field(default=None, ge=0)
+
+
+class EmergencyFundOut(BaseModel):
+    target_months: int
+    target_amount: Decimal | None
+    current_amount: Decimal
+    monthly_fixed: Decimal
+    target: Decimal
+    gap: Decimal
+    funded_pct: Decimal
+
+
 class AlertOut(BaseModel):
     level: str
     kind: str

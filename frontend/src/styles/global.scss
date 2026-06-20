@@ -316,6 +316,20 @@ li.is-dragging {
   padding: 4px 6px;
 }
 
+.ef__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ef__target {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .alloc__debt {
   margin: 6px 0 2px 18px;
   padding: 8px 10px;

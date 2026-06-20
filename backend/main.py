@@ -14,6 +14,7 @@ from backend.api import (
     cashflow,
     categories,
     debts,
+    emergency_fund,
     forecast,
     health,
     me,
@@ -56,6 +57,7 @@ app.include_router(alerts.router, prefix=API)
 app.include_router(forecast.router, prefix=API)
 app.include_router(debts.router, prefix=API)
 app.include_router(allocations.router, prefix=API)
+app.include_router(emergency_fund.router, prefix=API)
 app.include_router(attachments.router, prefix=API)
 
 
