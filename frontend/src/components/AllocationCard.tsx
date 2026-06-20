@@ -12,6 +12,7 @@ const EF_COLOR = "#14b8a6";
 const TICK_KEY = "ft_debt_payoff_ids";
 const PAY_KEY = "ft_debt_pay_amounts";
 const EF_KEY = "ft_ef_contribution";
+const EF_MODE_KEY = "ft_ef_mode";
 
 function loadTicked(): string[] | null {
   try {
@@ -48,12 +49,28 @@ export function AllocationCard({ className }: { className?: string }) {
       return "";
     }
   });
+  const [efMode, setEfModeRaw] = useState<"amount" | "percent">(() => {
+    try {
+      return localStorage.getItem(EF_MODE_KEY) === "percent" ? "percent" : "amount";
+    } catch {
+      return "amount";
+    }
+  });
   const [busy, setBusy] = useState(false);
 
   const saveEfPay = (v: string) => {
     setEfPay(v);
     try {
       localStorage.setItem(EF_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
+  const setEfMode = (m: "amount" | "percent") => {
+    setEfModeRaw(m);
+    saveEfPay(""); // value means something different per mode; start fresh
+    try {
+      localStorage.setItem(EF_MODE_KEY, m);
     } catch {
       /* ignore */
     }
@@ -167,7 +184,12 @@ export function AllocationCard({ className }: { className?: string }) {
           const months = debtPay > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / debtPay) : null;
 
           const ef = efApi.data;
-          const efContribution = efBucket ? num(efPay) : 0;
+          // Contribution can be a fixed € or a % of the monthly leftover (income − fixed).
+          const efContribution = efBucket
+            ? efMode === "percent"
+              ? (num(efPay) / 100) * gross
+              : num(efPay)
+            : 0;
           const efGap = ef ? num(ef.gap) : 0;
           const efMonths = efContribution > 0 && efGap > 0 ? Math.ceil(efGap / efContribution) : null;
 
@@ -292,17 +314,24 @@ export function AllocationCard({ className }: { className?: string }) {
                     ) : (
                       <div className="alloc__debt">
                         <div className="alloc__tick">
-                          <span className="muted" style={{ fontSize: 11 }}>put / month</span>
+                          <span className="muted" style={{ fontSize: 11 }}>
+                            put / month{efMode === "percent" && efContribution > 0 ? ` · ${money(efContribution, plan.currency)}` : ""}
+                          </span>
                           <input
                             className="input alloc__amt"
                             style={{ marginLeft: "auto" }}
                             type="number"
                             min="0"
-                            step="0.01"
+                            step={efMode === "percent" ? "0.5" : "0.01"}
                             value={efPay}
                             onChange={(e) => saveEfPay(e.target.value)}
                           />
-                          <span className="muted">€</span>
+                          <button type="button" className="btn btn--ghost btn--sm"
+                            style={{ padding: "2px 8px" }}
+                            onClick={() => setEfMode(efMode === "percent" ? "amount" : "percent")}
+                            title="Switch between € and % of leftover">
+                            {efMode === "percent" ? "%" : "€"}
+                          </button>
                         </div>
                         <div className="li-sub" style={{ marginTop: 6 }}>
                           {ef
