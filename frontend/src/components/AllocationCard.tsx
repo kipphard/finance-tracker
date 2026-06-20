@@ -6,15 +6,24 @@ import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
-const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7", "#ec4899", "#84cc16"];
-const DEBT_KEY = "ft_debt_payoff_ids";
+const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#06b6d4", "#a855f7", "#ec4899", "#84cc16"];
+const DEBT_COLOR = "#ef4444";
+const TICK_KEY = "ft_debt_payoff_ids";
+const PAY_KEY = "ft_debt_pay_amounts";
 
 function loadTicked(): string[] | null {
   try {
-    const v = JSON.parse(localStorage.getItem(DEBT_KEY) || "null");
+    const v = JSON.parse(localStorage.getItem(TICK_KEY) || "null");
     return Array.isArray(v) ? v : null;
   } catch {
     return null;
+  }
+}
+function loadPay(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(PAY_KEY) || "{}") || {};
+  } catch {
+    return {};
   }
 }
 
@@ -26,14 +35,22 @@ export function AllocationCard({ className }: { className?: string }) {
   const [name, setName] = useState("");
   const [percent, setPercent] = useState("");
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [payDraft, setPayDraft] = useState<Record<string, string>>({});
+  const [payDraft, setPayDraft] = useState<Record<string, string>>(() => loadPay());
   const [tickedRaw, setTickedRaw] = useState<string[] | null>(() => loadTicked());
   const [busy, setBusy] = useState(false);
 
   const saveTicked = (ids: string[]) => {
     setTickedRaw(ids);
     try {
-      localStorage.setItem(DEBT_KEY, JSON.stringify(ids));
+      localStorage.setItem(TICK_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+  };
+  const savePay = (next: Record<string, string>) => {
+    setPayDraft(next);
+    try {
+      localStorage.setItem(PAY_KEY, JSON.stringify(next));
     } catch {
       /* ignore */
     }
@@ -62,7 +79,7 @@ export function AllocationCard({ className }: { className?: string }) {
   const addDebtBucket = async () => {
     setBusy(true);
     try {
-      await apiPost("/allocations", { name: "Debt", percent: "10" });
+      await apiPost("/allocations", { name: "Debt", percent: "1" });
       state.reload();
     } finally {
       setBusy(false);
@@ -85,25 +102,12 @@ export function AllocationCard({ className }: { className?: string }) {
     state.reload();
   };
 
-  // Set the Debt bucket's % so its monthly € equals the total being paid toward the ticked debts.
-  // Full precision so the bar / unallocated math is exact; the % is displayed rounded.
-  const syncDebtPct = async (bucketId: string, total: number, leftover: number) => {
-    if (total <= 0 || leftover <= 0) return;
-    const pct = Math.min(100, Math.max(0.0001, Math.round((total / leftover) * 1000000) / 10000));
-    await apiPatch(`/allocations/${bucketId}`, { percent: String(pct) });
-    state.reload();
-  };
-
   return (
     <Card title="Distribute leftover" className={className}>
       <Async state={state}>
         {(plan) => {
-          const leftover = num(plan.leftover);
-          const totalPct = num(plan.allocated_percent);
-          const denom = Math.max(100, totalPct);
-          const over = totalPct > 100;
-
-          if (leftover <= 0) {
+          const gross = num(plan.leftover); // income − fixed costs
+          if (gross <= 0) {
             return (
               <div className="empty">
                 Add your recurring income and fixed costs in the <b>Monthly cashflow</b> card,
@@ -117,43 +121,40 @@ export function AllocationCard({ className }: { className?: string }) {
           const tickedSet =
             tickedRaw !== null ? new Set(tickedRaw) : new Set(unpaidDebts.map((d) => d.id));
           const debtBucket = plan.buckets.find((b) => isDebtBucket(b.name));
+          const otherBuckets = plan.buckets.filter((b) => !isDebtBucket(b.name));
 
           const amountFor = (d: DebtOut) => payDraft[d.id] ?? String(num(d.amount));
-          const tickedPayTotal = (ids: Set<string>) =>
-            unpaidDebts.filter((d) => ids.has(d.id)).reduce((s, d) => s + num(amountFor(d)), 0);
+          // Debt is a first claim taken off the top — not a % of the leftover.
+          const debtPay = debtBucket
+            ? unpaidDebts.filter((d) => tickedSet.has(d.id)).reduce((s, d) => s + num(amountFor(d)), 0)
+            : 0;
+          const tickedTotal = unpaidDebts
+            .filter((d) => tickedSet.has(d.id))
+            .reduce((s, d) => s + num(d.amount), 0);
+          const months = debtPay > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / debtPay) : null;
 
-          const toggleTick = (d: DebtOut, checked: boolean) => {
-            const next = new Set(tickedSet);
-            if (checked) next.add(d.id);
-            else next.delete(d.id);
-            saveTicked([...next]);
-            if (debtBucket) syncDebtPct(debtBucket.id, tickedPayTotal(next), leftover);
-          };
-          const commitAmount = (d: DebtOut, value: string) => {
-            const nextDraft = { ...payDraft, [d.id]: value };
-            setPayDraft(nextDraft);
-            if (debtBucket) {
-              const total = unpaidDebts
-                .filter((x) => tickedSet.has(x.id))
-                .reduce((s, x) => s + num(nextDraft[x.id] ?? num(x.amount)), 0);
-              syncDebtPct(debtBucket.id, total, leftover);
-            }
-          };
+          const distributable = Math.max(0, gross - debtPay);
+          const allocatedPct = otherBuckets.reduce((s, b) => s + num(b.percent), 0);
+          const over = allocatedPct > 100;
+          const denom = Math.max(100, allocatedPct);
+          const unallocPct = Math.max(0, 100 - allocatedPct);
+          const bucketAmt = (b: { percent: string }) => (num(b.percent) / 100) * distributable;
 
           return (
             <>
               <div className="muted" style={{ fontSize: 12 }}>
                 {money(plan.monthly_income, plan.currency)} income −{" "}
                 {money(plan.monthly_fixed, plan.currency)} fixed costs
+                {debtPay > 0 ? ` − ${money(debtPay, plan.currency)} debt` : ""}
               </div>
               <div className="alloc__leftover">
-                {money(plan.leftover, plan.currency)}{" "}
-                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>left / month</span>
+                {money(distributable, plan.currency)}{" "}
+                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>to distribute</span>
               </div>
 
-              {plan.buckets.length > 0 && (
+              {otherBuckets.length > 0 && (
                 <div className="alloc__bar">
-                  {plan.buckets.map((b, i) => (
+                  {otherBuckets.map((b, i) => (
                     <div
                       key={b.id}
                       className="alloc__seg"
@@ -161,120 +162,123 @@ export function AllocationCard({ className }: { className?: string }) {
                       title={`${b.name} · ${num(b.percent)}%`}
                     />
                   ))}
-                  {!over && totalPct < 100 && (
-                    <div className="alloc__seg alloc__seg--rest" style={{ width: `${((100 - totalPct) / denom) * 100}%` }} />
+                  {!over && unallocPct > 0 && (
+                    <div className="alloc__seg alloc__seg--rest" style={{ width: `${(unallocPct / denom) * 100}%` }} />
                   )}
                 </div>
               )}
 
-              {plan.buckets.length === 0 ? (
-                <div className="empty">
-                  Add buckets to split {money(plan.leftover, plan.currency)} — e.g. Savings 50%,
-                  Invest 30%, Buffer 20%.
-                </div>
-              ) : (
-                <ul className="list">
-                  {plan.buckets.map((b, i) => {
-                    const debt = isDebtBucket(b.name);
-                    // What you owe on the ticked debts vs. what you're paying per month.
-                    const tickedTotal = unpaidDebts
-                      .filter((d) => tickedSet.has(d.id))
-                      .reduce((s, d) => s + num(d.amount), 0);
-                    const debtPay = unpaidDebts
-                      .filter((d) => tickedSet.has(d.id))
-                      .reduce((s, d) => s + num(amountFor(d)), 0);
-                    const monthly = debt ? debtPay : num(b.amount);
-                    const months =
-                      debt && monthly > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / monthly) : null;
-                    return (
-                      <li key={b.id} style={{ display: "block" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span className="li-main">
-                            <span className="alloc__dot" style={{ background: COLORS[i % COLORS.length] }} />
-                            {debt ? "🎯 Debt" : b.name}
-                          </span>
-                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input
-                              className="input alloc__pct"
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              readOnly={debt}
-                              title={debt ? "Auto-set from the amounts below" : undefined}
-                              value={debt ? String(Math.round(num(b.percent) * 10) / 10) : (draft[b.id] ?? String(num(b.percent)))}
-                              onChange={debt ? undefined : (e) => setDraft((d) => ({ ...d, [b.id]: e.target.value }))}
-                              onBlur={debt ? undefined : () => commitPercent(b.id, b.percent)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                              }}
-                            />
-                            <span className="muted">%</span>
-                            <strong style={{ minWidth: 78, textAlign: "right" }}>
-                              {money(debt ? debtPay : b.amount, plan.currency)}
-                            </strong>
-                            <button className="btn btn--ghost" style={{ padding: "0 6px" }}
-                              onClick={() => remove(b.id)} title="Remove">×</button>
-                          </span>
+              <ul className="list">
+                {/* Debt — always first, taken off the top */}
+                {debtBucket && (
+                  <li style={{ display: "block" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="li-main">
+                        <span className="alloc__dot" style={{ background: DEBT_COLOR }} />
+                        🎯 Debt <span className="muted" style={{ fontWeight: 400 }}>· off the top</span>
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <strong style={{ minWidth: 78, textAlign: "right" }}>
+                          {money(debtPay, plan.currency)}
+                        </strong>
+                        <button className="btn btn--ghost" style={{ padding: "0 6px" }}
+                          onClick={() => remove(debtBucket.id)} title="Remove">×</button>
+                      </span>
+                    </div>
+                    {unpaidDebts.length === 0 ? (
+                      <div className="li-sub" style={{ marginTop: 6 }}>No open debt 🎉</div>
+                    ) : (
+                      <div className="alloc__debt">
+                        <div className="alloc__debtlist">
+                          {unpaidDebts.map((d) => {
+                            const checked = tickedSet.has(d.id);
+                            return (
+                              <div key={d.id} className="alloc__tick">
+                                <input type="checkbox" checked={checked}
+                                  onChange={(e) => {
+                                    const next = new Set(tickedSet);
+                                    if (e.target.checked) next.add(d.id);
+                                    else next.delete(d.id);
+                                    saveTicked([...next]);
+                                  }} />
+                                <span>
+                                  {d.name} <span className="muted">· {money(d.amount)}</span>
+                                </span>
+                                {checked && (
+                                  <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span className="muted" style={{ fontSize: 11 }}>pay</span>
+                                    <input
+                                      className="input alloc__amt"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={amountFor(d)}
+                                      onChange={(e) => savePay({ ...payDraft, [d.id]: e.target.value })}
+                                    />
+                                    <span className="muted">€</span>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        {debt && (
-                          unpaidDebts.length === 0 ? (
-                            <div className="li-sub" style={{ marginTop: 6 }}>No open debt 🎉</div>
-                          ) : (
-                            <div className="alloc__debt">
-                              <div className="alloc__debtlist">
-                                {unpaidDebts.map((d) => {
-                                  const checked = tickedSet.has(d.id);
-                                  return (
-                                    <div key={d.id} className="alloc__tick">
-                                      <input type="checkbox" checked={checked}
-                                        onChange={(e) => toggleTick(d, e.target.checked)} />
-                                      <span>
-                                        {d.name} <span className="muted">· {money(d.amount)}</span>
-                                      </span>
-                                      {checked && (
-                                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                                          <span className="muted" style={{ fontSize: 11 }}>pay</span>
-                                          <input
-                                            className="input alloc__amt"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={amountFor(d)}
-                                            onChange={(e) => setPayDraft((p) => ({ ...p, [d.id]: e.target.value }))}
-                                            onBlur={(e) => commitAmount(d, e.target.value)}
-                                          />
-                                          <span className="muted">€</span>
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              <div className="li-sub" style={{ marginTop: 6 }}>
-                                {months != null
-                                  ? `${money(monthly, plan.currency)}/mo → clears ${money(tickedTotal, plan.currency)} in ~${months} ${months === 1 ? "month" : "months"}`
-                                  : "Tick a debt and enter how much you're paying."}
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </li>
-                    );
-                  })}
-                  {over ? (
-                    <li>
-                      <span className="li-main neg">⚠ Over 100% — reduce a bucket</span>
-                      <span className="neg">{totalPct}%</span>
-                    </li>
-                  ) : totalPct < 100 ? (
-                    <li style={{ opacity: 0.75 }}>
-                      <span className="li-main muted">Unallocated · {num(plan.unallocated_percent)}%</span>
-                      <span className="muted">{money(plan.unallocated_amount, plan.currency)}</span>
-                    </li>
-                  ) : null}
-                </ul>
-              )}
+                        <div className="li-sub" style={{ marginTop: 6 }}>
+                          {months != null
+                            ? `${money(debtPay, plan.currency)}/mo → clears ${money(tickedTotal, plan.currency)} in ~${months} ${months === 1 ? "month" : "months"}`
+                            : "Tick a debt and enter how much you're paying."}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                )}
+
+                {/* Everything else splits what's left after debt */}
+                {otherBuckets.map((b, i) => (
+                  <li key={b.id}>
+                    <span className="li-main">
+                      <span className="alloc__dot" style={{ background: COLORS[i % COLORS.length] }} />
+                      {b.name}
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        className="input alloc__pct"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={draft[b.id] ?? String(num(b.percent))}
+                        onChange={(e) => setDraft((d) => ({ ...d, [b.id]: e.target.value }))}
+                        onBlur={() => commitPercent(b.id, b.percent)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                      />
+                      <span className="muted">%</span>
+                      <strong style={{ minWidth: 78, textAlign: "right" }}>
+                        {money(bucketAmt(b), plan.currency)}
+                      </strong>
+                      <button className="btn btn--ghost" style={{ padding: "0 6px" }}
+                        onClick={() => remove(b.id)} title="Remove">×</button>
+                    </span>
+                  </li>
+                ))}
+
+                {otherBuckets.length === 0 && !debtBucket ? (
+                  <li className="muted" style={{ justifyContent: "center" }}>
+                    Add buckets to split {money(distributable, plan.currency)}.
+                  </li>
+                ) : over ? (
+                  <li>
+                    <span className="li-main neg">⚠ Over 100% — reduce a bucket</span>
+                    <span className="neg">{allocatedPct}%</span>
+                  </li>
+                ) : unallocPct > 0 && otherBuckets.length > 0 ? (
+                  <li style={{ opacity: 0.75 }}>
+                    <span className="li-main muted">Unallocated · {unallocPct}%</span>
+                    <span className="muted">{money((unallocPct / 100) * distributable, plan.currency)}</span>
+                  </li>
+                ) : null}
+              </ul>
 
               {unpaidDebts.length > 0 && !debtBucket && (
                 <button className="btn btn--ghost btn--sm" style={{ marginTop: 10 }}
