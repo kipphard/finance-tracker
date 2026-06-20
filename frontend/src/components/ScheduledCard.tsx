@@ -10,6 +10,21 @@ import { Pager, paginate, usePageSize } from "./Pager";
 
 const CADENCES: Cadence[] = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
 
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
+}
+function dueLabel(days: number): string {
+  if (days < 0) return "overdue";
+  if (days === 0) return "due today";
+  if (days === 1) return "due tomorrow";
+  return `due in ${days}d`;
+}
+
 function ScheduledEditForm({
   item,
   onClose,
@@ -95,7 +110,13 @@ export function ScheduledCard({ className }: { className?: string }) {
           // All active recurring items. Those with a target account auto-post transactions;
           // those without still count toward the monthly plan (income / fixed costs), so we
           // show them here too — otherwise they'd silently skew the numbers while staying hidden.
-          const templates = items.filter((i) => i.active && i.cadence !== "one_off");
+          const templates = items
+            .filter((i) => i.active && i.cadence !== "one_off")
+            .sort((a, b) => {
+              if (!a.next_due) return 1; // budget-only (no date) sink to the bottom
+              if (!b.next_due) return -1;
+              return a.next_due.localeCompare(b.next_due); // soonest due first
+            });
           if (templates.length === 0)
             return (
               <div className="empty">
@@ -107,10 +128,14 @@ export function ScheduledCard({ className }: { className?: string }) {
           return (
             <>
             <ul className="list">
-              {slice.map((t) => (
+              {slice.map((t) => {
+                const dd = t.account_id ? daysUntil(t.next_due) : null;
+                const soon = dd != null && dd <= 7;
+                return (
                 <li key={t.id}>
                   <span>
                     <span className="li-main">{t.name}</span>{" "}
+                    {soon && <span className="badge badge--recurring">{dueLabel(dd!)}</span>}{" "}
                     <span className="li-sub">
                       · {titleCase(t.cadence)} ·{" "}
                       {t.account_id ? `next ${shortDate(t.next_due)}` : "budget only"}
@@ -131,7 +156,8 @@ export function ScheduledCard({ className }: { className?: string }) {
                     </button>
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <Pager page={p} pages={pages} total={templates.length} onPage={setPage} />
             </>
