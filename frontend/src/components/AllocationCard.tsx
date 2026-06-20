@@ -86,24 +86,12 @@ export function AllocationCard({ className }: { className?: string }) {
   };
 
   // Set the Debt bucket's % so its monthly € equals the total being paid toward the ticked debts.
+  // Full precision so the bar / unallocated math is exact; the % is displayed rounded.
   const syncDebtPct = async (bucketId: string, total: number, leftover: number) => {
     if (total <= 0 || leftover <= 0) return;
-    const pct = Math.min(100, Math.max(0.1, Math.round((total / leftover) * 1000) / 10));
+    const pct = Math.min(100, Math.max(0.0001, Math.round((total / leftover) * 1000000) / 10000));
     await apiPatch(`/allocations/${bucketId}`, { percent: String(pct) });
     state.reload();
-  };
-
-  // Record a real payment against a debt: clear it if fully paid, else reduce the outstanding.
-  const payOff = async (debt: DebtOut, payStr: string) => {
-    const pay = num(payStr);
-    if (pay <= 0) return;
-    const remaining = Math.round((num(debt.amount) - pay) * 100) / 100;
-    if (remaining <= 0.005) {
-      await apiPatch(`/debts/${debt.id}`, { paid: true });
-    } else {
-      await apiPatch(`/debts/${debt.id}`, { amount: remaining.toFixed(2) });
-    }
-    debtsApi.reload();
   };
 
   return (
@@ -188,12 +176,16 @@ export function AllocationCard({ className }: { className?: string }) {
                 <ul className="list">
                   {plan.buckets.map((b, i) => {
                     const debt = isDebtBucket(b.name);
-                    const monthly = num(b.amount);
+                    // What you owe on the ticked debts vs. what you're paying per month.
                     const tickedTotal = unpaidDebts
                       .filter((d) => tickedSet.has(d.id))
                       .reduce((s, d) => s + num(d.amount), 0);
+                    const debtPay = unpaidDebts
+                      .filter((d) => tickedSet.has(d.id))
+                      .reduce((s, d) => s + num(amountFor(d)), 0);
+                    const monthly = debt ? debtPay : num(b.amount);
                     const months =
-                      monthly > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / monthly) : null;
+                      debt && monthly > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / monthly) : null;
                     return (
                       <li key={b.id} style={{ display: "block" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -210,7 +202,7 @@ export function AllocationCard({ className }: { className?: string }) {
                               step="0.5"
                               readOnly={debt}
                               title={debt ? "Auto-set from the amounts below" : undefined}
-                              value={debt ? String(num(b.percent)) : (draft[b.id] ?? String(num(b.percent)))}
+                              value={debt ? String(Math.round(num(b.percent) * 10) / 10) : (draft[b.id] ?? String(num(b.percent)))}
                               onChange={debt ? undefined : (e) => setDraft((d) => ({ ...d, [b.id]: e.target.value }))}
                               onBlur={debt ? undefined : () => commitPercent(b.id, b.percent)}
                               onKeyDown={(e) => {
@@ -219,7 +211,7 @@ export function AllocationCard({ className }: { className?: string }) {
                             />
                             <span className="muted">%</span>
                             <strong style={{ minWidth: 78, textAlign: "right" }}>
-                              {money(b.amount, plan.currency)}
+                              {money(debt ? debtPay : b.amount, plan.currency)}
                             </strong>
                             <button className="btn btn--ghost" style={{ padding: "0 6px" }}
                               onClick={() => remove(b.id)} title="Remove">×</button>
@@ -237,9 +229,12 @@ export function AllocationCard({ className }: { className?: string }) {
                                     <div key={d.id} className="alloc__tick">
                                       <input type="checkbox" checked={checked}
                                         onChange={(e) => toggleTick(d, e.target.checked)} />
-                                      <span>{d.name}</span>
-                                      {checked ? (
+                                      <span>
+                                        {d.name} <span className="muted">· {money(d.amount)}</span>
+                                      </span>
+                                      {checked && (
                                         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                                          <span className="muted" style={{ fontSize: 11 }}>pay</span>
                                           <input
                                             className="input alloc__pct"
                                             type="number"
@@ -250,16 +245,6 @@ export function AllocationCard({ className }: { className?: string }) {
                                             onBlur={(e) => commitAmount(d, e.target.value)}
                                           />
                                           <span className="muted">€</span>
-                                          <button type="button" className="btn btn--ghost btn--sm"
-                                            style={{ padding: "2px 7px" }}
-                                            onClick={() => payOff(d, amountFor(d))}
-                                            title="Record this payment now">
-                                            Pay off
-                                          </button>
-                                        </span>
-                                      ) : (
-                                        <span className="muted" style={{ marginLeft: "auto" }}>
-                                          {money(d.amount)}
                                         </span>
                                       )}
                                     </div>

@@ -328,13 +328,8 @@ li.is-dragging {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  cursor: pointer;
 
-  span:last-child {
-    margin-left: auto;
-  }
-
-  input {
+  input[type="checkbox"] {
     cursor: pointer;
   }
 }
