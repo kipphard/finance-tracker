@@ -6,6 +6,7 @@ import { money, shortDate, titleCase } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
+import { Pager, paginate, usePageSize } from "./Pager";
 
 const CADENCES: Cadence[] = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
 
@@ -79,6 +80,8 @@ function ScheduledEditForm({
 export function ScheduledCard({ className }: { className?: string }) {
   const state = useApi<CashflowItemOut[]>("/cashflow");
   const [editing, setEditing] = useState<CashflowItemOut | null>(null);
+  const [page, setPage] = useState(0);
+  const size = usePageSize();
 
   const stop = async (id: string) => {
     await apiDelete(`/cashflow/${id}`);
@@ -100,9 +103,11 @@ export function ScheduledCard({ className }: { className?: string }) {
                 automatically.
               </div>
             );
+          const { pages, page: p, slice } = paginate(templates, page, size);
           return (
+            <>
             <ul className="list">
-              {templates.map((t) => (
+              {slice.map((t) => (
                 <li key={t.id}>
                   <span>
                     <span className="li-main">{t.name}</span>{" "}
@@ -128,6 +133,8 @@ export function ScheduledCard({ className }: { className?: string }) {
                 </li>
               ))}
             </ul>
+            <Pager page={p} pages={pages} total={templates.length} onPage={setPage} />
+            </>
           );
         }}
       </Async>

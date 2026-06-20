@@ -5,6 +5,7 @@ import type { CategoryOut } from "../api/types";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
+import { Pager, paginate, usePageSize } from "./Pager";
 
 function CategoryForm({
   initial,
@@ -71,6 +72,8 @@ export function CategoriesCard({ className }: { className?: string }) {
   const state = useApi<CategoryOut[]>("/categories");
   const [modal, setModal] = useState<{ edit?: CategoryOut } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(0);
+  const size = usePageSize();
 
   const add = async (v: any) => {
     await apiPost("/categories", v);
@@ -112,29 +115,37 @@ export function CategoriesCard({ className }: { className?: string }) {
               </button>
             </div>
           ) : (
-            <ul className="list">
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <span>
-                    <span className="li-main">{c.name}</span>{" "}
-                    <span className={"badge" + (c.is_fixed ? " badge--fixed" : "")}>
-                      {c.kind}
-                      {c.is_fixed ? " · fixed" : ""}
-                    </span>
-                  </span>
-                  <span style={{ display: "flex", gap: 6 }}>
-                    <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
-                      onClick={() => setModal({ edit: c })} title="Edit category">
-                      ✎
-                    </button>
-                    <button className="btn btn--ghost btn--sm" style={{ padding: "2px 7px" }}
-                      onClick={() => remove(c.id)} title="Delete">
-                      ×
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
+            (() => {
+              const { pages, page: p, slice } = paginate(categories, page, size);
+              return (
+                <>
+                  <ul className="list">
+                    {slice.map((c) => (
+                      <li key={c.id}>
+                        <span>
+                          <span className="li-main">{c.name}</span>{" "}
+                          <span className={"badge" + (c.is_fixed ? " badge--fixed" : "")}>
+                            {c.kind}
+                            {c.is_fixed ? " · fixed" : ""}
+                          </span>
+                        </span>
+                        <span style={{ display: "flex", gap: 6 }}>
+                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                            onClick={() => setModal({ edit: c })} title="Edit category">
+                            ✎
+                          </button>
+                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 7px" }}
+                            onClick={() => remove(c.id)} title="Delete">
+                            ×
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Pager page={p} pages={pages} total={categories.length} onPage={setPage} />
+                </>
+              );
+            })()
           )
         }
       </Async>

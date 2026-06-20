@@ -8,6 +8,7 @@ import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
 import { AttachmentsModal } from "./AttachmentsModal";
+import { Pager, paginate, usePageSize } from "./Pager";
 
 // Next occurrence after the transaction's own date (the one entered now covers that date).
 function nextDue(cadence: string, fromIso: string): string {
@@ -327,6 +328,8 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [editing, setEditing] = useState<TransactionOut | null>(null);
   const dnd = useManualOrder("ft_order_transactions");
   const allTags = [...new Set((txns.data ?? []).flatMap((t) => t.tags ?? []))].sort();
+  const [page, setPage] = useState(0);
+  const size = usePageSize();
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
@@ -421,7 +424,9 @@ export function TransactionsTable({ className }: { className?: string }) {
           });
           if (rows.length === 0)
             return <div className="empty">No transactions yet — add one or import a CSV.</div>;
+          const { pages, page: p, slice } = paginate(rows, page, size);
           return (
+            <>
             <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
@@ -435,7 +440,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((t) => (
+                  {slice.map((t) => (
                     <tr
                       key={t.id}
                       className={dnd.dragging === t.id ? "is-dragging" : ""}
@@ -518,6 +523,8 @@ export function TransactionsTable({ className }: { className?: string }) {
                 </tbody>
               </table>
             </div>
+            <Pager page={p} pages={pages} total={rows.length} onPage={setPage} />
+            </>
           );
         }}
       </Async>

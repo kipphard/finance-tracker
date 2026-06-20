@@ -538,6 +538,14 @@ li.is-dragging {
   }
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
 // ===== Lists / tables =====================================================
 .list {
   list-style: none;
