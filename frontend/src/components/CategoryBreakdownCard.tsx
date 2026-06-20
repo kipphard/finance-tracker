@@ -1,22 +1,56 @@
+import { useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useApi } from "../hooks/useApi";
-import type { CategoryBreakdownItem } from "../api/types";
+import type { CategoryOut, TransactionOut } from "../api/types";
 import { money, num } from "../lib/format";
 import { CHART_COLORS } from "../lib/colors";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
 export function CategoryBreakdownCard({ className }: { className?: string }) {
-  const state = useApi<CategoryBreakdownItem[]>("/reports/category-breakdown");
+  const txns = useApi<TransactionOut[]>("/transactions");
+  const cats = useApi<CategoryOut[]>("/categories");
+  const [tag, setTag] = useState("all");
+
+  const allTags = [...new Set((txns.data ?? []).flatMap((t) => t.tags ?? []))].sort();
+  const action =
+    allTags.length > 0 ? (
+      <select className="select" value={tag} onChange={(e) => setTag(e.target.value)} style={{ fontSize: 13 }}>
+        <option value="all">All</option>
+        {allTags.map((t) => (
+          <option key={t} value={t}>#{t}</option>
+        ))}
+      </select>
+    ) : undefined;
+
   return (
-    <Card title="Spending by category" className={className}>
-      <Async state={state}>
-        {(items) => {
-          const expenses = items
-            .filter((i) => num(i.total) < 0)
-            .map((i) => ({ name: i.name, value: Math.abs(num(i.total)), is_fixed: i.is_fixed }));
+    <Card title="Spending by category" className={className} action={action}>
+      <Async state={txns}>
+        {(list) => {
+          const catMap = new Map((cats.data ?? []).map((c) => [c.id, c]));
+          const filtered = tag === "all" ? list : list.filter((t) => (t.tags ?? []).includes(tag));
+
+          // Sum each category's signed total, then keep the spending (negative) side.
+          const byCat = new Map<string, number>();
+          for (const t of filtered) {
+            const key = t.category_id ?? "uncat";
+            byCat.set(key, (byCat.get(key) ?? 0) + num(t.amount));
+          }
+          const expenses = [...byCat.entries()]
+            .map(([key, total]) => {
+              const c = key === "uncat" ? undefined : catMap.get(key);
+              return { name: c?.name ?? "Uncategorized", value: total, is_fixed: c?.is_fixed ?? false };
+            })
+            .filter((e) => e.value < 0)
+            .map((e) => ({ ...e, value: Math.abs(e.value) }))
+            .sort((a, b) => b.value - a.value);
+
           if (expenses.length === 0)
-            return <div className="empty">No categorized spending yet.</div>;
+            return (
+              <div className="empty">
+                No categorized spending{tag !== "all" ? ` tagged #${tag}` : ""} yet.
+              </div>
+            );
 
           const fixed = expenses.filter((e) => e.is_fixed).reduce((a, b) => a + b.value, 0);
           const variable = expenses.filter((e) => !e.is_fixed).reduce((a, b) => a + b.value, 0);
