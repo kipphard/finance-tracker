@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { apiDelete, apiPatch, apiPost } from "../api/client";
+import { apiDelete, apiPatch, apiPost, apiUpload } from "../api/client";
 import type { AccountOut, CategoryOut, TransactionOut } from "../api/types";
 import { money, num, shortDate } from "../lib/format";
 import { useManualOrder } from "../hooks/useManualOrder";
@@ -30,7 +30,7 @@ function TransactionForm({
     account: { accountId: string | null; newAccountName: string | null },
     body: any,
     repeat: string,
-  ) => Promise<void>;
+  ) => Promise<TransactionOut>;
   onClose: () => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -48,6 +48,7 @@ function TransactionForm({
   const [repeat, setRepeat] = useState("none");
   const [excluded, setExcluded] = useState(false);
   const [tags, setTags] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +57,7 @@ function TransactionForm({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit(
+      const created = await onSubmit(
         {
           accountId: hasAccounts ? accountId : null,
           newAccountName: hasAccounts ? null : newAccountName.trim() || "Main",
@@ -74,6 +75,9 @@ function TransactionForm({
         },
         repeat,
       );
+      if (file && created) {
+        await apiUpload(`/transactions/${created.id}/attachments`, file);
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -154,6 +158,17 @@ function TransactionForm({
         <label>Tags (optional)</label>
         <input className="input" placeholder="e.g. freelance, software" value={tags}
           onChange={(e) => setTags(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Invoice / receipt (optional)</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <label className="btn btn--ghost btn--sm" style={{ cursor: "pointer" }}>
+            {file ? "Change file" : "Attach PDF / image"}
+            <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp"
+              style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </label>
+          {file && <span className="muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>}
+        </div>
       </div>
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
@@ -332,7 +347,7 @@ export function TransactionsTable({ className }: { className?: string }) {
       accountId = created.id;
       accounts.reload();
     }
-    await apiPost(`/accounts/${accountId}/transactions`, body);
+    const txn = await apiPost<TransactionOut>(`/accounts/${accountId}/transactions`, body);
     if (repeat && repeat !== "none") {
       const amt = parseFloat(body.amount);
       await apiPost("/cashflow", {
@@ -345,6 +360,7 @@ export function TransactionsTable({ className }: { className?: string }) {
       });
     }
     txns.reload();
+    return txn;
   };
 
   const action = (

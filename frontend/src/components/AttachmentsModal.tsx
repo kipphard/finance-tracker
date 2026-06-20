@@ -48,17 +48,20 @@ export function AttachmentsModal({ txnId, onClose }: { txnId: string; onClose: (
             <ul className="list">
               {files.map((f) => (
                 <li key={f.id}>
-                  <span>
-                    <span className="li-main">{f.filename}</span>{" "}
-                    <span className="li-sub">· {kb(f.size)}</span>
+                  <span style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                    <span className="li-main" title={f.filename}
+                      style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {f.filename}
+                    </span>
+                    <span className="li-sub">{kb(f.size)}</span>
                   </span>
-                  <span style={{ display: "flex", gap: 8 }}>
-                    <button className="btn btn--ghost btn--sm" onClick={() => apiOpen(`/attachments/${f.id}`)}>
+                  <span style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+                    <button className="btn btn--sm" onClick={() => apiOpen(`/attachments/${f.id}`)}>
                       View
                     </button>
-                    <button className="btn btn--ghost btn--sm" style={{ padding: "2px 7px" }}
+                    <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
                       onClick={() => remove(f.id)} title="Delete">
-                      ×
+                      Delete
                     </button>
                   </span>
                 </li>

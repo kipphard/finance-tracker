@@ -78,15 +78,34 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
 
 // Fetch a file with auth and open it in a new tab (e.g. view a PDF).
 export async function apiOpen(path: string): Promise<void> {
+  // Open the tab synchronously (inside the click gesture) so the popup blocker doesn't kill it,
+  // then point it at the fetched blob once it's ready.
+  const win = window.open("", "_blank");
   const token = getToken();
-  const res = await fetch(BASE + path, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  try {
+    const res = await fetch(BASE + path, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (win) {
+      win.location.href = url;
+    } else {
+      // popup was blocked — fall back to an in-page click on a blob link
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    if (win) win.close();
+    throw err;
+  }
 }
 
 // Fetch a file with auth and trigger a browser download.
