@@ -259,6 +259,7 @@ class TransactionCreate(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    excluded: bool = False  # record-only: don't affect balances / net worth
 
 
 class TransactionOut(BaseModel):
@@ -276,6 +277,7 @@ class TransactionOut(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    excluded: bool = False
 
 
 class TransactionUpdate(BaseModel):
@@ -288,6 +290,7 @@ class TransactionUpdate(BaseModel):
     vat_rate: Decimal | None = None
     category_id: uuid.UUID | None = None
     account_id: uuid.UUID | None = None  # move the transaction to another account
+    excluded: bool | None = None
     # If true, remember this payee -> category as a high-priority rule.
     remember: bool = False
 

@@ -200,8 +200,8 @@ def build_forecast(
     months_with_activity: set[tuple[int, int]] = set()
     total = Decimal(0)
     for txn in repository.list_transactions(session, user_id):
-        if txn.currency != base:
-            continue
+        if txn.currency != base or txn.excluded:
+            continue  # off-balance records (e.g. tax-only freelancing) don't drive the forecast
         total += txn.amount
         months_with_activity.add((txn.ts.year, txn.ts.month))
     monthly_net = (

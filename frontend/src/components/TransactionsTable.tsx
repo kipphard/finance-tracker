@@ -46,6 +46,7 @@ function TransactionForm({
   const [description, setDescription] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [repeat, setRepeat] = useState("none");
+  const [excluded, setExcluded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +68,7 @@ function TransactionForm({
           counterparty: counterparty || null,
           invoice_number: invoiceNumber || null,
           vat_rate: vatRate || null,
+          excluded,
         },
         repeat,
       );
@@ -146,6 +148,14 @@ function TransactionForm({
         <label>Note (optional)</label>
         <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
+          style={{ marginTop: 3 }} />
+        <span>
+          Record only — don't affect any balance or net worth.{" "}
+          <span className="muted">For bookkeeping (e.g. past freelancing entries for taxes); still shows in lists &amp; exports.</span>
+        </span>
+      </label>
       {error && <div className="error">{error}</div>}
       <div className="form__actions">
         <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
@@ -172,6 +182,7 @@ function EditTransactionForm({
   const [counterparty, setCounterparty] = useState(txn.counterparty ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(txn.invoice_number ?? "");
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? "");
+  const [excluded, setExcluded] = useState(txn.excluded);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,6 +200,7 @@ function EditTransactionForm({
         counterparty: counterparty || null,
         invoice_number: invoiceNumber || null,
         vat_rate: vatRate || null,
+        excluded,
       });
       onClose();
     } catch (err) {
@@ -250,6 +262,14 @@ function EditTransactionForm({
           <input className="input" type="number" step="0.1" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
         </div>
       </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
+          style={{ marginTop: 3 }} />
+        <span>
+          Record only — don't affect any balance or net worth.{" "}
+          <span className="muted">Kept in lists &amp; exports (e.g. freelancing for taxes).</span>
+        </span>
+      </label>
       {error && <div className="error">{error}</div>}
       <div className="form__actions" style={{ justifyContent: "space-between" }}>
         <button type="button" className="btn btn--ghost" onClick={remove} disabled={busy}
@@ -410,6 +430,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                         <div>
                           {t.raw_payee || "—"}{" "}
                           {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
+                          {t.excluded && <span className="badge badge--off">off-balance</span>}
                         </div>
                         {(t.counterparty || t.invoice_number) && (
                           <div className="li-sub">

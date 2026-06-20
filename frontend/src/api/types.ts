@@ -99,6 +99,7 @@ export interface TransactionOut {
   counterparty: string | null;
   invoice_number: string | null;
   vat_rate: string | null;
+  excluded: boolean;
 }
 
 export interface MonthlyCashflowPoint {

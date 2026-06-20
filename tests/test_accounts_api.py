@@ -54,6 +54,23 @@ def test_forecast_grows_with_expected_return(client):
     assert aid in keys  # the funded account gets its own line
 
 
+def test_off_balance_transaction_kept_but_excluded_from_balance(client):
+    aid = client.post("/api/accounts", json={"type": "cash", "name": "Main"}).json()["id"]
+    client.post(f"/api/accounts/{aid}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "100", "raw_payee": "real"})
+    client.post(f"/api/accounts/{aid}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "50", "raw_payee": "freelance",
+                      "excluded": True})
+
+    main = next(a for a in client.get("/api/accounts").json() if a["id"] == aid)
+    assert Decimal(str(main["latest_balance"])) == Decimal("100")  # the excluded 50 is ignored
+    assert Decimal(str(client.get("/api/networth").json()["total"])) == Decimal("100")
+
+    txns = client.get("/api/transactions").json()  # but both are still recorded
+    assert len(txns) == 2
+    assert any(t["excluded"] for t in txns)
+
+
 def test_future_dated_transactions_excluded_from_balance(client):
     aid = client.post(
         "/api/accounts", json={"type": "cash", "name": "Main", "currency": "EUR"}

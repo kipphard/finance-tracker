@@ -184,6 +184,7 @@ def account_balance(session: Session, account: Account) -> Decimal:
         select(func.coalesce(func.sum(Transaction.amount), 0)).where(
             Transaction.account_id == account.id,
             Transaction.ts <= datetime.now(timezone.utc),
+            Transaction.excluded.is_(False),
         )
     ).scalar_one()
     return Decimal(str(total))
@@ -358,6 +359,7 @@ def upsert_transaction(
     counterparty: str | None = None,
     invoice_number: str | None = None,
     vat_rate: Decimal | None = None,
+    excluded: bool = False,
 ) -> tuple[Transaction, bool]:
     """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
@@ -378,6 +380,7 @@ def upsert_transaction(
         counterparty=counterparty,
         invoice_number=invoice_number,
         vat_rate=vat_rate,
+        excluded=excluded,
         hash=hash,
     )
     session.add(txn)

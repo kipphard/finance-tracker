@@ -51,6 +51,7 @@ def add_transaction(
         counterparty=payload.counterparty,
         invoice_number=payload.invoice_number,
         vat_rate=payload.vat_rate,
+        excluded=payload.excluded,
     )
     categorize_transaction(session, user.id, txn)
     session.commit()
