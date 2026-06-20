@@ -19,6 +19,7 @@ export interface AccountOut {
   name: string;
   currency: string;
   institution: string | null;
+  expected_return: string;
   created_at: string;
   latest_balance: string | null;
 }

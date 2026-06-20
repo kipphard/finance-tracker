@@ -49,6 +49,7 @@ class AccountCreate(BaseModel):
     name: str
     currency: str = "EUR"
     institution: str | None = None
+    expected_return: Decimal = Field(default=Decimal(0), ge=-100, le=1000)
 
 
 class AccountUpdate(BaseModel):
@@ -56,6 +57,7 @@ class AccountUpdate(BaseModel):
     name: str | None = None
     currency: str | None = None
     institution: str | None = None
+    expected_return: Decimal | None = Field(default=None, ge=-100, le=1000)
 
 
 class AccountOut(BaseModel):
@@ -67,6 +69,7 @@ class AccountOut(BaseModel):
     name: str
     currency: str
     institution: str | None = None
+    expected_return: Decimal = Decimal(0)
     created_at: datetime
     latest_balance: Decimal | None = None
 

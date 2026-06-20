@@ -35,6 +35,7 @@ def create_account(
         name=payload.name,
         currency=payload.currency,
         institution=payload.institution,
+        expected_return=payload.expected_return,
     )
     session.commit()
     return _account_out(session, account)

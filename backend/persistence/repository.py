@@ -92,6 +92,7 @@ def create_account(
     name: str,
     currency: str,
     institution: str | None = None,
+    expected_return: Decimal = Decimal(0),
     connection_id: uuid.UUID | None = None,
     external_id: str | None = None,
 ) -> Account:
@@ -102,6 +103,7 @@ def create_account(
         name=name,
         currency=currency,
         institution=institution,
+        expected_return=expected_return,
         connection_id=connection_id,
         external_id=external_id,
     )

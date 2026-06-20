@@ -69,6 +69,7 @@ class ManualConnector:
         name: str,
         currency: str = "EUR",
         institution: str | None = None,
+        expected_return: Decimal = Decimal(0),
     ) -> AccountModel:
         return repository.create_account(
             self.session,
@@ -78,6 +79,7 @@ class ManualConnector:
             name=name,
             currency=currency,
             institution=institution,
+            expected_return=expected_return,
         )
 
     def add_balance(

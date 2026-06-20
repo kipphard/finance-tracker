@@ -200,13 +200,25 @@ def build_forecast(
         _q(total / len(months_with_activity)) if months_with_activity else Decimal("0.00")
     )
 
+    # Each base-currency account's balance compounds at its expected annual return (0 = flat).
+    holdings = [
+        (repository.account_balance(session, a), (a.expected_return or Decimal(0)) / Decimal(100))
+        for a in repository.list_accounts(session, user_id)
+        if a.currency == base
+    ]
+
     points: list[ForecastPoint] = []
     for m in range(0, months + 1):
+        grown = Decimal(0)
+        for bal, rate in holdings:
+            factor = Decimal(str((1.0 + float(rate)) ** (m / 12)))
+            grown += bal * factor
         year, month = _add_months(as_of.year, as_of.month, m)
+        # Growth on what you hold today + the average monthly contribution going forward.
         points.append(
             ForecastPoint(
                 month=f"{year:04d}-{month:02d}",
-                projected=_q(start_total + monthly_net * m),
+                projected=_q(grown + monthly_net * m),
             )
         )
     return Forecast(

@@ -94,6 +94,10 @@ class Account(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     institution: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Expected annual return/growth as a percent (e.g. 7.0). Feeds the net-worth forecast; 0 = flat.
+    expected_return: Mapped[Decimal] = mapped_column(
+        Numeric(6, 3), default=0, nullable=False
+    )
     connection_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("connections.id", ondelete="CASCADE"), nullable=True
     )

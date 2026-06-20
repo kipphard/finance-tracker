@@ -26,6 +26,9 @@ function AccountForm({
   const [currency, setCurrency] = useState(initial?.currency ?? "EUR");
   const [opening, setOpening] = useState("");
   const [balance, setBalance] = useState(initial ? String(num(initial.latest_balance ?? 0)) : "");
+  const [expectedReturn, setExpectedReturn] = useState(
+    initial ? String(num(initial.expected_return)) : "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editing = !!initial;
@@ -35,7 +38,7 @@ function AccountForm({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ name, type, currency, opening, balance });
+      await onSubmit({ name, type, currency, opening, balance, expectedReturn });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -75,6 +78,14 @@ function AccountForm({
           <label>Currency</label>
           <input className="input" value={currency} maxLength={3}
             onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Expected annual return % (optional)</label>
+        <input className="input" type="number" step="0.1" placeholder="0" value={expectedReturn}
+          onChange={(e) => setExpectedReturn(e.target.value)} />
+        <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+          Feeds the net-worth forecast — e.g. 7 for a stock account, 0 for cash.
         </div>
       </div>
       {!editing && (
@@ -203,7 +214,12 @@ export function AccountsCard({ className }: { className?: string }) {
   const accountList = state.data ?? [];
 
   const create = async (v: any) => {
-    const acc = await apiPost<AccountOut>("/accounts", { name: v.name, type: v.type, currency: v.currency });
+    const acc = await apiPost<AccountOut>("/accounts", {
+      name: v.name,
+      type: v.type,
+      currency: v.currency,
+      expected_return: v.expectedReturn || "0",
+    });
     if (v.opening && parseFloat(v.opening) !== 0) {
       await apiPost(`/accounts/${acc.id}/transactions`, {
         ts: new Date().toISOString().slice(0, 10) + "T00:00:00Z",
@@ -214,7 +230,12 @@ export function AccountsCard({ className }: { className?: string }) {
     state.reload();
   };
   const edit = async (account: AccountOut, v: any) => {
-    await apiPatch(`/accounts/${account.id}`, { name: v.name, type: v.type, currency: v.currency });
+    await apiPatch(`/accounts/${account.id}`, {
+      name: v.name,
+      type: v.type,
+      currency: v.currency,
+      expected_return: v.expectedReturn || "0",
+    });
     const target = parseFloat(v.balance);
     if (v.balance !== "" && !Number.isNaN(target)) {
       const current = num(account.latest_balance ?? 0);
@@ -300,7 +321,12 @@ export function AccountsCard({ className }: { className?: string }) {
                           </span>
                         </td>
                         <td>{a.name}</td>
-                        <td>{titleCase(a.type)}</td>
+                        <td>
+                          {titleCase(a.type)}
+                          {num(a.expected_return) !== 0 && (
+                            <span className="muted"> · {num(a.expected_return)}%/yr</span>
+                          )}
+                        </td>
                         <td className="amount">
                           {a.latest_balance != null ? money(a.latest_balance, a.currency) : money(0, a.currency)}
                         </td>
