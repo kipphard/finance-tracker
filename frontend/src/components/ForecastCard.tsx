@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Area,
   CartesianGrid,
@@ -21,12 +22,12 @@ const LINE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#a855f7", "#84
 export function ForecastCard({ className }: { className?: string }) {
   const state = useApi<ForecastOut>("/forecast?months=6");
   const { grid, axis } = useTheme();
+  const [view, setView] = useState<"total" | "accounts">("total");
 
   return (
     <Card title="Net worth forecast" className={className}>
       <Async state={state}>
         {(f) => {
-          // Merge all series into one row per month: { month, total, <accountId>: value, ... }
           const months = f.points.map((p) => p.month);
           const data = months.map((m, i) => {
             const row: Record<string, number | string> = { month: m };
@@ -37,6 +38,7 @@ export function ForecastCard({ className }: { className?: string }) {
           const accountSeries = f.series.filter((s) => s.key !== "total");
           const labelFor: Record<string, string> = { total: "Total" };
           for (const s of f.series) labelFor[s.key] = s.label;
+          const effView = accountSeries.length === 0 ? "total" : view;
 
           return (
             <>
@@ -52,6 +54,22 @@ export function ForecastCard({ className }: { className?: string }) {
                   </div>
                 </div>
               </div>
+
+              {accountSeries.length > 0 && (
+                <div style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginBottom: 10 }}>
+                  {([["total", "Total"], ["accounts", "By account"]] as const).map(([v, lab]) => (
+                    <button key={v} type="button" onClick={() => setView(v)}
+                      style={{
+                        background: effView === v ? "#6366f1" : "transparent",
+                        color: effView === v ? "#fff" : "var(--muted)",
+                        border: 0, padding: "5px 14px", fontSize: 12, cursor: "pointer", fontWeight: 600,
+                      }}>
+                      {lab}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
                   <defs>
@@ -67,19 +85,25 @@ export function ForecastCard({ className }: { className?: string }) {
                   <Tooltip
                     formatter={(v: number, key: string) => [money(v), labelFor[key] ?? key]}
                     contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" }} />
-                  {accountSeries.length > 0 && <Legend wrapperStyle={{ fontSize: 12 }} />}
-                  <Area type="monotone" dataKey="total" name="Total" stroke="#0891b2"
-                    strokeWidth={2.5} fill="url(#fcFill)" />
-                  {accountSeries.map((s, i) => (
-                    <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
-                      stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={1.6} dot={false} />
-                  ))}
+                  {effView === "accounts" && <Legend wrapperStyle={{ fontSize: 12 }} />}
+                  {effView === "total" && (
+                    <Area type="monotone" dataKey="total" name="Total" stroke="#0891b2"
+                      strokeWidth={2.5} fill="url(#fcFill)" />
+                  )}
+                  {effView === "accounts" &&
+                    accountSeries.map((s, i) => (
+                      <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
+                        stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} dot={false} />
+                    ))}
                 </ComposedChart>
               </ResponsiveContainer>
+
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {accountSeries.length > 0
-                  ? "Total = account growth + your recent monthly net. Per-account lines show each balance compounding at its return."
-                  : `Projected from your recent monthly net (${money(f.monthly_net)}/mo). Set a balance + return on an account to see per-account lines.`}{" "}
+                {accountSeries.length === 0
+                  ? `Projected from your recent monthly net (${money(f.monthly_net)}/mo). Set a balance + return on an account to see per-account lines.`
+                  : effView === "total"
+                    ? "Total = account growth + your recent monthly net (≈ your ongoing saving, not tied to one account)."
+                    : "Each account's current balance compounding at its expected return — no monthly contributions."}{" "}
                 Not advice.
               </div>
             </>
