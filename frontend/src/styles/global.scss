@@ -531,6 +531,11 @@ li.is-dragging {
     color: var(--muted);
     margin-left: 4px;
   }
+  &--tag {
+    background: rgba(99, 102, 241, 0.14);
+    color: #818cf8;
+    border-color: transparent;
+  }
 }
 
 // ===== Lists / tables =====================================================

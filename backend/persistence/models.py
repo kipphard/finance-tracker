@@ -167,6 +167,8 @@ class Transaction(Base):
     # transaction list, reports and CSV exports, but excluded from account balances, net worth
     # and the forecast.
     excluded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Free-text tags (lowercased), orthogonal to the single category — e.g. ["freelance"].
+    tags: Mapped[list] = mapped_column(JSONType, default=list, nullable=False)
 
 
 class Rule(Base):

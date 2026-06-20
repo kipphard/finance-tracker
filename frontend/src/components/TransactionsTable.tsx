@@ -47,6 +47,7 @@ function TransactionForm({
   const [showDetails, setShowDetails] = useState(false);
   const [repeat, setRepeat] = useState("none");
   const [excluded, setExcluded] = useState(false);
+  const [tags, setTags] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ function TransactionForm({
           invoice_number: invoiceNumber || null,
           vat_rate: vatRate || null,
           excluded,
+          tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
         },
         repeat,
       );
@@ -148,6 +150,11 @@ function TransactionForm({
         <label>Note (optional)</label>
         <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
+      <div className="field">
+        <label>Tags (optional)</label>
+        <input className="input" placeholder="e.g. freelance, software" value={tags}
+          onChange={(e) => setTags(e.target.value)} />
+      </div>
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
           style={{ marginTop: 3 }} />
@@ -183,6 +190,7 @@ function EditTransactionForm({
   const [invoiceNumber, setInvoiceNumber] = useState(txn.invoice_number ?? "");
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? "");
   const [excluded, setExcluded] = useState(txn.excluded);
+  const [tags, setTags] = useState((txn.tags ?? []).join(", "));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -201,6 +209,7 @@ function EditTransactionForm({
         invoice_number: invoiceNumber || null,
         vat_rate: vatRate || null,
         excluded,
+        tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
       });
       onClose();
     } catch (err) {
@@ -249,6 +258,11 @@ function EditTransactionForm({
         <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
       <div className="field">
+        <label>Tags</label>
+        <input className="input" placeholder="e.g. freelance, software" value={tags}
+          onChange={(e) => setTags(e.target.value)} />
+      </div>
+      <div className="field">
         <label>Counterparty / client</label>
         <input className="input" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
       </div>
@@ -291,11 +305,13 @@ export function TransactionsTable({ className }: { className?: string }) {
   const accounts = useApi<AccountOut[]>("/accounts");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
   const [sort, setSort] = useState("date-desc");
   const [adding, setAdding] = useState(false);
   const [attachFor, setAttachFor] = useState<string | null>(null);
   const [editing, setEditing] = useState<TransactionOut | null>(null);
   const dnd = useManualOrder("ft_order_transactions");
+  const allTags = [...new Set((txns.data ?? []).flatMap((t) => t.tags ?? []))].sort();
 
   const recategorize = async (id: string, categoryId: string) => {
     await apiPatch(`/transactions/${id}`, { category_id: categoryId || null });
@@ -347,6 +363,12 @@ export function TransactionsTable({ className }: { className?: string }) {
           <option value="uncategorized">Uncategorized</option>
           {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        {allTags.length > 0 && (
+          <select className="select" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <option value="all">All tags</option>
+            {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
+          </select>
+        )}
         <select className="select" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="date-desc">Newest first</option>
           <option value="date-asc">Oldest first</option>
@@ -367,6 +389,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                 (t.raw_payee || "").toLowerCase().includes(q) ||
                 (t.description || "").toLowerCase().includes(q),
             );
+          if (tagFilter !== "all") rows = rows.filter((t) => (t.tags ?? []).includes(tagFilter));
           const byId = Object.fromEntries(list.map((t) => [t.id, t]));
           const dateOf = (id: string) => (byId[id]?.ts ?? "").slice(0, 10);
           const eff = dnd.reconcile(list.map((t) => t.id));
@@ -440,6 +463,16 @@ export function TransactionsTable({ className }: { className?: string }) {
                           </div>
                         )}
                         {t.description && <div className="li-sub">{t.description}</div>}
+                        {(t.tags ?? []).length > 0 && (
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 3 }}>
+                            {t.tags.map((tg) => (
+                              <span key={tg} className="badge badge--tag" title="Filter by this tag"
+                                style={{ cursor: "pointer" }} onClick={() => setTagFilter(tg)}>
+                                #{tg}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className={"amount " + (num(t.amount) >= 0 ? "pos" : "neg")}>
                         {money(t.amount, t.currency)}

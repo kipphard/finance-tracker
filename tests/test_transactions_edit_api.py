@@ -50,6 +50,19 @@ def test_edit_can_move_transaction_to_another_account(client):
     assert Decimal(str(bal["A"])) == Decimal("0") and Decimal(str(bal["B"])) == Decimal("100")
 
 
+def test_transaction_tags_normalized_and_editable(client):
+    acc = client.post("/api/accounts", json={"type": "cash", "name": "X"}).json()["id"]
+    tid = client.post(f"/api/accounts/{acc}/transactions", json={
+        "ts": "2026-06-01T00:00:00Z", "amount": "-50", "raw_payee": "Claude",
+        "tags": [" Freelance ", "SOFTWARE", "freelance", ""],
+    }).json()["id"]
+    t = client.get(f"/api/transactions/{tid}").json()
+    assert t["tags"] == ["freelance", "software"]  # trimmed, lowercased, deduped, blanks dropped
+
+    client.patch(f"/api/transactions/{tid}", json={"tags": ["Freelance"]})
+    assert client.get(f"/api/transactions/{tid}").json()["tags"] == ["freelance"]
+
+
 def test_delete_transaction(client):
     tid = _txn(client)
     assert client.delete(f"/api/transactions/{tid}").status_code == 204

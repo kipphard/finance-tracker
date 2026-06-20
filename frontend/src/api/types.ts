@@ -100,6 +100,7 @@ export interface TransactionOut {
   invoice_number: string | null;
   vat_rate: string | null;
   excluded: boolean;
+  tags: string[];
 }
 
 export interface MonthlyCashflowPoint {

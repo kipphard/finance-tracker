@@ -260,6 +260,7 @@ class TransactionCreate(BaseModel):
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
     excluded: bool = False  # record-only: don't affect balances / net worth
+    tags: list[str] = []
 
 
 class TransactionOut(BaseModel):
@@ -278,6 +279,7 @@ class TransactionOut(BaseModel):
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
     excluded: bool = False
+    tags: list[str] = []
 
 
 class TransactionUpdate(BaseModel):
@@ -291,6 +293,7 @@ class TransactionUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     account_id: uuid.UUID | None = None  # move the transaction to another account
     excluded: bool | None = None
+    tags: list[str] | None = None
     # If true, remember this payee -> category as a high-priority rule.
     remember: bool = False
 

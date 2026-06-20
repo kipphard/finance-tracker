@@ -52,6 +52,7 @@ def add_transaction(
         invoice_number=payload.invoice_number,
         vat_rate=payload.vat_rate,
         excluded=payload.excluded,
+        tags=payload.tags,
     )
     categorize_transaction(session, user.id, txn)
     session.commit()
@@ -212,6 +213,8 @@ def update_transaction(
     if data.get("account_id") is not None:
         if repository.get_account(session, data["account_id"], user.id) is None:
             raise HTTPException(status_code=400, detail="unknown account")
+    if "tags" in data:
+        data["tags"] = repository.normalize_tags(data["tags"])
     for key, value in data.items():
         setattr(txn, key, value)
 

@@ -345,6 +345,16 @@ def delete_connection(
 # --- transactions ---------------------------------------------------------
 
 
+def normalize_tags(tags: list[str] | None) -> list[str]:
+    """Trim, lowercase, drop blanks, de-duplicate (order-preserving)."""
+    out: list[str] = []
+    for t in tags or []:
+        v = t.strip().lower()
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
 def upsert_transaction(
     session: Session,
     *,
@@ -360,6 +370,7 @@ def upsert_transaction(
     invoice_number: str | None = None,
     vat_rate: Decimal | None = None,
     excluded: bool = False,
+    tags: list[str] | None = None,
 ) -> tuple[Transaction, bool]:
     """Insert or return the existing transaction (deduped by (user_id, hash)). §4.2."""
     existing = session.execute(
@@ -381,6 +392,7 @@ def upsert_transaction(
         invoice_number=invoice_number,
         vat_rate=vat_rate,
         excluded=excluded,
+        tags=normalize_tags(tags),
         hash=hash,
     )
     session.add(txn)
