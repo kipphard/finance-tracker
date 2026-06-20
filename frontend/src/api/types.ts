@@ -172,11 +172,18 @@ export interface ForecastPointOut {
   projected: string;
 }
 
+export interface ForecastSeriesOut {
+  key: string;
+  label: string;
+  points: ForecastPointOut[];
+}
+
 export interface ForecastOut {
   base_currency: string;
   current_total: string;
   monthly_net: string;
   points: ForecastPointOut[];
+  series: ForecastSeriesOut[];
 }
 
 export interface AttachmentOut {

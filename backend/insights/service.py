@@ -172,11 +172,19 @@ class ForecastPoint:
 
 
 @dataclass
+class ForecastSeries:
+    key: str  # "total" or an account id
+    label: str  # "Total" or the account name
+    points: list[ForecastPoint] = field(default_factory=list)
+
+
+@dataclass
 class Forecast:
     base_currency: str
     current_total: Decimal
     monthly_net: Decimal
-    points: list[ForecastPoint] = field(default_factory=list)
+    points: list[ForecastPoint] = field(default_factory=list)  # the total line (back-compat)
+    series: list[ForecastSeries] = field(default_factory=list)
 
 
 def build_forecast(
@@ -202,28 +210,37 @@ def build_forecast(
 
     # Each base-currency account's balance compounds at its expected annual return (0 = flat).
     holdings = [
-        (repository.account_balance(session, a), (a.expected_return or Decimal(0)) / Decimal(100))
+        (a, repository.account_balance(session, a), (a.expected_return or Decimal(0)) / Decimal(100))
         for a in repository.list_accounts(session, user_id)
         if a.currency == base
     ]
 
-    points: list[ForecastPoint] = []
-    for m in range(0, months + 1):
-        grown = Decimal(0)
-        for bal, rate in holdings:
-            factor = Decimal(str((1.0 + float(rate)) ** (m / 12)))
-            grown += bal * factor
+    def _label(m: int) -> str:
         year, month = _add_months(as_of.year, as_of.month, m)
-        # Growth on what you hold today + the average monthly contribution going forward.
-        points.append(
-            ForecastPoint(
-                month=f"{year:04d}-{month:02d}",
-                projected=_q(grown + monthly_net * m),
-            )
-        )
+        return f"{year:04d}-{month:02d}"
+
+    points: list[ForecastPoint] = []
+    per_account: dict = {a.id: [] for a, _, _ in holdings}
+    for m in range(0, months + 1):
+        label = _label(m)
+        grown = Decimal(0)
+        for a, bal, rate in holdings:
+            factor = Decimal(str((1.0 + float(rate)) ** (m / 12)))
+            per_account[a.id].append(ForecastPoint(month=label, projected=_q(bal * factor)))
+            grown += bal * factor
+        # Total = growth on what you hold today + the average monthly contribution going forward.
+        points.append(ForecastPoint(month=label, projected=_q(grown + monthly_net * m)))
+
+    # One series per account that actually holds money, plus the headline Total.
+    series = [ForecastSeries(key="total", label="Total", points=points)]
+    for a, bal, _rate in holdings:
+        if bal != 0:
+            series.append(ForecastSeries(key=str(a.id), label=a.name, points=per_account[a.id]))
+
     return Forecast(
         base_currency=net_worth.base_currency,
         current_total=_q(start_total),
         monthly_net=_q(monthly_net),
         points=points,
+        series=series,
     )

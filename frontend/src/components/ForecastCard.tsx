@@ -1,7 +1,9 @@
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,6 +16,8 @@ import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
+const LINE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#a855f7", "#84cc16", "#ef4444"];
+
 export function ForecastCard({ className }: { className?: string }) {
   const state = useApi<ForecastOut>("/forecast?months=6");
   const { grid, axis } = useTheme();
@@ -22,7 +26,18 @@ export function ForecastCard({ className }: { className?: string }) {
     <Card title="Net worth forecast" className={className}>
       <Async state={state}>
         {(f) => {
-          const data = f.points.map((p) => ({ month: p.month, projected: num(p.projected) }));
+          // Merge all series into one row per month: { month, total, <accountId>: value, ... }
+          const months = f.points.map((p) => p.month);
+          const data = months.map((m, i) => {
+            const row: Record<string, number | string> = { month: m };
+            for (const s of f.series) row[s.key] = num(s.points[i]?.projected ?? 0);
+            if (f.series.length === 0) row["total"] = num(f.points[i]?.projected ?? 0);
+            return row;
+          });
+          const accountSeries = f.series.filter((s) => s.key !== "total");
+          const labelFor: Record<string, string> = { total: "Total" };
+          for (const s of f.series) labelFor[s.key] = s.label;
+
           return (
             <>
               <div className="metric-row">
@@ -38,7 +53,7 @@ export function ForecastCard({ className }: { className?: string }) {
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                <ComposedChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
                   <defs>
                     <linearGradient id="fcFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#0891b2" stopOpacity={0.32} />
@@ -49,13 +64,23 @@ export function ForecastCard({ className }: { className?: string }) {
                   <XAxis dataKey="month" tick={{ fill: axis, fontSize: 12 }} stroke={grid} />
                   <YAxis tick={{ fill: axis, fontSize: 12 }} stroke={grid} width={72}
                     tickFormatter={(v) => money(v)} />
-                  <Tooltip formatter={(v: number) => money(v)}
+                  <Tooltip
+                    formatter={(v: number, key: string) => [money(v), labelFor[key] ?? key]}
                     contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" }} />
-                  <Area type="monotone" dataKey="projected" stroke="#0891b2" strokeWidth={2.5} fill="url(#fcFill)" />
-                </AreaChart>
+                  {accountSeries.length > 0 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+                  <Area type="monotone" dataKey="total" name="Total" stroke="#0891b2"
+                    strokeWidth={2.5} fill="url(#fcFill)" />
+                  {accountSeries.map((s, i) => (
+                    <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
+                      stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={1.6} dot={false} />
+                  ))}
+                </ComposedChart>
               </ResponsiveContainer>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                Projected from your recent monthly net ({money(f.monthly_net)}/mo). Not advice.
+                {accountSeries.length > 0
+                  ? "Total = account growth + your recent monthly net. Per-account lines show each balance compounding at its return."
+                  : `Projected from your recent monthly net (${money(f.monthly_net)}/mo). Set a balance + return on an account to see per-account lines.`}{" "}
+                Not advice.
               </div>
             </>
           );

@@ -49,6 +49,10 @@ def test_forecast_grows_with_expected_return(client):
     assert current == Decimal("1200.00")  # m=0 is unaffected by growth
     assert last > flat  # expected return compounds on top of the flat projection
 
+    keys = {s["key"] for s in fc["series"]}
+    assert "total" in keys
+    assert aid in keys  # the funded account gets its own line
+
 
 def test_future_dated_transactions_excluded_from_balance(client):
     aid = client.post(

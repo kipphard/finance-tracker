@@ -439,11 +439,18 @@ class ForecastPointOut(BaseModel):
     projected: Decimal
 
 
+class ForecastSeriesOut(BaseModel):
+    key: str
+    label: str
+    points: list[ForecastPointOut]
+
+
 class ForecastOut(BaseModel):
     base_currency: str
     current_total: Decimal
     monthly_net: Decimal
     points: list[ForecastPointOut]
+    series: list[ForecastSeriesOut] = []
 
 
 # --- debts / to pay off ---------------------------------------------------
