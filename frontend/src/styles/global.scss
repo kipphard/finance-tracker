@@ -233,6 +233,46 @@ a {
   }
 }
 
+// ===== Allocation card ====================================================
+.alloc__leftover {
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.alloc__bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 14px 0 8px;
+  background: rgba(127, 127, 127, 0.14);
+}
+
+.alloc__seg {
+  height: 100%;
+
+  &--rest {
+    background: rgba(127, 127, 127, 0.18);
+  }
+}
+
+.alloc__dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.alloc__pct {
+  width: 62px;
+  text-align: right;
+  padding: 4px 6px;
+}
+
 // ===== Card ===============================================================
 .card {
   background: var(--surface);

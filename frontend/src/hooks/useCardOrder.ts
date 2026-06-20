@@ -11,7 +11,10 @@ export function useCardOrder(
       const saved = JSON.parse(localStorage.getItem(KEY) || "null");
       if (Array.isArray(saved)) {
         const merged = saved.filter((k: string) => defaultOrder.includes(k));
-        for (const k of defaultOrder) if (!merged.includes(k)) merged.push(k);
+        // Insert any new cards near their default position instead of at the bottom.
+        defaultOrder.forEach((k, i) => {
+          if (!merged.includes(k)) merged.splice(Math.min(i, merged.length), 0, k);
+        });
         return merged;
       }
     } catch {

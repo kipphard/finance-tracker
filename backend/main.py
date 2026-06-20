@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from backend.api import (
     accounts,
     alerts,
+    allocations,
     attachments,
     auth,
     banks,
@@ -54,6 +55,7 @@ app.include_router(budgets.router, prefix=API)
 app.include_router(alerts.router, prefix=API)
 app.include_router(forecast.router, prefix=API)
 app.include_router(debts.router, prefix=API)
+app.include_router(allocations.router, prefix=API)
 app.include_router(attachments.router, prefix=API)
 
 

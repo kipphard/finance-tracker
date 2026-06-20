@@ -16,6 +16,7 @@ import { RecurringCard } from "./RecurringCard";
 import { ScheduledCard } from "./ScheduledCard";
 import { CategoriesCard } from "./CategoriesCard";
 import { DebtsCard } from "./DebtsCard";
+import { AllocationCard } from "./AllocationCard";
 import { TransactionsTable } from "./TransactionsTable";
 
 // Cards that span the full width of the dashboard grid.
@@ -29,6 +30,7 @@ const DEFAULT_ORDER = [
   "forecast",
   "cashflow",
   "transactions",
+  "allocation",
   "alerts",
   "accounts",
   "scheduled",
@@ -64,6 +66,7 @@ export function Dashboard() {
     accounts: <AccountsCard />,
     scheduled: <ScheduledCard />,
     debts: <DebtsCard />,
+    allocation: <AllocationCard />,
     budgets: <BudgetsCard />,
     category: <CategoryBreakdownCard />,
     detected: <RecurringCard />,

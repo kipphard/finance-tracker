@@ -357,6 +357,43 @@ class BudgetStatusOut(BaseModel):
     period: str
 
 
+class AllocationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    percent: Decimal = Field(gt=0, le=100)
+
+
+class AllocationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    percent: Decimal | None = Field(default=None, gt=0, le=100)
+
+
+class AllocationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    percent: Decimal
+    created_at: datetime
+
+
+class AllocationBucketOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    percent: Decimal
+    amount: Decimal
+
+
+class AllocationPlanOut(BaseModel):
+    currency: str
+    monthly_income: Decimal
+    monthly_fixed: Decimal
+    leftover: Decimal
+    allocated_percent: Decimal
+    unallocated_percent: Decimal
+    unallocated_amount: Decimal
+    buckets: list[AllocationBucketOut]
+
+
 class AlertOut(BaseModel):
     level: str
     kind: str

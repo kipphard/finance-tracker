@@ -278,6 +278,21 @@ class Debt(Base):
     )
 
 
+class Allocation(Base):
+    """A percentage bucket for distributing the monthly leftover (income − fixed costs),
+    e.g. Savings 50%, Invest 20%, Buffer 30%."""
+
+    __tablename__ = "allocations"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    percent: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class CashflowItem(Base):
     """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent."""
 

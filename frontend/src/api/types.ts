@@ -195,3 +195,21 @@ export interface DebtOut {
   paid: boolean;
   created_at: string;
 }
+
+export interface AllocationBucketOut {
+  id: string;
+  name: string;
+  percent: string;
+  amount: string;
+}
+
+export interface AllocationPlanOut {
+  currency: string;
+  monthly_income: string;
+  monthly_fixed: string;
+  leftover: string;
+  allocated_percent: string;
+  unallocated_percent: string;
+  unallocated_amount: string;
+  buckets: AllocationBucketOut[];
+}

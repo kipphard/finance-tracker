@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend.persistence.models import (
     Account,
+    Allocation,
     Attachment,
     Balance,
     Budget,
@@ -830,6 +831,57 @@ def delete_budget(session: Session, budget_id: uuid.UUID, user_id: uuid.UUID) ->
     if budget is None:
         return False
     session.delete(budget)
+    session.flush()
+    return True
+
+
+# --- allocations (distribute the monthly leftover) -----------------------
+
+
+def create_allocation(
+    session: Session, *, user_id: uuid.UUID, name: str, percent: Decimal
+) -> Allocation:
+    allocation = Allocation(user_id=user_id, name=name, percent=percent)
+    session.add(allocation)
+    session.flush()
+    return allocation
+
+
+def get_allocation(
+    session: Session, allocation_id: uuid.UUID, user_id: uuid.UUID
+) -> Allocation | None:
+    return session.execute(
+        select(Allocation).where(
+            Allocation.id == allocation_id, Allocation.user_id == user_id
+        )
+    ).scalars().first()
+
+
+def list_allocations(session: Session, user_id: uuid.UUID) -> list[Allocation]:
+    return list(
+        session.execute(
+            select(Allocation)
+            .where(Allocation.user_id == user_id)
+            .order_by(Allocation.created_at)
+        ).scalars().all()
+    )
+
+
+def update_allocation(session: Session, allocation: Allocation, **fields) -> Allocation:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(allocation, key, value)
+    session.flush()
+    return allocation
+
+
+def delete_allocation(
+    session: Session, allocation_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    allocation = get_allocation(session, allocation_id, user_id)
+    if allocation is None:
+        return False
+    session.delete(allocation)
     session.flush()
     return True
 
