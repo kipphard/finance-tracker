@@ -175,43 +175,61 @@ a {
   }
 }
 
-// Priority stack: full-width primary cards top to bottom.
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-// Two-up row (e.g. net worth + income/expense).
-.row-2 {
+// Drag-and-drop dashboard grid. Two columns; "wide" cards span both.
+.dash {
   display: grid;
-  grid-template-columns: 1.7fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   align-items: start;
 }
 
-@media (max-width: 920px) {
-  .row-2 {
+.dash__cell {
+  position: relative;
+  min-width: 0; // let tables/charts shrink instead of overflowing the column
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+
+  &.is-dragging {
+    opacity: 0.4;
+  }
+
+  // make room for the drag grip so it doesn't overlap the card title
+  .card__head {
+    padding-left: 34px;
+  }
+}
+
+.dash__grip {
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  z-index: 3;
+  cursor: grab;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  user-select: none;
+
+  &:hover {
+    color: var(--text);
+    background: rgba(127, 127, 127, 0.14);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+@media (max-width: 760px) {
+  .dash {
     grid-template-columns: 1fr;
   }
-}
-
-// Masonry for secondary cards — packs tightly, no leftover row whitespace.
-.masonry {
-  columns: 3 300px;
-  column-gap: 20px;
-
-  > * {
-    break-inside: avoid;
-    -webkit-column-break-inside: avoid;
-    margin: 0 0 20px;
-    width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .masonry {
-    columns: 1;
+  .dash__cell--wide {
+    grid-column: auto;
   }
 }
 
