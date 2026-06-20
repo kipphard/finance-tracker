@@ -63,6 +63,32 @@ def test_transaction_tags_normalized_and_editable(client):
     assert client.get(f"/api/transactions/{tid}").json()["tags"] == ["freelance"]
 
 
+def test_backfill_series_creates_one_per_month(client):
+    acc = client.post("/api/accounts", json={"type": "cash", "name": "X"}).json()["id"]
+    r = client.post(f"/api/accounts/{acc}/transactions/series", json={
+        "start": "2026-01-01", "end": "2026-05-01", "cadence": "monthly",
+        "amount": "500", "raw_payee": "Freelance retainer", "excluded": True, "tags": ["Freelance"],
+    })
+    assert r.status_code == 201
+    assert r.json()["created"] == 5  # Jan, Feb, Mar, Apr, May (inclusive)
+
+    series = [t for t in client.get("/api/transactions").json() if t["raw_payee"] == "Freelance retainer"]
+    assert len(series) == 5
+    assert all(t["excluded"] and t["tags"] == ["freelance"] for t in series)
+    assert sorted(t["ts"][:10] for t in series) == [
+        "2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01"]
+
+    main = next(a for a in client.get("/api/accounts").json() if a["id"] == acc)
+    assert Decimal(str(main["latest_balance"])) == Decimal("0")  # excluded → off balance
+
+
+def test_backfill_series_rejects_reversed_range(client):
+    acc = client.post("/api/accounts", json={"type": "cash", "name": "X"}).json()["id"]
+    r = client.post(f"/api/accounts/{acc}/transactions/series", json={
+        "start": "2026-05-01", "end": "2026-01-01", "cadence": "monthly", "amount": "10"})
+    assert r.status_code == 400
+
+
 def test_delete_transaction(client):
     tid = _txn(client)
     assert client.delete(f"/api/transactions/{tid}").status_code == 204

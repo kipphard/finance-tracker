@@ -1,9 +1,10 @@
 """Transaction endpoints: manual entry, CSV import, listing, reclassify, batch categorize."""
 from __future__ import annotations
 
+import calendar
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
 
@@ -11,11 +12,14 @@ from backend.api.deps import CurrentUser, SessionDep
 from backend.categorize.engine import categorize_transaction, recategorize_all
 from backend.csv_import import parse_transactions_csv
 from backend.persistence import repository
+from backend.persistence.models import Cadence
 from backend.schemas import (
     CategorizeResultOut,
     ImportResultOut,
     TransactionCreate,
     TransactionOut,
+    TransactionSeriesCreate,
+    TransactionSeriesResult,
     TransactionUpdate,
     TransferCreate,
     TransferOut,
@@ -57,6 +61,77 @@ def add_transaction(
     categorize_transaction(session, user.id, txn)
     session.commit()
     return TransactionOut.model_validate(txn)
+
+
+_SERIES_MAX = 240  # 20 years monthly — guards against a runaway range
+
+
+def _add_months(d: date, n: int) -> date:
+    idx = d.year * 12 + (d.month - 1) + n
+    year, month = idx // 12, idx % 12 + 1
+    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
+
+
+def _step(d: date, cadence: Cadence) -> date:
+    if cadence == Cadence.weekly:
+        return d + timedelta(days=7)
+    if cadence == Cadence.biweekly:
+        return d + timedelta(days=14)
+    if cadence == Cadence.monthly:
+        return _add_months(d, 1)
+    if cadence == Cadence.quarterly:
+        return _add_months(d, 3)
+    if cadence == Cadence.yearly:
+        return _add_months(d, 12)
+    raise HTTPException(status_code=400, detail="cadence must repeat (not one-off)")
+
+
+@router.post(
+    "/accounts/{account_id}/transactions/series",
+    response_model=TransactionSeriesResult,
+    status_code=201,
+)
+def add_transaction_series(
+    account_id: uuid.UUID,
+    payload: TransactionSeriesCreate,
+    session: SessionDep,
+    user: CurrentUser,
+) -> TransactionSeriesResult:
+    """Backfill a recurring series: one transaction per period from start to end (inclusive).
+    Useful for recording past freelancing months in one go (often as off-balance records)."""
+    account = repository.get_account(session, account_id, user.id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    if payload.end < payload.start:
+        raise HTTPException(status_code=400, detail="end must be on or after start")
+
+    created = 0
+    d = payload.start
+    while d <= payload.end:
+        if created >= _SERIES_MAX:
+            raise HTTPException(status_code=400, detail=f"date range too large (max {_SERIES_MAX} entries)")
+        ts = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+        txn, _ = repository.upsert_transaction(
+            session,
+            user_id=user.id,
+            account_id=account_id,
+            ts=ts,
+            amount=payload.amount,
+            currency=payload.currency or account.currency,
+            hash=uuid.uuid4().hex,
+            raw_payee=payload.raw_payee,
+            description=payload.description,
+            counterparty=payload.counterparty,
+            invoice_number=payload.invoice_number,
+            vat_rate=payload.vat_rate,
+            excluded=payload.excluded,
+            tags=payload.tags,
+        )
+        categorize_transaction(session, user.id, txn)
+        created += 1
+        d = _step(d, payload.cadence)
+    session.commit()
+    return TransactionSeriesResult(created=created)
 
 
 @router.post("/transfers", response_model=TransferOut, status_code=201)

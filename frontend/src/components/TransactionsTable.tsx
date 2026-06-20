@@ -31,7 +31,7 @@ function TransactionForm({
     account: { accountId: string | null; newAccountName: string | null },
     body: any,
     repeat: string,
-  ) => Promise<TransactionOut>;
+  ) => Promise<TransactionOut | null>;
   onClose: () => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -47,6 +47,8 @@ function TransactionForm({
   const [description, setDescription] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [repeat, setRepeat] = useState("none");
+  const [backfill, setBackfill] = useState(false);
+  const [toDate, setToDate] = useState(today);
   const [excluded, setExcluded] = useState(false);
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -73,6 +75,7 @@ function TransactionForm({
           vat_rate: vatRate || null,
           excluded,
           tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
+          backfill: backfill && repeat !== "none" ? { from: date, to: toDate } : null,
         },
         repeat,
       );
@@ -102,7 +105,7 @@ function TransactionForm({
           )}
         </div>
         <div className="field">
-          <label>Date</label>
+          <label>{backfill ? "From (first entry)" : "Date"}</label>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
@@ -128,6 +131,22 @@ function TransactionForm({
           </select>
         </div>
       </div>
+      {repeat !== "none" && (
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+          <input type="checkbox" checked={backfill} onChange={(e) => setBackfill(e.target.checked)}
+            style={{ marginTop: 3 }} />
+          <span>
+            Backfill a date range — one entry per period between two dates.{" "}
+            <span className="muted">Records past recurring items in one go (e.g. freelancing months); no future auto-repeat is created. Tick "Record only" below for off-balance tax records.</span>
+          </span>
+        </label>
+      )}
+      {backfill && repeat !== "none" && (
+        <div className="field">
+          <label>To (last entry)</label>
+          <input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+      )}
       {showDetails ? (
         <>
           <div className="field">
@@ -160,17 +179,19 @@ function TransactionForm({
         <input className="input" placeholder="e.g. freelance, software" value={tags}
           onChange={(e) => setTags(e.target.value)} />
       </div>
-      <div className="field">
-        <label>Invoice / receipt (optional)</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <label className="btn btn--ghost btn--sm" style={{ cursor: "pointer" }}>
-            {file ? "Change file" : "Attach PDF / image"}
-            <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp"
-              style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </label>
-          {file && <span className="muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>}
+      {!backfill && (
+        <div className="field">
+          <label>Invoice / receipt (optional)</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <label className="btn btn--ghost btn--sm" style={{ cursor: "pointer" }}>
+              {file ? "Change file" : "Attach PDF / image"}
+              <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp"
+                style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </label>
+            {file && <span className="muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>}
+          </div>
         </div>
-      </div>
+      )}
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
           style={{ marginTop: 3 }} />
@@ -350,6 +371,24 @@ export function TransactionsTable({ className }: { className?: string }) {
       });
       accountId = created.id;
       accounts.reload();
+    }
+    // Backfill mode: generate one off-balance/normal entry per period across the range.
+    if (body.backfill) {
+      await apiPost(`/accounts/${accountId}/transactions/series`, {
+        start: body.backfill.from,
+        end: body.backfill.to,
+        cadence: repeat,
+        amount: body.amount,
+        raw_payee: body.raw_payee,
+        description: body.description,
+        counterparty: body.counterparty,
+        invoice_number: body.invoice_number,
+        vat_rate: body.vat_rate,
+        excluded: body.excluded,
+        tags: body.tags,
+      });
+      txns.reload();
+      return null; // a series has no single transaction to attach a file to
     }
     const txn = await apiPost<TransactionOut>(`/accounts/${accountId}/transactions`, body);
     if (repeat && repeat !== "none") {

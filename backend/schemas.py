@@ -314,6 +314,27 @@ class TransferOut(BaseModel):
     amount: Decimal
 
 
+class TransactionSeriesCreate(BaseModel):
+    """Backfill one transaction per period between start and end (e.g. past freelancing months)."""
+
+    start: date
+    end: date
+    cadence: Cadence
+    amount: Decimal
+    raw_payee: str | None = None
+    description: str | None = None
+    currency: str | None = None
+    counterparty: str | None = None
+    invoice_number: str | None = None
+    vat_rate: Decimal | None = None
+    excluded: bool = False
+    tags: list[str] = []
+
+
+class TransactionSeriesResult(BaseModel):
+    created: int
+
+
 class ImportResultOut(BaseModel):
     imported: int
     skipped_duplicates: int
