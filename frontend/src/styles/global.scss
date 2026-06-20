@@ -310,6 +310,35 @@ li.is-dragging {
   padding: 4px 6px;
 }
 
+.alloc__debt {
+  margin: 6px 0 2px 18px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.alloc__debtlist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.alloc__tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+
+  span:last-child {
+    margin-left: auto;
+  }
+
+  input {
+    cursor: pointer;
+  }
+}
+
 // ===== Card ===============================================================
 .card {
   background: var(--surface);

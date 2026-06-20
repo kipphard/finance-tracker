@@ -81,7 +81,7 @@ export function DebtsCard({ className }: { className?: string }) {
   );
 
   return (
-    <Card title="To pay off" className={className} action={action}>
+    <Card title="Debt" className={className} action={action}>
       <Async state={state}>
         {(debts) => {
           const unpaid = debts.filter((d) => !d.paid);
@@ -100,7 +100,7 @@ export function DebtsCard({ className }: { className?: string }) {
               </div>
 
               {unpaid.length === 0 ? (
-                <div className="empty">Nothing to pay off. 🎉</div>
+                <div className="empty">No debt. 🎉</div>
               ) : (
                 <ul className="list">
                   {unpaid.map((d) => {
@@ -165,7 +165,7 @@ export function DebtsCard({ className }: { className?: string }) {
       </Async>
 
       {open && (
-        <Modal title="Add something to pay off" onClose={() => setOpen(false)}>
+        <Modal title="Add debt" onClose={() => setOpen(false)}>
           <DebtForm onClose={() => setOpen(false)} onSubmit={add} />
         </Modal>
       )}
