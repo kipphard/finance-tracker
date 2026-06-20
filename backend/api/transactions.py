@@ -208,6 +208,9 @@ def update_transaction(
     if data.get("category_id") is not None:
         if repository.get_category(session, data["category_id"], user.id) is None:
             raise HTTPException(status_code=400, detail="unknown category")
+    if data.get("account_id") is not None:
+        if repository.get_account(session, data["account_id"], user.id) is None:
+            raise HTTPException(status_code=400, detail="unknown account")
     for key, value in data.items():
         setattr(txn, key, value)
 

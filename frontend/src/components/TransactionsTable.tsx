@@ -157,11 +157,14 @@ function TransactionForm({
 
 function EditTransactionForm({
   txn,
+  accounts,
   onClose,
 }: {
   txn: TransactionOut;
+  accounts: AccountOut[];
   onClose: () => void;
 }) {
+  const [accountId, setAccountId] = useState(txn.account_id);
   const [date, setDate] = useState(txn.ts.slice(0, 10));
   const [amount, setAmount] = useState(txn.amount);
   const [payee, setPayee] = useState(txn.raw_payee ?? "");
@@ -178,6 +181,7 @@ function EditTransactionForm({
     setError(null);
     try {
       await apiPatch(`/transactions/${txn.id}`, {
+        account_id: accountId,
         ts: `${date}T00:00:00Z`,
         amount,
         raw_payee: payee || null,
@@ -210,13 +214,19 @@ function EditTransactionForm({
     <form className="form" onSubmit={save}>
       <div className="field-row">
         <div className="field">
+          <label>Account</label>
+          <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </div>
+        <div className="field">
           <label>Date</label>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
-        <div className="field">
-          <label>Amount (negative = spending)</label>
-          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-        </div>
+      </div>
+      <div className="field">
+        <label>Amount (negative = spending)</label>
+        <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
       </div>
       <div className="field">
         <label>Payee</label>
@@ -455,7 +465,7 @@ export function TransactionsTable({ className }: { className?: string }) {
       )}
       {editing && (
         <Modal title="Edit transaction" onClose={() => setEditing(null)}>
-          <EditTransactionForm txn={editing} onClose={() => setEditing(null)} />
+          <EditTransactionForm txn={editing} accounts={accounts.data ?? []} onClose={() => setEditing(null)} />
         </Modal>
       )}
     </Card>
