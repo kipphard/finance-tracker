@@ -328,6 +328,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [editing, setEditing] = useState<TransactionOut | null>(null);
   const dnd = useManualOrder("ft_order_transactions");
   const allTags = [...new Set((txns.data ?? []).flatMap((t) => t.tags ?? []))].sort();
+  const accById = new Map((accounts.data ?? []).map((a) => [a.id, a.name]));
   const [page, setPage] = useState(0);
   const size = usePageSize();
 
@@ -433,6 +434,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                   <tr>
                     <th className="grip-cell"></th>
                     <th>Date</th>
+                    <th>Account</th>
                     <th>Payee</th>
                     <th className="amount">Amount</th>
                     <th>Category</th>
@@ -470,6 +472,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                         </span>
                       </td>
                       <td>{shortDate(t.ts)}</td>
+                      <td className="muted">{accById.get(t.account_id) ?? "—"}</td>
                       <td>
                         <div>
                           {t.raw_payee || "—"}{" "}
