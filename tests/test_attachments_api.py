@@ -31,6 +31,19 @@ def test_attachment_lifecycle(client):
     assert client.get(f"/api/transactions/{txn}/attachments").json() == []
 
 
+def test_attachment_download_handles_non_ascii_filename(client):
+    txn = _txn(client)
+    # macOS sends decomposed accents: "André" = "Andre" + combining acute (U+0301).
+    name = "Invoice_André.pdf"
+    aid = client.post(
+        f"/api/transactions/{txn}/attachments",
+        files={"file": (name, PDF, "application/pdf")},
+    ).json()["id"]
+    dl = client.get(f"/api/attachments/{aid}")
+    assert dl.status_code == 200  # no UnicodeEncodeError on the Content-Disposition header
+    assert dl.content == PDF
+
+
 def test_attachment_rejects_disallowed_type(client):
     txn = _txn(client)
     bad = client.post(

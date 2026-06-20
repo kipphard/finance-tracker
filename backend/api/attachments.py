@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
 
@@ -64,10 +65,14 @@ def download_attachment(
     attachment = repository.get_attachment(session, attachment_id, user.id)
     if attachment is None:
         raise HTTPException(status_code=404, detail="attachment not found")
+    # HTTP headers must be latin-1; filenames can contain anything (macOS even sends combining
+    # accents), so use an ASCII fallback + RFC 5987 UTF-8 form (filename*).
+    ascii_name = attachment.filename.encode("ascii", "ignore").decode("ascii").strip() or "file"
+    disposition = f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(attachment.filename)}"
     return Response(
         content=attachment.data,
         media_type=attachment.content_type,
-        headers={"Content-Disposition": f'inline; filename="{attachment.filename}"'},
+        headers={"Content-Disposition": disposition},
     )
 
 
