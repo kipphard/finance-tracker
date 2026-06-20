@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { AccountOut } from "../api/types";
-import { money, titleCase } from "../lib/format";
+import { money, num, titleCase } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
@@ -24,6 +24,7 @@ function AccountForm({
   const [type, setType] = useState(initial?.type ?? "checking");
   const [currency, setCurrency] = useState(initial?.currency ?? "EUR");
   const [opening, setOpening] = useState("");
+  const [balance, setBalance] = useState(initial ? String(num(initial.latest_balance ?? 0)) : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editing = !!initial;
@@ -33,7 +34,7 @@ function AccountForm({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ name, type, currency, opening });
+      await onSubmit({ name, type, currency, opening, balance });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -82,6 +83,16 @@ function AccountForm({
             onChange={(e) => setOpening(e.target.value)} />
         </div>
       )}
+      {editing && (
+        <div className="field">
+          <label>Balance</label>
+          <input className="input" type="number" step="0.01" value={balance}
+            onChange={(e) => setBalance(e.target.value)} />
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            Changing this books a balance-adjustment transaction so your history stays correct.
+          </div>
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
       <div className="form__actions" style={editing ? { justifyContent: "space-between" } : undefined}>
         {editing && onDelete && (
@@ -114,8 +125,20 @@ export function AccountsCard({ className }: { className?: string }) {
     }
     state.reload();
   };
-  const edit = async (id: string, v: any) => {
-    await apiPatch(`/accounts/${id}`, { name: v.name, type: v.type, currency: v.currency });
+  const edit = async (account: AccountOut, v: any) => {
+    await apiPatch(`/accounts/${account.id}`, { name: v.name, type: v.type, currency: v.currency });
+    const target = parseFloat(v.balance);
+    if (v.balance !== "" && !Number.isNaN(target)) {
+      const current = num(account.latest_balance ?? 0);
+      const delta = Math.round((target - current) * 100) / 100;
+      if (Math.abs(delta) >= 0.005) {
+        await apiPost(`/accounts/${account.id}/transactions`, {
+          ts: new Date().toISOString().slice(0, 10) + "T00:00:00Z",
+          amount: delta.toFixed(2),
+          raw_payee: "Balance adjustment",
+        });
+      }
+    }
     state.reload();
   };
   const remove = async (id: string) => {
@@ -170,7 +193,7 @@ export function AccountsCard({ className }: { className?: string }) {
           <AccountForm
             initial={modal.edit}
             onClose={() => setModal(null)}
-            onSubmit={(v) => (modal.edit ? edit(modal.edit.id, v) : create(v))}
+            onSubmit={(v) => (modal.edit ? edit(modal.edit, v) : create(v))}
             onDelete={modal.edit ? () => remove(modal.edit!.id) : undefined}
           />
         </Modal>
