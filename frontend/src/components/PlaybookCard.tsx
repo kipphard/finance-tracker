@@ -4,7 +4,7 @@ import { Card } from "./Card";
 const KEY = "ft_playbook_collapsed";
 
 const STEPS: { t: string; d: string }[] = [
-  { t: "Know your numbers", d: "Income, fixed costs, what's left over. ✓ You're here." },
+  { t: "Know your numbers", d: "Income, fixed costs, what's left over." },
   {
     t: "Starter buffer (€1–2k)",
     d: "A small airbag so one surprise doesn't bounce you back onto debt — not the full fund yet.",
