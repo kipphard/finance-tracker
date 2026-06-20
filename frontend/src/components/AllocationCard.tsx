@@ -151,7 +151,7 @@ export function AllocationCard({ className }: { className?: string }) {
                     const months =
                       monthly > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / monthly) : null;
                     return (
-                      <li key={b.id} style={debt ? { display: "block" } : undefined}>
+                      <li key={b.id} style={{ display: "block" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span className="li-main">
                             <span className="alloc__dot" style={{ background: COLORS[i % COLORS.length] }} />
