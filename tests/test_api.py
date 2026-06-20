@@ -20,8 +20,8 @@ def test_net_worth_end_to_end(client):
     )
     a2_id = a2.json()["id"]
 
-    assert client.post(f"/api/accounts/{a1_id}/balances", json={"amount": "1000.00"}).status_code == 201
-    assert client.post(f"/api/accounts/{a2_id}/balances", json={"amount": "250.50"}).status_code == 201
+    assert client.post(f"/api/accounts/{a1_id}/transactions", json={"ts": "2026-06-01T00:00:00Z", "amount": "1000.00", "raw_payee": "x"}).status_code == 201
+    assert client.post(f"/api/accounts/{a2_id}/transactions", json={"ts": "2026-06-01T00:00:00Z", "amount": "250.50", "raw_payee": "y"}).status_code == 201
 
     net_worth = client.get("/api/networth").json()
     assert Decimal(str(net_worth["total"])) == Decimal("1250.50")
@@ -35,11 +35,12 @@ def test_net_worth_end_to_end(client):
     assert Decimal(str(snapshots[0]["total"])) == Decimal("1250.50")
 
 
-def test_list_accounts_includes_latest_balance(client):
+def test_list_accounts_includes_balance_from_transactions(client):
     account_id = client.post(
         "/api/accounts", json={"type": "checking", "name": "X"}
     ).json()["id"]
-    client.post(f"/api/accounts/{account_id}/balances", json={"amount": "42.00"})
+    client.post(f"/api/accounts/{account_id}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "42.00", "raw_payee": "x"})
 
     accounts = client.get("/api/accounts").json()
     assert len(accounts) == 1

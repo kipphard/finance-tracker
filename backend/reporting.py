@@ -40,10 +40,17 @@ def monthly_cashflow(
     session: Session, user_id, months: int = 12, as_of: datetime | None = None
 ) -> list[MonthPoint]:
     as_of = as_of or _now()
-    start_year, start_month = _add_month(as_of.year, as_of.month, -(months - 1))
+    # End the window at the later of the current month or the latest transaction's month,
+    # so future-dated entries (planned bills) still show up.
+    end_year, end_month = as_of.year, as_of.month
+    latest = repository.latest_transaction_ts(session, user_id)
+    if latest is not None and (latest.year * 12 + latest.month) > (end_year * 12 + end_month):
+        end_year, end_month = latest.year, latest.month
+
+    start_year, start_month = _add_month(end_year, end_month, -(months - 1))
     start = _month_start(start_year, start_month)
-    end_year, end_month = _add_month(as_of.year, as_of.month, 1)
-    end = _month_start(end_year, end_month)
+    next_year, next_month = _add_month(end_year, end_month, 1)
+    end = _month_start(next_year, next_month)
 
     buckets: dict[str, list[Decimal]] = {}
     for txn in repository.transactions_between(session, user_id, start, end):

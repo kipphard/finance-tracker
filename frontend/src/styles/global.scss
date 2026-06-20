@@ -175,6 +175,46 @@ a {
   }
 }
 
+// Priority stack: full-width primary cards top to bottom.
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Two-up row (e.g. net worth + income/expense).
+.row-2 {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 920px) {
+  .row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Masonry for secondary cards — packs tightly, no leftover row whitespace.
+.masonry {
+  columns: 3 300px;
+  column-gap: 20px;
+
+  > * {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    margin: 0 0 20px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .masonry {
+    columns: 1;
+  }
+}
+
 // ===== Card ===============================================================
 .card {
   background: var(--surface);

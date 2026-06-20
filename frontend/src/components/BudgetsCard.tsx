@@ -43,35 +43,43 @@ export function BudgetsCard({ className }: { className?: string }) {
     reload();
   };
 
+  const seedCategories = async () => {
+    setBusy(true);
+    try {
+      await apiPost("/categories/seed");
+      categories.reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const expenseCategories = (categories.data ?? []).filter((c) => c.kind === "expense");
+
   return (
     <Card title="Budgets" className={className}>
-      <div className="toolbar">
-        <select
-          className="select"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-        >
-          <option value="">Add budget for…</option>
-          {available.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="€ / month"
-          value={limit}
-          onChange={(e) => setLimit(e.target.value)}
-          style={{ width: 110 }}
-        />
-        <button className="btn" onClick={add} disabled={busy || !categoryId || !limit}>
-          Add
-        </button>
+      <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+        A monthly spending cap per category — see how much you've used this month.
       </div>
+      {expenseCategories.length === 0 ? (
+        <div className="empty">
+          Budgets need expense categories first.{" "}
+          <button className="btn btn--ghost btn--sm" onClick={seedCategories} disabled={busy}>
+            {busy ? "…" : "Seed starter categories"}
+          </button>
+        </div>
+      ) : (
+        <div className="toolbar">
+          <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">Add budget for…</option>
+            {available.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <input className="input" type="number" min="0" step="0.01" placeholder="€ / month"
+            value={limit} onChange={(e) => setLimit(e.target.value)} style={{ width: 110 }} />
+          <button className="btn" onClick={add} disabled={busy || !categoryId || !limit}>Add</button>
+        </div>
+      )}
 
       <Async state={statuses}>
         {(rows) =>

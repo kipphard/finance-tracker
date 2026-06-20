@@ -8,9 +8,9 @@ import { Async } from "./Async";
 import { Modal } from "./Modal";
 import { AttachmentsModal } from "./AttachmentsModal";
 
-// First future occurrence for a recurring template (the one logged now covers "today").
-function nextDue(cadence: string): string {
-  const d = new Date();
+// Next occurrence after the transaction's own date (the one entered now covers that date).
+function nextDue(cadence: string, fromIso: string): string {
+  const d = new Date(fromIso);
   if (cadence === "weekly") d.setDate(d.getDate() + 7);
   else if (cadence === "biweekly") d.setDate(d.getDate() + 14);
   else if (cadence === "monthly") d.setMonth(d.getMonth() + 1);
@@ -260,6 +260,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const accounts = useApi<AccountOut[]>("/accounts");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("date-desc");
   const [adding, setAdding] = useState(false);
   const [attachFor, setAttachFor] = useState<string | null>(null);
   const [editing, setEditing] = useState<TransactionOut | null>(null);
@@ -292,7 +293,7 @@ export function TransactionsTable({ className }: { className?: string }) {
         amount: String(Math.abs(amt) || 0.01),
         cadence: repeat,
         account_id: accountId,
-        next_due: nextDue(repeat),
+        next_due: nextDue(repeat, body.ts),
       });
     }
     txns.reload();
@@ -314,6 +315,12 @@ export function TransactionsTable({ className }: { className?: string }) {
           <option value="uncategorized">Uncategorized</option>
           {cats.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        <select className="select" value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="amount-desc">Amount ↓</option>
+          <option value="amount-asc">Amount ↑</option>
+        </select>
       </div>
 
       <Async state={txns}>
@@ -328,6 +335,12 @@ export function TransactionsTable({ className }: { className?: string }) {
                 (t.raw_payee || "").toLowerCase().includes(q) ||
                 (t.description || "").toLowerCase().includes(q),
             );
+          rows = [...rows].sort((a, b) => {
+            if (sort === "date-asc") return a.ts.localeCompare(b.ts);
+            if (sort === "amount-asc") return num(a.amount) - num(b.amount);
+            if (sort === "amount-desc") return num(b.amount) - num(a.amount);
+            return b.ts.localeCompare(a.ts); // date-desc (default)
+          });
           if (rows.length === 0)
             return <div className="empty">No transactions yet — add one or import a CSV.</div>;
           return (

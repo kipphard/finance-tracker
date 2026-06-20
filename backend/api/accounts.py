@@ -3,20 +3,25 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from backend.api.deps import CurrentUser, SessionDep
 from backend.connectors.manual import ManualConnector
 from backend.persistence import repository
-from backend.schemas import AccountCreate, AccountOut, BalanceCreate, BalanceOut
+from backend.schemas import (
+    AccountCreate,
+    AccountOut,
+    AccountUpdate,
+    BalanceCreate,
+    BalanceOut,
+)
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 def _account_out(session, account) -> AccountOut:
     out = AccountOut.model_validate(account)
-    latest = repository.latest_balance(session, account.id)
-    out.latest_balance = latest.amount if latest is not None else None
+    out.latest_balance = repository.account_balance(session, account)
     return out
 
 
@@ -46,6 +51,27 @@ def get_account(account_id: uuid.UUID, session: SessionDep, user: CurrentUser) -
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     return _account_out(session, account)
+
+
+@router.patch("/{account_id}", response_model=AccountOut)
+def update_account(
+    account_id: uuid.UUID, payload: AccountUpdate, session: SessionDep, user: CurrentUser
+) -> AccountOut:
+    account = repository.get_account(session, account_id, user.id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    repository.update_account(session, account, **payload.model_dump(exclude_unset=True))
+    session.commit()
+    return _account_out(session, account)
+
+
+@router.delete("/{account_id}", status_code=204)
+def delete_account(account_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> Response:
+    """Delete an account and all its transactions/attachments/balances."""
+    if not repository.delete_account(session, account_id, user.id):
+        raise HTTPException(status_code=404, detail="account not found")
+    session.commit()
+    return Response(status_code=204)
 
 
 @router.post("/{account_id}/balances", response_model=BalanceOut, status_code=201)

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { apiPost } from "../api/client";
+import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { AccountOut } from "../api/types";
 import { money, titleCase } from "../lib/format";
 import { Card } from "./Card";
@@ -9,23 +9,48 @@ import { Modal } from "./Modal";
 
 const TYPES = ["checking", "savings", "cash", "brokerage", "other"];
 
-function AccountForm({ onSubmit, onClose }: { onSubmit: (v: any) => Promise<void>; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("checking");
-  const [currency, setCurrency] = useState("EUR");
+function AccountForm({
+  initial,
+  onSubmit,
+  onDelete,
+  onClose,
+}: {
+  initial?: AccountOut;
+  onSubmit: (v: any) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [type, setType] = useState(initial?.type ?? "checking");
+  const [currency, setCurrency] = useState(initial?.currency ?? "EUR");
+  const [opening, setOpening] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const editing = !!initial;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ name, type, currency });
+      await onSubmit({ name, type, currency, opening });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!onDelete) return;
+    if (!window.confirm("Delete this account and all its transactions?")) return;
+    setBusy(true);
+    try {
+      await onDelete();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
       setBusy(false);
     }
   };
@@ -50,45 +75,25 @@ function AccountForm({ onSubmit, onClose }: { onSubmit: (v: any) => Promise<void
             onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
         </div>
       </div>
+      {!editing && (
+        <div className="field">
+          <label>Starting balance (optional)</label>
+          <input className="input" type="number" step="0.01" placeholder="0.00" value={opening}
+            onChange={(e) => setOpening(e.target.value)} />
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
-      <div className="form__actions">
-        <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "…" : "Add account"}</button>
-      </div>
-    </form>
-  );
-}
-
-function BalanceForm({ onSubmit, onClose }: { onSubmit: (amount: string) => Promise<void>; onClose: () => void }) {
-  const [amount, setAmount] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await onSubmit(amount);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form className="form" onSubmit={submit}>
-      <div className="field">
-        <label>Current balance</label>
-        <input className="input" type="number" step="0.01" placeholder="0.00" value={amount}
-          onChange={(e) => setAmount(e.target.value)} required autoFocus />
-      </div>
-      {error && <div className="error">{error}</div>}
-      <div className="form__actions">
-        <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "…" : "Save balance"}</button>
+      <div className="form__actions" style={editing ? { justifyContent: "space-between" } : undefined}>
+        {editing && onDelete && (
+          <button type="button" className="btn btn--ghost" onClick={remove} disabled={busy}
+            style={{ borderColor: "var(--negative)", color: "var(--negative)" }}>
+            Delete
+          </button>
+        )}
+        <span style={{ display: "flex", gap: 10 }}>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" type="submit" disabled={busy}>{busy ? "…" : editing ? "Save" : "Add account"}</button>
+        </span>
       </div>
     </form>
   );
@@ -96,23 +101,30 @@ function BalanceForm({ onSubmit, onClose }: { onSubmit: (amount: string) => Prom
 
 export function AccountsCard({ className }: { className?: string }) {
   const state = useApi<AccountOut[]>("/accounts");
-  const [modal, setModal] = useState<
-    { kind: "account" } | { kind: "balance"; id: string; name: string } | null
-  >(null);
+  const [modal, setModal] = useState<{ edit?: AccountOut } | null>(null);
 
-  const addAccount = async (v: { name: string; type: string; currency: string }) => {
-    await apiPost("/accounts", v);
+  const create = async (v: any) => {
+    const acc = await apiPost<AccountOut>("/accounts", { name: v.name, type: v.type, currency: v.currency });
+    if (v.opening && parseFloat(v.opening) !== 0) {
+      await apiPost(`/accounts/${acc.id}/transactions`, {
+        ts: new Date().toISOString().slice(0, 10) + "T00:00:00Z",
+        amount: v.opening,
+        raw_payee: "Opening balance",
+      });
+    }
     state.reload();
   };
-  const addBalance = async (id: string, amount: string) => {
-    await apiPost(`/accounts/${id}/balances`, { amount });
+  const edit = async (id: string, v: any) => {
+    await apiPatch(`/accounts/${id}`, { name: v.name, type: v.type, currency: v.currency });
+    state.reload();
+  };
+  const remove = async (id: string) => {
+    await apiDelete(`/accounts/${id}`);
     state.reload();
   };
 
   const action = (
-    <button className="btn btn--sm" onClick={() => setModal({ kind: "account" })}>
-      + Account
-    </button>
+    <button className="btn btn--sm" onClick={() => setModal({})}>+ Account</button>
   );
 
   return (
@@ -120,7 +132,7 @@ export function AccountsCard({ className }: { className?: string }) {
       <Async state={state}>
         {(accounts) =>
           accounts.length === 0 ? (
-            <div className="empty">No accounts yet — add one to track your balance.</div>
+            <div className="empty">No accounts yet — add one to start tracking.</div>
           ) : (
             <table>
               <thead>
@@ -132,20 +144,17 @@ export function AccountsCard({ className }: { className?: string }) {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((a) => (
+                {[...accounts].sort((a, b) => a.name.localeCompare(b.name)).map((a) => (
                   <tr key={a.id}>
                     <td>{a.name}</td>
                     <td>{titleCase(a.type)}</td>
                     <td className="amount">
-                      {a.latest_balance != null ? money(a.latest_balance, a.currency) : "—"}
+                      {a.latest_balance != null ? money(a.latest_balance, a.currency) : money(0, a.currency)}
                     </td>
                     <td className="amount">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => setModal({ kind: "balance", id: a.id, name: a.name })}
-                        title="Update balance"
-                      >
-                        + €
+                      <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                        onClick={() => setModal({ edit: a })} title="Edit account">
+                        ✎
                       </button>
                     </td>
                   </tr>
@@ -156,16 +165,13 @@ export function AccountsCard({ className }: { className?: string }) {
         }
       </Async>
 
-      {modal?.kind === "account" && (
-        <Modal title="Add account" onClose={() => setModal(null)}>
-          <AccountForm onClose={() => setModal(null)} onSubmit={addAccount} />
-        </Modal>
-      )}
-      {modal?.kind === "balance" && (
-        <Modal title={`Update balance — ${modal.name}`} onClose={() => setModal(null)}>
-          <BalanceForm
+      {modal && (
+        <Modal title={modal.edit ? "Edit account" : "Add account"} onClose={() => setModal(null)}>
+          <AccountForm
+            initial={modal.edit}
             onClose={() => setModal(null)}
-            onSubmit={(amount) => addBalance(modal.id, amount)}
+            onSubmit={(v) => (modal.edit ? edit(modal.edit.id, v) : create(v))}
+            onDelete={modal.edit ? () => remove(modal.edit!.id) : undefined}
           />
         </Modal>
       )}

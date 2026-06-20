@@ -51,6 +51,13 @@ class AccountCreate(BaseModel):
     institution: str | None = None
 
 
+class AccountUpdate(BaseModel):
+    type: str | None = None
+    name: str | None = None
+    currency: str | None = None
+    institution: str | None = None
+
+
 class AccountOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

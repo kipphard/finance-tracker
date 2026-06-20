@@ -6,12 +6,12 @@ def test_accounts_and_networth_isolated(client, second_client):
     # user-a creates an account + balance
     a = client.post("/api/accounts", json={"type": "cash", "name": "A-wallet", "currency": "EUR"})
     a_id = a.json()["id"]
-    client.post(f"/api/accounts/{a_id}/balances", json={"amount": "500.00"})
+    client.post(f"/api/accounts/{a_id}/transactions", json={"ts": "2026-06-01T00:00:00Z", "amount": "500.00", "raw_payee": "x"})
 
     # user-b creates their own
     b = second_client.post("/api/accounts", json={"type": "cash", "name": "B-wallet"})
     b_id = b.json()["id"]
-    second_client.post(f"/api/accounts/{b_id}/balances", json={"amount": "999.00"})
+    second_client.post(f"/api/accounts/{b_id}/transactions", json={"ts": "2026-06-01T00:00:00Z", "amount": "999.00", "raw_payee": "y"})
 
     # Each sees only their own account / net worth.
     a_accounts = client.get("/api/accounts").json()

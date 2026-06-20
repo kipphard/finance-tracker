@@ -49,8 +49,7 @@ def compute_net_worth(session: Session, user_id) -> NetWorth:
     breakdown: list[BreakdownEntry] = []
 
     for account in repository.list_accounts(session, user_id):
-        latest = repository.latest_balance(session, account.id)
-        amount = latest.amount if latest is not None else Decimal("0")
+        amount = repository.account_balance(session, account)
         currency = account.currency
         by_currency[currency] = by_currency.get(currency, Decimal("0")) + amount
         breakdown.append(

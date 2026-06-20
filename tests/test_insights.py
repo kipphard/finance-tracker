@@ -93,8 +93,7 @@ def test_overdue_debt_alert(db_session, user):
 
 def test_forecast_from_transaction_history(db_session, user):
     account = _account(db_session, user)
-    repository.add_balance(db_session, account_id=account.id, amount=Decimal("1000.00"))
-    # +500 net in each of the 3 completed months before AS_OF (Dec 2025, Jan, Feb 2026).
+    # +500 in each of 3 months -> net worth 1500, average monthly net 500.
     for year, month in [(2025, 12), (2026, 1), (2026, 2)]:
         repository.upsert_transaction(
             db_session,
@@ -109,8 +108,8 @@ def test_forecast_from_transaction_history(db_session, user):
     db_session.commit()
 
     forecast = build_forecast(db_session, user.id, months=3, as_of=AS_OF)
-    assert forecast.current_total == Decimal("1000.00")
-    assert forecast.monthly_net == Decimal("500.00")  # avg of the 3 completed months
+    assert forecast.current_total == Decimal("1500.00")  # sum of transactions
+    assert forecast.monthly_net == Decimal("500.00")  # 1500 / 3 active months
     assert len(forecast.points) == 4
-    assert forecast.points[0].projected == Decimal("1000.00")
-    assert forecast.points[3].projected == Decimal("2500.00")
+    assert forecast.points[0].projected == Decimal("1500.00")
+    assert forecast.points[3].projected == Decimal("3000.00")  # 1500 + 500*3

@@ -49,25 +49,27 @@ export function Dashboard() {
         {!ready ? (
           <div className="muted">Loading…</div>
         ) : (
-          <div className="grid">
-            <NetWorthHero className="col-8" />
-            <AlertsCard className="col-4" />
+          <div className="stack">
+            {/* Most important, full width */}
+            <div className="row-2">
+              <NetWorthHero />
+              <IncomeExpenseCard />
+            </div>
+            <MonthlyCashflowCard />
+            <TransactionsTable />
 
-            <MonthlyCashflowCard className="col-8" />
-            <IncomeExpenseCard className="col-4" />
-
-            <ForecastCard className="col-6" />
-            <CategoryBreakdownCard className="col-6" />
-
-            <BudgetsCard className="col-6" />
-            <DebtsCard className="col-6" />
-
-            <ScheduledCard className="col-4" />
-            <RecurringCard className="col-4" />
-            <AccountsCard className="col-4" />
-
-            <CategoriesCard className="col-4" />
-            <TransactionsTable className="col-8" />
+            {/* Secondary cards, tightly packed */}
+            <div className="masonry">
+              <AlertsCard />
+              <AccountsCard />
+              <ScheduledCard />
+              <DebtsCard />
+              <BudgetsCard />
+              <ForecastCard />
+              <CategoryBreakdownCard />
+              <RecurringCard />
+              <CategoriesCard />
+            </div>
           </div>
         )}
       </div>

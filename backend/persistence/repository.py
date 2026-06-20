@@ -169,6 +169,56 @@ def latest_balance(session: Session, account_id: uuid.UUID) -> Balance | None:
     return session.execute(stmt).scalars().first()
 
 
+def account_balance(session: Session, account: Account) -> Decimal:
+    """Bank-linked accounts use their latest synced balance; manual accounts are the sum of
+    their transactions (transaction-first)."""
+    if account.connection_id is not None:
+        latest = latest_balance(session, account.id)
+        return Decimal(latest.amount) if latest is not None else Decimal("0")
+    total = session.execute(
+        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.account_id == account.id
+        )
+    ).scalar_one()
+    return Decimal(str(total))
+
+
+def update_account(session: Session, account: Account, **fields) -> Account:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(account, key, value)
+    session.flush()
+    return account
+
+
+def delete_account(session: Session, account_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    account = get_account(session, account_id, user_id)
+    if account is None:
+        return False
+    txn_ids = [
+        t.id for t in list_transactions(session, user_id, account_id=account_id)
+    ]
+    if txn_ids:
+        session.execute(delete(Attachment).where(Attachment.transaction_id.in_(txn_ids)))
+    session.execute(delete(Transaction).where(Transaction.account_id == account_id))
+    session.execute(delete(Balance).where(Balance.account_id == account_id))
+    session.execute(delete(Recurring).where(Recurring.account_id == account_id))
+    session.execute(
+        update(CashflowItem)
+        .where(CashflowItem.account_id == account_id)
+        .values(account_id=None)
+    )
+    session.delete(account)
+    session.flush()
+    return True
+
+
+def latest_transaction_ts(session: Session, user_id: uuid.UUID) -> datetime | None:
+    return session.execute(
+        select(func.max(Transaction.ts)).where(Transaction.user_id == user_id)
+    ).scalar_one_or_none()
+
+
 # --- net worth snapshots --------------------------------------------------
 
 
