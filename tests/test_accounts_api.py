@@ -18,3 +18,21 @@ def test_account_edit_and_delete(client):
     assert client.delete(f"/api/accounts/{acc}").status_code == 204
     assert client.get("/api/accounts").json() == []
     assert client.get("/api/transactions").json() == []
+
+
+def test_future_dated_transactions_excluded_from_balance(client):
+    aid = client.post(
+        "/api/accounts", json={"type": "cash", "name": "Main", "currency": "EUR"}
+    ).json()["id"]
+    # realized (past) inflow
+    client.post(f"/api/accounts/{aid}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "100", "raw_payee": "past"})
+    # planned (far-future) inflow — should NOT count toward today's balance
+    client.post(f"/api/accounts/{aid}/transactions",
+                json={"ts": "2999-01-01T00:00:00Z", "amount": "50", "raw_payee": "future"})
+
+    main = next(a for a in client.get("/api/accounts").json() if a["id"] == aid)
+    assert Decimal(str(main["latest_balance"])) == Decimal("100")  # future 50 excluded
+
+    nw = client.get("/api/networth").json()
+    assert Decimal(str(nw["total"])) == Decimal("100")

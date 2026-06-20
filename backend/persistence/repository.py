@@ -7,7 +7,7 @@ first), so it has no direct user_id.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import delete, func, select, update
@@ -172,13 +172,15 @@ def latest_balance(session: Session, account_id: uuid.UUID) -> Balance | None:
 
 def account_balance(session: Session, account: Account) -> Decimal:
     """Bank-linked accounts use their latest synced balance; manual accounts are the sum of
-    their transactions (transaction-first)."""
+    their transactions up to *now* (transaction-first). Future-dated transactions are planned,
+    not yet realized, so they don't count toward the current balance until their date arrives."""
     if account.connection_id is not None:
         latest = latest_balance(session, account.id)
         return Decimal(latest.amount) if latest is not None else Decimal("0")
     total = session.execute(
         select(func.coalesce(func.sum(Transaction.amount), 0)).where(
-            Transaction.account_id == account.id
+            Transaction.account_id == account.id,
+            Transaction.ts <= datetime.now(timezone.utc),
         )
     ).scalar_one()
     return Decimal(str(total))
