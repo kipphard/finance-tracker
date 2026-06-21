@@ -163,6 +163,20 @@ def test_invoice_not_paid_by_refund_or_wrong_amount(client):
     assert Decimal(str(got["paid_amount"])) == Decimal("0.00")
 
 
+def test_invoice_due_date_and_overdue(client):
+    client.patch("/api/business-profile", json={"payment_terms_days": 14})
+    cid = _setup(client)
+    inv = client.post("/api/invoices", json={"client_id": cid}).json()
+    assert inv["due_date"] is not None  # auto-set from the payment term
+    assert inv["overdue"] is False
+    # sent + past due → overdue
+    client.patch(f"/api/invoices/{inv['id']}", json={"status": "sent", "due_date": "2020-01-01"})
+    assert client.get(f"/api/invoices/{inv['id']}").json()["overdue"] is True
+    # a paid invoice is never overdue
+    client.patch(f"/api/invoices/{inv['id']}", json={"status": "paid"})
+    assert client.get(f"/api/invoices/{inv['id']}").json()["overdue"] is False
+
+
 def test_delete_invoice_unbills_entries_and_isolation(client, second_client):
     cid = _setup(client)
     iid = client.post("/api/invoices", json={"client_id": cid}).json()["id"]

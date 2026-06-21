@@ -14,10 +14,32 @@ from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from backend.invoicing.i18n import texts
 from backend.invoicing.text import flatten
+
+
+def _girocode(profile, invoice):
+    """A GiroCode (EPC-QR) so the client can scan-to-pay a SEPA transfer. None if no IBAN."""
+    iban = (profile.iban or "").replace(" ", "")
+    name = (getattr(profile, "company_name", "") or profile.name or "")[:70]
+    amount = Decimal(invoice.total or 0)
+    if not iban or not name or amount < Decimal("0.01"):
+        return None
+    payload = "\n".join([
+        "BCD", "002", "1", "SCT", (profile.bic or "").replace(" ", ""), name, iban,
+        f"EUR{amount:.2f}", "", "", f"Rechnung {invoice.number}"[:140], "",
+    ])
+    widget = qr.QrCodeWidget(payload, barLevel="M")
+    b = widget.getBounds()
+    w, h = b[2] - b[0], b[3] - b[1]
+    side = 28 * mm
+    d = Drawing(side, side, transform=[side / w, 0, 0, side / h, 0, 0])
+    d.add(widget)
+    return d
 
 
 def _esc(text: str) -> str:
@@ -134,11 +156,28 @@ def render_invoice(profile, client, invoice, project=None) -> bytes:
     if vat_rate == 0:
         flow.append(Paragraph(_multiline(profile.vat_note or t["vat_note_default"]), base))
         flow.append(Spacer(1, 3 * mm))
-    flow.append(Paragraph(t["payable"], base))
+    if getattr(invoice, "due_date", None):
+        due_str = invoice.due_date.strftime(t["date_format"]).lstrip("0")
+        flow.append(Paragraph(t["payable_by"].format(date=_esc(due_str)), base))
+    else:
+        flow.append(Paragraph(t["payable"], base))
     flow.append(Spacer(1, 6 * mm))
     flow.append(Paragraph(t["regards"], base))
     flow.append(Spacer(1, 5 * mm))
     flow.append(Paragraph(_esc(profile.name or profile.company_name), base))
+
+    # Payment instructions + GiroCode (scan-to-pay)
+    pay_info = (getattr(profile, "payment_info", "") or "").strip()
+    giro = _girocode(profile, invoice)
+    if pay_info or giro is not None:
+        flow.append(Spacer(1, 8 * mm))
+        if pay_info:
+            flow.append(Paragraph(_multiline(pay_info), base))
+            flow.append(Spacer(1, 2 * mm))
+        if giro is not None:
+            flow.append(Paragraph(t["giro_hint"], base))
+            flow.append(Spacer(1, 2 * mm))
+            flow.append(giro)
 
     def _footer(canvas, _doc):
         canvas.saveState()

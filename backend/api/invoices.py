@@ -48,6 +48,11 @@ def _invoice_out(session, user_id: uuid.UUID, invoice) -> InvoiceOut:
         project = repository.get_project(session, invoice.project_id, user_id)
         out.project_name = project.name if project else None
     out.paid_amount = repository.invoice_paid_amount(session, user_id, invoice.number)
+    out.overdue = (
+        invoice.status != "paid"
+        and invoice.due_date is not None
+        and invoice.due_date < datetime.now(timezone.utc).date()
+    )
     return out
 
 
@@ -82,6 +87,8 @@ def create_invoice(payload: InvoiceCreate, session: SessionDep, user: CurrentUse
         language = "de"
     intro = profile.intro_text or texts(language)["intro_default"]
     vat_rate = Decimal(0) if profile.is_kleinunternehmer else Decimal("19")
+    issue = datetime.now(timezone.utc).date()
+    due = issue + timedelta(days=profile.payment_terms_days)
 
     # Blank invoice: skip time entries entirely (flat-fee billing) — start empty, fill lines later.
     if payload.blank:
@@ -89,7 +96,7 @@ def create_invoice(payload: InvoiceCreate, session: SessionDep, user: CurrentUse
         profile.next_invoice_number += 1
         invoice = repository.create_invoice(
             session, user_id=user.id, client_id=client.id, project_id=payload.project_id,
-            number=number, issue_date=datetime.now(timezone.utc).date(),
+            number=number, issue_date=issue, due_date=due,
             place=(profile.city or ""), language=language, intro_text=intro,
             status="draft", vat_rate=vat_rate, total=Decimal(0),
         )
@@ -150,7 +157,7 @@ def create_invoice(payload: InvoiceCreate, session: SessionDep, user: CurrentUse
     invoice = repository.create_invoice(
         session, user_id=user.id, client_id=client.id,
         project_id=payload.project_id, number=number,
-        issue_date=datetime.now(timezone.utc).date(), place=(profile.city or ""),
+        issue_date=issue, due_date=due, place=(profile.city or ""),
         language=language, intro_text=intro, status="draft", vat_rate=vat_rate,
         total=_gross(net, vat_rate),
     )

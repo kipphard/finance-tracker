@@ -1,6 +1,25 @@
 # Finance Tracker
 
-Self-hosted, Finanzguru-style personal finance tracker. See [`docs/plan.md`](docs/plan.md).
+Self-hosted web app with two sides — a **personal finance tracker** (💰 Finances) and a
+**freelance time-tracking & invoicing** tool (🧑‍💻 Freelance) — switched via a left sidebar.
+
+**📖 For a full walkthrough of everything the app does, see [`docs/GUIDE.md`](docs/GUIDE.md).**
+Original product plan: [`docs/plan.md`](docs/plan.md).
+
+## Features at a glance
+
+**💰 Finances** — manual accounts + net worth (with a snapshot trend chart); transactions
+(manual entry, German-tolerant CSV import, categories + a payee→category rules engine, tags,
+receipt attachments, transfers, recurring/series with auto-posting, off-balance flag); planning
+(monthly cashflow, per-category budgets, net-worth forecast, allocation buckets, emergency fund,
+debts, alerts); reports + a tax-advisor CSV export.
+
+**🧑‍💻 Freelance** — start/stop timer (survives reloads) + manual entries; clients with hour
+budgets and projects with per-project rate/budget overrides; invoices built from tracked time
+or as a blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** language,
+**Kleinunternehmer §19 / 19% VAT**, due dates + overdue tracking, a scan-to-pay **GiroCode**,
+**PDF** download, in-app **email** (Gmail SMTP), and **auto-reconciliation** that marks an
+invoice paid from the matching bank transaction (and lists the Zahlungseingang).
 
 **Status**
 - **Phase 0 (done):** scaffold, the `AccountConnector` abstraction (§4.1), a

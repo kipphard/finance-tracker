@@ -387,6 +387,8 @@ class BusinessProfile(Base):
     is_kleinunternehmer: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     vat_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
     intro_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    payment_terms_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
+    payment_info: Mapped[str] = mapped_column(Text, default="", nullable=False)  # extra pay instructions/link
     default_language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
     default_hourly_rate: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
     next_invoice_number: Mapped[int] = mapped_column(Integer, default=100001, nullable=False)
@@ -477,6 +479,7 @@ class Invoice(Base):
     )
     number: Mapped[str] = mapped_column(String(40), nullable=False)
     issue_date: Mapped[date] = mapped_column(Date, default=lambda: _now().date(), nullable=False)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     place: Mapped[str] = mapped_column(String(120), default="", nullable=False)
     language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
     intro_text: Mapped[str] = mapped_column(Text, default="", nullable=False)

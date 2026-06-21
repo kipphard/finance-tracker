@@ -569,6 +569,8 @@ class BusinessProfileUpdate(BaseModel):
     is_kleinunternehmer: bool | None = None
     vat_note: str | None = None
     intro_text: str | None = None
+    payment_terms_days: int | None = Field(default=None, ge=0)
+    payment_info: str | None = None
     default_language: str | None = None
     default_hourly_rate: Decimal | None = Field(default=None, ge=0)
     next_invoice_number: int | None = Field(default=None, ge=0)
@@ -590,6 +592,8 @@ class BusinessProfileOut(BaseModel):
     is_kleinunternehmer: bool
     vat_note: str
     intro_text: str
+    payment_terms_days: int
+    payment_info: str
     default_language: str
     default_hourly_rate: Decimal
     next_invoice_number: int
@@ -725,6 +729,7 @@ class InvoiceItemIn(BaseModel):
 class InvoiceUpdate(BaseModel):
     number: str | None = None
     issue_date: date | None = None
+    due_date: date | None = None
     place: str | None = None
     language: str | None = None
     intro_text: str | None = None
@@ -772,10 +777,12 @@ class InvoiceOut(BaseModel):
     project_name: str | None = None
     number: str
     issue_date: date
+    due_date: date | None = None
     place: str
     language: str
     intro_text: str
     status: str
+    overdue: bool = False  # computed: sent/unpaid and past the due date
     vat_rate: Decimal
     total: Decimal
     paid_amount: Decimal = Decimal(0)  # signed sum of transactions tagged with this number

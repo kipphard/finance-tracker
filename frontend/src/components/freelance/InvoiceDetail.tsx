@@ -129,6 +129,7 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
 function DetailsForm({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () => void }) {
   const [place, setPlace] = useState(invoice.place);
   const [issueDate, setIssueDate] = useState(invoice.issue_date);
+  const [dueDate, setDueDate] = useState(invoice.due_date ?? "");
   const [status, setStatus] = useState(invoice.status);
   const [language, setLanguage] = useState<string>(invoice.language);
   const [intro, setIntro] = useState(invoice.intro_text);
@@ -137,6 +138,7 @@ function DetailsForm({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
   useEffect(() => {
     setPlace(invoice.place);
     setIssueDate(invoice.issue_date);
+    setDueDate(invoice.due_date ?? "");
     setStatus(invoice.status);
     setLanguage(invoice.language);
     // show the language's default intro when none is stored, so the field is never blank
@@ -153,7 +155,7 @@ function DetailsForm({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
     setBusy(true);
     try {
       await apiPatch(`/invoices/${invoice.id}`, {
-        place, issue_date: issueDate, status, language, intro_text: intro,
+        place, issue_date: issueDate, due_date: dueDate || null, status, language, intro_text: intro,
       });
       onSaved();
     } finally {
@@ -172,6 +174,10 @@ function DetailsForm({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
         <div className="field">
           <label>Issue date</label>
           <input className="input" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Due date</label>
+          <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
         <div className="field">
           <label>Language</label>
@@ -238,7 +244,9 @@ export function InvoiceDetail() {
             <div className="muted" style={{ marginBottom: 16 }}>
               {inv.client_name}
               {inv.project_name ? <> · {inv.project_name}</> : null} ·{" "}
-              <span className="badge">{inv.status}</span> · {inv.language.toUpperCase()}
+              <span className="badge">{inv.status}</span>
+              {inv.overdue && <span className="badge badge--recurring" style={{ marginLeft: 4 }}>überfällig</span>}
+              {" · "}{inv.language.toUpperCase()}
               {inv.status !== "paid" && num(inv.paid_amount) > 0 && (
                 <> · <span style={{ color: "var(--warn)" }}>
                   {money(inv.paid_amount)} von {money(inv.total)} erhalten
@@ -246,7 +254,7 @@ export function InvoiceDetail() {
               )}
             </div>
             <DetailsForm
-              key={`${inv.status}|${inv.language}|${inv.issue_date}|${inv.place}|${inv.intro_text}`}
+              key={`${inv.status}|${inv.language}|${inv.issue_date}|${inv.due_date}|${inv.place}|${inv.intro_text}`}
               invoice={inv} onSaved={() => state.reload()} />
             <h3 style={{ margin: "22px 0 10px", fontSize: 15 }}>Line items</h3>
             <ItemsEditor invoice={inv} onSaved={() => state.reload()} />

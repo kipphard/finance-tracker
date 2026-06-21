@@ -244,6 +244,9 @@ export function InvoicesPage() {
                     <td className="ftable__num tnum">{money(inv.total)}</td>
                     <td>
                       <span className={STATUS_CLASS[inv.status] ?? "badge"}>{inv.status}</span>
+                      {inv.overdue && (
+                        <span className="badge badge--recurring" style={{ marginLeft: 4 }}>überfällig</span>
+                      )}
                       {inv.status !== "paid" && num(inv.paid_amount) > 0 && (
                         <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>
                           {money(inv.paid_amount)} erhalten

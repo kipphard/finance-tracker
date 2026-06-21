@@ -254,9 +254,11 @@ def run() -> dict:
             is_kleinunternehmer=True,
             vat_note="",      # blank → PDF uses the language-appropriate §19 note
             intro_text="",    # blank → PDF uses the language-appropriate greeting
+            payment_terms_days=14,
+            payment_info="Zahlung bevorzugt an Revolut: revolut.me/andre-demo",
             default_language="de",
             default_hourly_rate=D("45"),
-            next_invoice_number=100002,
+            next_invoice_number=100003,
         ))
 
         brandwerk = Client(user_id=uid, name="Studio Brandwerk GmbH",
@@ -302,7 +304,8 @@ def run() -> dict:
         # One issued + paid invoice for Brandwerk's Website Relaunch project (German).
         invoice = Invoice(
             user_id=uid, client_id=brandwerk.id, project_id=relaunch.id, number="100001",
-            issue_date=(now - timedelta(days=18)).date(), place="Köln", language="de",
+            issue_date=(now - timedelta(days=18)).date(),
+            due_date=(now - timedelta(days=4)).date(), place="Köln", language="de",
             intro_text=(
                 "Sehr geehrte Damen und Herren,\n\nvielen Dank für die gute Zusammenarbeit. "
                 "Hiermit stelle ich Ihnen die folgenden Leistungen in Rechnung:"
@@ -333,8 +336,30 @@ def run() -> dict:
         tentry(brandwerk, 3, 11, 75, "Bugfixing checkout flow", project=relaunch)
         tentry(brandwerk, 1, 13, 210, "Monatliches Care-Paket: Updates & Backups", project=care)
 
-        tentry(helios, 6, 10, 120, "Monatliche Webseiten-Pflege")
-        tentry(helios, 2, 15, 60, "Öffnungszeiten & Notdienst aktualisiert")
+        # A second invoice for Helios, already sent but now OVERDUE (due date in the past) →
+        # shows the overdue badge + Mahnwesen.
+        overdue_inv = Invoice(
+            user_id=uid, client_id=helios.id, number="100002",
+            issue_date=(now - timedelta(days=30)).date(),
+            due_date=(now - timedelta(days=16)).date(), place="Köln", language="de",
+            intro_text="", status="sent", vat_rate=D("0"), total=D("0"),
+        )
+        session.add(overdue_inv)
+        session.flush()
+        hel_billed = [
+            tentry(helios, 6, 10, 120, "Monatliche Webseiten-Pflege", overdue_inv),
+            tentry(helios, 2, 15, 60, "Öffnungszeiten & Notdienst aktualisiert", overdue_inv),
+        ]
+        hel_items: list[InvoiceItem] = []
+        hel_total = D("0")
+        for i, te in enumerate(hel_billed):
+            hrs = (D(te.minutes) / D(60)).quantize(D("0.01"))
+            amount = _q(hrs * helios.hourly_rate)
+            hel_total += amount
+            hel_items.append(InvoiceItem(description=te.description, hours=hrs,
+                                         rate=helios.hourly_rate, amount=amount, position=i))
+        overdue_inv.items = hel_items
+        overdue_inv.total = _q(hel_total)
 
         tentry(mondia, 8, 9, 240, "Speisekarte für Web & Print gestaltet")
         tentry(mondia, 4, 14, 180, "Instagram-Grafiken (5 Posts)")
@@ -343,7 +368,7 @@ def run() -> dict:
         session.commit()
         return {
             "transactions": len(ledger), "accounts": 5, "categories": len(cats),
-            "clients": 3, "projects": 2, "time_entries": 11, "invoices": 1,
+            "clients": 3, "projects": 2, "time_entries": 11, "invoices": 2,
         }
 
 

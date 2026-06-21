@@ -254,6 +254,8 @@ export interface BusinessProfileOut {
   is_kleinunternehmer: boolean;
   vat_note: string;
   intro_text: string;
+  payment_terms_days: number;
+  payment_info: string;
   default_language: InvoiceLanguage;
   default_hourly_rate: string;
   next_invoice_number: number;
@@ -328,10 +330,12 @@ export interface InvoiceOut {
   project_name: string | null;
   number: string;
   issue_date: string;
+  due_date: string | null;
   place: string;
   language: InvoiceLanguage;
   intro_text: string;
   status: string;
+  overdue: boolean;
   vat_rate: string;
   total: string;
   paid_amount: string;

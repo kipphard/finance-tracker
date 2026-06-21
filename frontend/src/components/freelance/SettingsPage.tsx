@@ -18,6 +18,8 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
   const [bic, setBic] = useState(profile.bic);
   const [taxNumber, setTaxNumber] = useState(profile.tax_number);
   const [kleinunternehmer, setKleinunternehmer] = useState(profile.is_kleinunternehmer);
+  const [paymentTerms, setPaymentTerms] = useState(String(profile.payment_terms_days));
+  const [paymentInfo, setPaymentInfo] = useState(profile.payment_info);
   const [vatNote, setVatNote] = useState(profile.vat_note);
   const [intro, setIntro] = useState(profile.intro_text);
   const [language, setLanguage] = useState(profile.default_language);
@@ -40,6 +42,8 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
     setBic(profile.bic);
     setTaxNumber(profile.tax_number);
     setKleinunternehmer(profile.is_kleinunternehmer);
+    setPaymentTerms(String(profile.payment_terms_days));
+    setPaymentInfo(profile.payment_info);
     setVatNote(profile.vat_note);
     setIntro(profile.intro_text);
     setLanguage(profile.default_language);
@@ -57,6 +61,7 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
         name, company_name: companyName, phone, email, address,
         postal_code: postalCode, city, iban, bic,
         tax_number: taxNumber, is_kleinunternehmer: kleinunternehmer, vat_note: vatNote,
+        payment_terms_days: parseInt(paymentTerms || "0", 10) || 0, payment_info: paymentInfo,
         intro_text: intro, default_language: language, default_hourly_rate: rate || "0",
         next_invoice_number: parseInt(nextNo || "0", 10) || 0,
       });
@@ -140,6 +145,18 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
         </div>
       )}
 
+      <div className="field-row">
+        <div className="field" style={{ flex: "0 0 160px" }}>
+          <label>Payment term (days)</label>
+          <input className="input" type="number" min="0" step="1" value={paymentTerms}
+            onChange={(e) => setPaymentTerms(e.target.value)} placeholder="14" />
+        </div>
+        <div className="field">
+          <label>Payment info / link on invoice (optional)</label>
+          <input className="input" value={paymentInfo} onChange={(e) => setPaymentInfo(e.target.value)}
+            placeholder="z.B. Zahlung an Revolut: revolut.me/andre" />
+        </div>
+      </div>
       <div className="field-row">
         <div className="field">
           <label>Default invoice language</label>
