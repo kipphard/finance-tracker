@@ -550,3 +550,235 @@ class AttachmentOut(BaseModel):
     content_type: str
     size: int
     created_at: datetime
+
+
+# --- freelance: business profile, clients, time, invoices ----------------
+
+
+class BusinessProfileUpdate(BaseModel):
+    name: str | None = None
+    company_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    iban: str | None = None
+    bic: str | None = None
+    tax_number: str | None = None
+    is_kleinunternehmer: bool | None = None
+    vat_note: str | None = None
+    intro_text: str | None = None
+    default_language: str | None = None
+    default_hourly_rate: Decimal | None = Field(default=None, ge=0)
+    next_invoice_number: int | None = Field(default=None, ge=0)
+
+
+class BusinessProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    company_name: str
+    phone: str
+    email: str
+    address: str
+    postal_code: str
+    city: str
+    iban: str
+    bic: str
+    tax_number: str
+    is_kleinunternehmer: bool
+    vat_note: str
+    intro_text: str
+    default_language: str
+    default_hourly_rate: Decimal
+    next_invoice_number: int
+
+
+class ClientCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str | None = None
+    address: str = ""
+    hourly_rate: Decimal = Field(default=Decimal(0), ge=0)
+    budget_hours: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+
+
+class ClientUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    email: str | None = None
+    address: str | None = None
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
+    budget_hours: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+    archived: bool | None = None
+
+
+class ClientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    email: str | None = None
+    address: str
+    hourly_rate: Decimal
+    budget_hours: Decimal | None = None
+    notes: str | None = None
+    archived: bool
+    created_at: datetime
+    # computed
+    tracked_hours: Decimal = Decimal(0)
+    unbilled_hours: Decimal = Decimal(0)
+    unbilled_amount: Decimal = Decimal(0)
+
+
+class ProjectCreate(BaseModel):
+    client_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)  # None = inherit client's
+    budget_hours: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
+    budget_hours: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+    archived: bool | None = None
+
+
+class ProjectOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    name: str
+    hourly_rate: Decimal | None = None
+    budget_hours: Decimal | None = None
+    notes: str | None = None
+    archived: bool
+    created_at: datetime
+    # computed
+    effective_rate: Decimal = Decimal(0)  # project rate, or the client's if not overridden
+    tracked_hours: Decimal = Decimal(0)
+    unbilled_hours: Decimal = Decimal(0)
+    unbilled_amount: Decimal = Decimal(0)
+
+
+class TimeEntryCreate(BaseModel):
+    client_id: uuid.UUID
+    project_id: uuid.UUID | None = None
+    started_at: datetime
+    ended_at: datetime | None = None
+    minutes: int | None = Field(default=None, ge=0)  # if omitted, derived from ended_at
+    description: str | None = None
+
+
+class TimeEntryStart(BaseModel):
+    client_id: uuid.UUID
+    project_id: uuid.UUID | None = None
+    description: str | None = None
+
+
+class TimeEntryUpdate(BaseModel):
+    client_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    minutes: int | None = Field(default=None, ge=0)
+    description: str | None = None
+
+
+class TimeEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    project_id: uuid.UUID | None = None
+    started_at: datetime
+    ended_at: datetime | None = None
+    minutes: int
+    description: str | None = None
+    invoice_id: uuid.UUID | None = None
+    created_at: datetime
+
+
+class InvoiceCreate(BaseModel):
+    client_id: uuid.UUID
+    project_id: uuid.UUID | None = None  # scope the invoice to one project's unbilled time
+    language: str | None = None  # "de"/"en"; defaults to the business profile's default_language
+    blank: bool = False  # create an empty draft (flat-fee billing) instead of from time entries
+    from_date: date | None = None
+    to_date: date | None = None
+    entry_ids: list[uuid.UUID] | None = None  # explicit selection; else all unbilled (in range)
+
+
+class InvoiceItemIn(BaseModel):
+    description: str = ""
+    hours: Decimal = Field(default=Decimal(0), ge=0)
+    rate: Decimal = Field(default=Decimal(0), ge=0)
+    # explicit line total for flat/Pauschal lines; if omitted, amount = hours × rate
+    amount: Decimal | None = Field(default=None, ge=0)
+
+
+class InvoiceUpdate(BaseModel):
+    number: str | None = None
+    issue_date: date | None = None
+    place: str | None = None
+    language: str | None = None
+    intro_text: str | None = None
+    status: str | None = None
+    vat_rate: Decimal | None = Field(default=None, ge=0)
+
+
+class InvoiceEmail(BaseModel):
+    to: str = Field(min_length=1)
+    subject: str = ""
+    body: str = ""
+    from_: str | None = Field(default=None, alias="from")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class InvoicePaymentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ts: datetime
+    amount: Decimal
+    account_name: str | None = None
+    payee: str | None = None
+
+
+class InvoiceItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    description: str
+    hours: Decimal
+    rate: Decimal
+    amount: Decimal
+    position: int
+
+
+class InvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    client_name: str | None = None
+    project_id: uuid.UUID | None = None
+    project_name: str | None = None
+    number: str
+    issue_date: date
+    place: str
+    language: str
+    intro_text: str
+    status: str
+    vat_rate: Decimal
+    total: Decimal
+    paid_amount: Decimal = Decimal(0)  # signed sum of transactions tagged with this number
+    created_at: datetime
+    items: list[InvoiceItemOut] = []
+    payments: list[InvoicePaymentOut] = []  # matched transactions (filled on the detail view)

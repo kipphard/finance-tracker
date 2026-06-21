@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     def effective_jwt_secret(self) -> str:
         return self.jwt_secret or self.fernet_key
 
+    # SMTP for sending invoices by email. Optional: the email endpoint returns 400 until
+    # host + user + password are set. For Gmail: smtp.gmail.com:587 + an app password.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None  # defaults to smtp_user / the profile email if unset
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
     @field_validator("fernet_key")
     @classmethod
     def _validate_fernet_key(cls, value: str) -> str:

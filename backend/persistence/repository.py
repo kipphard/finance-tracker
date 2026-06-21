@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.orm import Session
 
 from backend.persistence.models import (
@@ -19,18 +19,24 @@ from backend.persistence.models import (
     Attachment,
     Balance,
     Budget,
+    BusinessProfile,
     Cadence,
     CashflowDirection,
     CashflowItem,
     Category,
     CategoryKind,
+    Client,
     Connection,
     ConnectionStatus,
     Debt,
     EmergencyFund,
+    Invoice,
+    InvoiceItem,
     NetWorthSnapshot,
+    Project,
     Recurring,
     Rule,
+    TimeEntry,
     Transaction,
     User,
 )
@@ -993,3 +999,300 @@ def delete_debt(session: Session, debt_id: uuid.UUID, user_id: uuid.UUID) -> boo
     session.delete(debt)
     session.flush()
     return True
+
+
+# ===== Freelance: business profile, clients, time, invoices =============
+
+
+def get_business_profile(session: Session, user_id: uuid.UUID) -> BusinessProfile:
+    """Return the user's business profile, creating an empty default on first use.
+
+    intro_text / vat_note are left blank — the PDF supplies a language-appropriate default
+    (German §19 note for de, English for en); the user can override them in Settings.
+    """
+    profile = session.execute(
+        select(BusinessProfile).where(BusinessProfile.user_id == user_id)
+    ).scalars().first()
+    if profile is None:
+        profile = BusinessProfile(user_id=user_id, next_invoice_number=100001)
+        session.add(profile)
+        session.flush()
+    return profile
+
+
+def update_business_profile(session: Session, profile: BusinessProfile, **fields) -> BusinessProfile:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(profile, key, value)
+    session.flush()
+    return profile
+
+
+# --- clients --------------------------------------------------------------
+
+
+def create_client(session: Session, *, user_id: uuid.UUID, **fields) -> Client:
+    client = Client(user_id=user_id, **fields)
+    session.add(client)
+    session.flush()
+    return client
+
+
+def get_client(session: Session, client_id: uuid.UUID, user_id: uuid.UUID) -> Client | None:
+    return session.execute(
+        select(Client).where(Client.id == client_id, Client.user_id == user_id)
+    ).scalars().first()
+
+
+def list_clients(session: Session, user_id: uuid.UUID) -> list[Client]:
+    return list(
+        session.execute(
+            select(Client).where(Client.user_id == user_id).order_by(Client.name)
+        ).scalars().all()
+    )
+
+
+def update_client(session: Session, client: Client, **fields) -> Client:
+    for key, value in fields.items():
+        setattr(client, key, value)
+    session.flush()
+    return client
+
+
+def delete_client(session: Session, client_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    client = get_client(session, client_id, user_id)
+    if client is None:
+        return False
+    session.execute(delete(TimeEntry).where(TimeEntry.client_id == client_id))
+    inv_ids = [i.id for i in list_invoices(session, user_id, client_id=client_id)]
+    if inv_ids:
+        session.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(inv_ids)))
+        session.execute(delete(Invoice).where(Invoice.id.in_(inv_ids)))
+    session.execute(delete(Project).where(Project.client_id == client_id))
+    session.delete(client)
+    session.flush()
+    return True
+
+
+def client_minutes(session: Session, user_id: uuid.UUID, client_id: uuid.UUID) -> tuple[int, int]:
+    """Return (total billable minutes, unbilled minutes) for a client."""
+    total, unbilled = session.execute(
+        select(
+            func.coalesce(func.sum(TimeEntry.minutes), 0),
+            func.coalesce(
+                func.sum(case((TimeEntry.invoice_id.is_(None), TimeEntry.minutes), else_=0)), 0
+            ),
+        ).where(TimeEntry.user_id == user_id, TimeEntry.client_id == client_id)
+    ).one()
+    return int(total), int(unbilled)
+
+
+# --- projects -------------------------------------------------------------
+
+
+def create_project(session: Session, *, user_id: uuid.UUID, **fields) -> Project:
+    project = Project(user_id=user_id, **fields)
+    session.add(project)
+    session.flush()
+    return project
+
+
+def get_project(session: Session, project_id: uuid.UUID, user_id: uuid.UUID) -> Project | None:
+    return session.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    ).scalars().first()
+
+
+def list_projects(
+    session: Session, user_id: uuid.UUID, *, client_id: uuid.UUID | None = None
+) -> list[Project]:
+    stmt = select(Project).where(Project.user_id == user_id)
+    if client_id is not None:
+        stmt = stmt.where(Project.client_id == client_id)
+    return list(session.execute(stmt.order_by(Project.name)).scalars().all())
+
+
+def update_project(session: Session, project: Project, **fields) -> Project:
+    for key, value in fields.items():
+        setattr(project, key, value)
+    session.flush()
+    return project
+
+
+def delete_project(session: Session, project_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    project = get_project(session, project_id, user_id)
+    if project is None:
+        return False
+    # detach the project from its time entries + invoices (they survive, just un-projected)
+    session.execute(
+        update(TimeEntry).where(TimeEntry.project_id == project_id).values(project_id=None)
+    )
+    session.execute(
+        update(Invoice).where(Invoice.project_id == project_id).values(project_id=None)
+    )
+    session.delete(project)
+    session.flush()
+    return True
+
+
+def project_minutes(session: Session, user_id: uuid.UUID, project_id: uuid.UUID) -> tuple[int, int]:
+    """Return (total billable minutes, unbilled minutes) for a project."""
+    total, unbilled = session.execute(
+        select(
+            func.coalesce(func.sum(TimeEntry.minutes), 0),
+            func.coalesce(
+                func.sum(case((TimeEntry.invoice_id.is_(None), TimeEntry.minutes), else_=0)), 0
+            ),
+        ).where(TimeEntry.user_id == user_id, TimeEntry.project_id == project_id)
+    ).one()
+    return int(total), int(unbilled)
+
+
+# --- time entries ---------------------------------------------------------
+
+
+def create_time_entry(session: Session, *, user_id: uuid.UUID, **fields) -> TimeEntry:
+    entry = TimeEntry(user_id=user_id, **fields)
+    session.add(entry)
+    session.flush()
+    return entry
+
+
+def get_time_entry(session: Session, entry_id: uuid.UUID, user_id: uuid.UUID) -> TimeEntry | None:
+    return session.execute(
+        select(TimeEntry).where(TimeEntry.id == entry_id, TimeEntry.user_id == user_id)
+    ).scalars().first()
+
+
+def get_running_entry(session: Session, user_id: uuid.UUID) -> TimeEntry | None:
+    return session.execute(
+        select(TimeEntry).where(TimeEntry.user_id == user_id, TimeEntry.ended_at.is_(None))
+        .order_by(TimeEntry.started_at.desc())
+    ).scalars().first()
+
+
+def list_time_entries(
+    session: Session,
+    user_id: uuid.UUID,
+    *,
+    client_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    unbilled: bool = False,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[TimeEntry]:
+    stmt = select(TimeEntry).where(TimeEntry.user_id == user_id)
+    if client_id is not None:
+        stmt = stmt.where(TimeEntry.client_id == client_id)
+    if project_id is not None:
+        stmt = stmt.where(TimeEntry.project_id == project_id)
+    if unbilled:
+        stmt = stmt.where(TimeEntry.invoice_id.is_(None))
+    if start is not None:
+        stmt = stmt.where(TimeEntry.started_at >= start)
+    if end is not None:
+        stmt = stmt.where(TimeEntry.started_at < end)
+    return list(session.execute(stmt.order_by(TimeEntry.started_at.desc())).scalars().all())
+
+
+def update_time_entry(session: Session, entry: TimeEntry, **fields) -> TimeEntry:
+    for key, value in fields.items():
+        setattr(entry, key, value)
+    session.flush()
+    return entry
+
+
+def delete_time_entry(session: Session, entry_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    entry = get_time_entry(session, entry_id, user_id)
+    if entry is None:
+        return False
+    session.delete(entry)
+    session.flush()
+    return True
+
+
+# --- invoices -------------------------------------------------------------
+
+
+def create_invoice(session: Session, *, user_id: uuid.UUID, **fields) -> Invoice:
+    invoice = Invoice(user_id=user_id, **fields)
+    session.add(invoice)
+    session.flush()
+    return invoice
+
+
+def get_invoice(session: Session, invoice_id: uuid.UUID, user_id: uuid.UUID) -> Invoice | None:
+    return session.execute(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user_id)
+    ).scalars().first()
+
+
+def list_invoices(
+    session: Session, user_id: uuid.UUID, *, client_id: uuid.UUID | None = None
+) -> list[Invoice]:
+    stmt = select(Invoice).where(Invoice.user_id == user_id)
+    if client_id is not None:
+        stmt = stmt.where(Invoice.client_id == client_id)
+    return list(session.execute(stmt.order_by(Invoice.created_at.desc())).scalars().all())
+
+
+def update_invoice(session: Session, invoice: Invoice, **fields) -> Invoice:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(invoice, key, value)
+    session.flush()
+    return invoice
+
+
+def delete_invoice(session: Session, invoice_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    invoice = get_invoice(session, invoice_id, user_id)
+    if invoice is None:
+        return False
+    # release its time entries back to unbilled, then delete (items cascade)
+    for entry in list_time_entries(session, user_id):
+        if entry.invoice_id == invoice.id:
+            entry.invoice_id = None
+    session.delete(invoice)
+    session.flush()
+    return True
+
+
+def invoice_paid_amount(session: Session, user_id: uuid.UUID, number: str) -> Decimal:
+    """Signed sum of all transactions tagged with this invoice number (payments add,
+    refunds subtract). Empty/blank invoice number → 0."""
+    if not (number or "").strip():
+        return Decimal(0)
+    total = session.execute(
+        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.user_id == user_id, Transaction.invoice_number == number
+        )
+    ).scalar()
+    return Decimal(total or 0)
+
+
+def list_invoice_transactions(session: Session, user_id: uuid.UUID, number: str) -> list[Transaction]:
+    """Transactions tagged with this invoice number (the payments against it), oldest first."""
+    if not (number or "").strip():
+        return []
+    return list(
+        session.execute(
+            select(Transaction)
+            .where(Transaction.user_id == user_id, Transaction.invoice_number == number)
+            .order_by(Transaction.ts)
+        ).scalars().all()
+    )
+
+
+def reconcile_invoice_payments(session: Session, user_id: uuid.UUID) -> int:
+    """Auto-mark invoices 'paid' when matching transactions cover the full total. Never
+    downgrades a paid invoice and never marks a partial/refunded one. Returns # changed."""
+    changed = 0
+    for inv in list_invoices(session, user_id):
+        if inv.status == "paid" or inv.total <= 0:
+            continue
+        if invoice_paid_amount(session, user_id, inv.number) >= inv.total:
+            inv.status = "paid"
+            changed += 1
+    if changed:
+        session.flush()
+    return changed

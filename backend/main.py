@@ -11,17 +11,22 @@ from backend.api import (
     auth,
     banks,
     budgets,
+    business_profile,
     cashflow,
     categories,
+    clients,
     debts,
     emergency_fund,
     forecast,
     health,
+    invoices,
     me,
     networth,
+    projects,
     recurring,
     reports,
     rules,
+    time_entries,
     transactions,
 )
 from backend.config import get_settings
@@ -59,6 +64,12 @@ app.include_router(debts.router, prefix=API)
 app.include_router(allocations.router, prefix=API)
 app.include_router(emergency_fund.router, prefix=API)
 app.include_router(attachments.router, prefix=API)
+# Freelance: time tracking + invoicing
+app.include_router(business_profile.router, prefix=API)
+app.include_router(clients.router, prefix=API)
+app.include_router(projects.router, prefix=API)
+app.include_router(time_entries.router, prefix=API)
+app.include_router(invoices.router, prefix=API)
 
 
 @app.get("/", tags=["root"])

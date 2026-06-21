@@ -26,6 +26,7 @@ from sqlalchemy import (
     LargeBinary,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -358,3 +359,152 @@ class CashflowItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
+
+
+# ===== Freelance: time tracking + invoicing ==============================
+
+
+class BusinessProfile(Base):
+    """The freelancer's own details used on invoices (sender, bank, tax). One row per user."""
+
+    __tablename__ = "business_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    name: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    company_name: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    phone: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    email: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    address: Mapped[str] = mapped_column(Text, default="", nullable=False)  # street + number
+    postal_code: Mapped[str] = mapped_column(String(16), default="", nullable=False)  # Postleitzahl
+    city: Mapped[str] = mapped_column(String(120), default="", nullable=False)  # also invoice "place"
+    iban: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    bic: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    tax_number: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    # Kleinunternehmer per §19 UStG → no VAT on invoices. When False, invoices apply vat_rate.
+    is_kleinunternehmer: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    vat_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    intro_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    default_language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
+    default_hourly_rate: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    next_invoice_number: Mapped[int] = mapped_column(Integer, default=100001, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
+class Client(Base):
+    """A freelance customer that time entries and invoices belong to."""
+
+    __tablename__ = "clients"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address: Mapped[str] = mapped_column(Text, default="", nullable=False)  # invoice recipient block
+    hourly_rate: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    budget_hours: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)  # Kontingent
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
+class Project(Base):
+    """A project under a client. Time entries and invoices can optionally belong to one.
+    hourly_rate / budget_hours are optional overrides — NULL inherits the client's."""
+
+    __tablename__ = "projects"
+    __table_args__ = (Index("ix_projects_client", "client_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    hourly_rate: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # override; NULL = inherit client
+    budget_hours: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)  # Kontingent
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
+class TimeEntry(Base):
+    """A block of billable work for a client. A running timer has ended_at = NULL."""
+
+    __tablename__ = "time_entries"
+    __table_args__ = (Index("ix_time_entries_client", "client_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # billable duration
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
+class Invoice(Base):
+    """A generated invoice for a client, built from its (unbilled) time entries."""
+
+    __tablename__ = "invoices"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    number: Mapped[str] = mapped_column(String(40), nullable=False)
+    issue_date: Mapped[date] = mapped_column(Date, default=lambda: _now().date(), nullable=False)
+    place: Mapped[str] = mapped_column(String(120), default="", nullable=False)
+    language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
+    intro_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    vat_rate: Mapped[Decimal] = mapped_column(Numeric(6, 3), default=0, nullable=False)
+    total: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+    items: Mapped[list["InvoiceItem"]] = relationship(
+        back_populates="invoice", cascade="all, delete-orphan", order_by="InvoiceItem.position"
+    )
+
+
+class InvoiceItem(Base):
+    """A line on an invoice: a service description with hours, rate and amount."""
+
+    __tablename__ = "invoice_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    hours: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=0, nullable=False)
+    rate: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    invoice: Mapped["Invoice"] = relationship(back_populates="items")
