@@ -336,6 +336,8 @@ export interface InvoiceOut {
   intro_text: string;
   status: string;
   overdue: boolean;
+  reminder_level: number;
+  last_reminder_at: string | null;
   vat_rate: string;
   total: string;
   paid_amount: string;

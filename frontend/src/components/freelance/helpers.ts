@@ -96,6 +96,47 @@ export function isDefaultIntro(text: string): boolean {
   return KNOWN_INTROS.has((text || "").trim());
 }
 
+// Mahnstufe label for a given reminder level (1 = friendly reminder, 2 = 1. Mahnung, …).
+export function reminderStage(level: number, language: string): string {
+  const de = ["", "Zahlungserinnerung", "1. Mahnung", "2. Mahnung", "3. Mahnung"];
+  const en = ["", "Payment reminder", "1st reminder", "2nd reminder", "Final reminder"];
+  const arr = language === "de" ? de : en;
+  return arr[Math.min(level, 4)] || arr[4];
+}
+
+// A localized subject + body for a payment reminder / Mahnung at the next escalation level.
+export function reminderEmail(
+  language: string, nextLevel: number, number: string, sender: string,
+  total: string, deadline: string
+) {
+  const stage = reminderStage(nextLevel, language);
+  if (language === "de") {
+    const intro =
+      nextLevel <= 1
+        ? `sicher ist es Ihrer Aufmerksamkeit entgangen, dass die Rechnung Nr. ${number} über ${total} noch offen ist. Wir möchten Sie freundlich an die Zahlung erinnern`
+        : `trotz unserer bisherigen Erinnerung ist die Rechnung Nr. ${number} über ${total} weiterhin offen. Wir fordern Sie hiermit nachdrücklich auf, den Betrag zu begleichen`;
+    return {
+      subject: `${stage} – Rechnung Nr. ${number}`,
+      body:
+        `Sehr geehrte Damen und Herren,\n\n${intro} und bitten um Ausgleich bis zum ${deadline}.\n\n` +
+        `Die betreffende Rechnung finden Sie zur Erinnerung im Anhang. Sollten Sie die Zahlung ` +
+        `zwischenzeitlich veranlasst haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\n` +
+        `Mit freundlichen Grüßen\n${sender}`,
+    };
+  }
+  const intro =
+    nextLevel <= 1
+      ? `this is a friendly reminder that invoice no. ${number} for ${total} is still outstanding`
+      : `despite our previous reminder, invoice no. ${number} for ${total} remains unpaid, and we must now urge you to settle it`;
+  return {
+    subject: `${stage} – Invoice no. ${number}`,
+    body:
+      `Dear Sir or Madam,\n\n${intro}. Please arrange payment by ${deadline}.\n\n` +
+      `The invoice is attached for your reference. If you have already paid, please disregard this message.\n\n` +
+      `Kind regards\n${sender}`,
+  };
+}
+
 // A localized default subject + body for emailing an invoice.
 export function invoiceEmail(language: string, number: string, sender: string) {
   if (language === "de") {

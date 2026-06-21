@@ -343,6 +343,7 @@ def run() -> dict:
             issue_date=(now - timedelta(days=30)).date(),
             due_date=(now - timedelta(days=16)).date(), place="Köln", language="de",
             intro_text="", status="sent", vat_rate=D("0"), total=D("0"),
+            reminder_level=1, last_reminder_at=(now - timedelta(days=9)),  # Zahlungserinnerung sent
         )
         session.add(overdue_inv)
         session.flush()

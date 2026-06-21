@@ -742,6 +742,7 @@ class InvoiceEmail(BaseModel):
     subject: str = ""
     body: str = ""
     from_: str | None = Field(default=None, alias="from")
+    reminder: bool = False  # a payment reminder/Mahnung → bumps the Mahnstufe
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -783,6 +784,8 @@ class InvoiceOut(BaseModel):
     intro_text: str
     status: str
     overdue: bool = False  # computed: sent/unpaid and past the due date
+    reminder_level: int = 0  # Mahnstufe: 0 none, 1 Zahlungserinnerung, 2 = 1. Mahnung, …
+    last_reminder_at: datetime | None = None
     vat_rate: Decimal
     total: Decimal
     paid_amount: Decimal = Decimal(0)  # signed sum of transactions tagged with this number

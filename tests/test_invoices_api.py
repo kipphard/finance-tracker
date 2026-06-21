@@ -177,6 +177,27 @@ def test_invoice_due_date_and_overdue(client):
     assert client.get(f"/api/invoices/{inv['id']}").json()["overdue"] is False
 
 
+def test_send_reminder_bumps_mahnstufe(client, monkeypatch):
+    import backend.api.invoices as inv_api
+
+    class FakeSettings:
+        smtp_configured = True
+        smtp_host = "h"; smtp_port = 1; smtp_user = "u"; smtp_password = "p"; smtp_from = "f@x.de"
+
+    monkeypatch.setattr(inv_api, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(inv_api, "send_invoice_email", lambda *a, **k: None)
+
+    cid = _setup(client)
+    iid = client.post("/api/invoices", json={"client_id": cid}).json()["id"]
+    r = client.post(f"/api/invoices/{iid}/email",
+                    json={"to": "a@b.de", "subject": "s", "body": "b", "reminder": True})
+    assert r.status_code == 200 and r.json()["reminder_level"] == 1
+    got = client.get(f"/api/invoices/{iid}").json()
+    assert got["reminder_level"] == 1 and got["last_reminder_at"] is not None
+    client.post(f"/api/invoices/{iid}/email", json={"to": "a@b.de", "reminder": True})
+    assert client.get(f"/api/invoices/{iid}").json()["reminder_level"] == 2
+
+
 def test_delete_invoice_unbills_entries_and_isolation(client, second_client):
     cid = _setup(client)
     iid = client.post("/api/invoices", json={"client_id": cid}).json()["id"]

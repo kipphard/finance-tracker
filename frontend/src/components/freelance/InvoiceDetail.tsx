@@ -7,7 +7,7 @@ import { money, num, shortDate } from "../../lib/format";
 import { Card } from "../Card";
 import { Async } from "../Async";
 import { InvoiceEmailModal } from "./InvoiceEmailModal";
-import { INTRO_DEFAULTS, INVOICE_STATUSES, LANGUAGES, isDefaultIntro } from "./helpers";
+import { INTRO_DEFAULTS, INVOICE_STATUSES, LANGUAGES, isDefaultIntro, reminderStage } from "./helpers";
 
 interface Line {
   description: string;
@@ -213,7 +213,7 @@ export function InvoiceDetail() {
   const state = useApi<InvoiceOut>(`/invoices/${id}`);
   const clients = useApi<ClientOut[]>("/clients");
   const profile = useApi<BusinessProfileOut>("/business-profile");
-  const [emailing, setEmailing] = useState<InvoiceOut | null>(null);
+  const [emailing, setEmailing] = useState<{ inv: InvoiceOut; reminder: boolean } | null>(null);
 
   const download = async (inv: InvoiceOut) => {
     await apiDownload(`/invoices/${inv.id}/pdf`, `Rechnung${inv.number}.pdf`);
@@ -234,9 +234,15 @@ export function InvoiceDetail() {
           <Card
             title={`Invoice ${inv.number}`}
             action={
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn btn--sm" onClick={() => download(inv)}>⬇ PDF</button>
-                <button className="btn btn--sm" onClick={() => setEmailing(inv)}>✉ Email</button>
+                <button className="btn btn--sm" onClick={() => setEmailing({ inv, reminder: false })}>✉ Email</button>
+                {inv.status !== "paid" && (inv.status === "sent" || inv.overdue) && (
+                  <button className="btn btn--sm" style={{ background: "var(--warn)", borderColor: "var(--warn)" }}
+                    onClick={() => setEmailing({ inv, reminder: true })}>
+                    ⏰ {reminderStage(inv.reminder_level + 1, inv.language)}
+                  </button>
+                )}
                 <button className="btn btn--ghost btn--sm" onClick={() => remove(inv)}>Delete</button>
               </div>
             }
@@ -250,6 +256,12 @@ export function InvoiceDetail() {
               {inv.status !== "paid" && num(inv.paid_amount) > 0 && (
                 <> · <span style={{ color: "var(--warn)" }}>
                   {money(inv.paid_amount)} von {money(inv.total)} erhalten
+                </span></>
+              )}
+              {inv.reminder_level > 0 && (
+                <> · <span style={{ color: "var(--warn)" }}>
+                  {reminderStage(inv.reminder_level, inv.language)} gesendet
+                  {inv.last_reminder_at ? ` am ${shortDate(inv.last_reminder_at)}` : ""}
                 </span></>
               )}
             </div>
@@ -283,8 +295,9 @@ export function InvoiceDetail() {
 
           {emailing && (
             <InvoiceEmailModal
-              invoice={emailing}
-              client={(clients.data ?? []).find((c) => c.id === emailing.client_id)}
+              invoice={emailing.inv}
+              reminder={emailing.reminder}
+              client={(clients.data ?? []).find((c) => c.id === emailing.inv.client_id)}
               profile={profile.data ?? undefined}
               onClose={() => setEmailing(null)}
               onSent={() => state.reload()}

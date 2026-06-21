@@ -268,10 +268,17 @@ def email_invoice(
         )
     except Exception as exc:  # noqa: BLE001 - surface the SMTP error to the user
         raise HTTPException(status_code=502, detail=f"failed to send email: {exc}")
-    if invoice.status != "paid":  # sending marks it sent (but don't downgrade a paid invoice)
-        repository.update_invoice(session, invoice, status="sent")
+    changed = False
+    if payload.reminder:  # a Zahlungserinnerung/Mahnung → bump the Mahnstufe
+        invoice.reminder_level = (invoice.reminder_level or 0) + 1
+        invoice.last_reminder_at = datetime.now(timezone.utc)
+        changed = True
+    if invoice.status not in ("paid", "sent"):  # first send marks it sent (don't downgrade paid)
+        invoice.status = "sent"
+        changed = True
+    if changed:
         session.commit()
-    return {"ok": True, "status": invoice.status}
+    return {"ok": True, "status": invoice.status, "reminder_level": invoice.reminder_level}
 
 
 @router.delete("/{invoice_id}", status_code=204)

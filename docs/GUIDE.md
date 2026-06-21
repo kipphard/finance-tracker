@@ -88,6 +88,9 @@ Four tabs: **Time · Clients · Invoices · Settings**.
   add **19% VAT** (net → gross, broken out on the PDF).
 - **Due dates** — auto-set from your payment term (e.g. 14 days); shown on the PDF and list,
   with an **überfällig** (overdue) badge once past due and unpaid.
+- **Mahnwesen (payment reminders)** — for a sent/overdue invoice, a **⏰ Zahlungserinnerung →
+  1./2./3. Mahnung** button emails an escalating German/English reminder (with the invoice PDF
+  attached) and tracks the **Mahnstufe** ("1. Mahnung gesendet am …").
 - **GiroCode** — a scan-to-pay **EPC-QR** on the PDF that pre-fills a SEPA transfer (your IBAN,
   amount, invoice no. as Verwendungszweck). Plus a free-text **payment info/link** line
   (e.g. a Revolut/PayPal link) from Settings.
