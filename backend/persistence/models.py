@@ -513,3 +513,28 @@ class InvoiceItem(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     invoice: Mapped["Invoice"] = relationship(back_populates="items")
+
+
+class RecurringInvoice(Base):
+    """A retainer template that auto-drafts an invoice each period (flat fee or tracked time)."""
+
+    __tablename__ = "recurring_invoices"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    cadence: Mapped[str] = mapped_column(String(16), default="monthly", nullable=False)
+    mode: Mapped[str] = mapped_column(String(8), default="flat", nullable=False)  # flat | time
+    amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)     # flat fee (net)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)     # flat line text
+    language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
+    next_run: Mapped[date] = mapped_column(Date, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )

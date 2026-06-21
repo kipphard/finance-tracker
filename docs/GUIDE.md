@@ -80,6 +80,10 @@ Four tabs: **Time · Clients · Invoices · Settings**.
 - **Create from tracked time**: pick a client (+ optional project), tick exactly which
   **unbilled entries** to bill (or narrow by date range) — with a running total.
 - **Blank invoice**: start empty to bill a **flat project/service fee** with no tracked time.
+- **Recurring / retainers**: a "Recurring invoices" panel where you set a client (+ project) on
+  a schedule (weekly … yearly) that **auto-drafts an invoice each period** — either a **flat fee
+  (Pauschale)** or **that period's tracked time**. Drafts are generated when you open the Invoices
+  tab (catch-up + advance); you review and send them. Pause/resume or delete a retainer anytime.
 - **Line items**: mix **hourly** lines (Hours × Rate) and **flat / Pauschal** lines (just an
   Amount, no hours). Edit descriptions/amounts; total updates live.
 - **Language DE / EN** — switches all PDF labels, the date format, the greeting, and the §19

@@ -792,3 +792,44 @@ class InvoiceOut(BaseModel):
     created_at: datetime
     items: list[InvoiceItemOut] = []
     payments: list[InvoicePaymentOut] = []  # matched transactions (filled on the detail view)
+
+
+class RecurringInvoiceCreate(BaseModel):
+    client_id: uuid.UUID
+    project_id: uuid.UUID | None = None
+    cadence: str = "monthly"
+    mode: str = "flat"  # flat | time
+    amount: Decimal = Field(default=Decimal(0), ge=0)
+    description: str = ""
+    language: str | None = None
+    next_run: date
+    active: bool = True
+
+
+class RecurringInvoiceUpdate(BaseModel):
+    project_id: uuid.UUID | None = None
+    cadence: str | None = None
+    mode: str | None = None
+    amount: Decimal | None = Field(default=None, ge=0)
+    description: str | None = None
+    language: str | None = None
+    next_run: date | None = None
+    active: bool | None = None
+
+
+class RecurringInvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    client_name: str | None = None
+    project_id: uuid.UUID | None = None
+    project_name: str | None = None
+    cadence: str
+    mode: str
+    amount: Decimal
+    description: str
+    language: str
+    next_run: date
+    active: bool
+    created_at: datetime

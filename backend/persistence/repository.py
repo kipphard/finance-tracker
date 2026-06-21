@@ -35,6 +35,7 @@ from backend.persistence.models import (
     NetWorthSnapshot,
     Project,
     Recurring,
+    RecurringInvoice,
     Rule,
     TimeEntry,
     Transaction,
@@ -1253,6 +1254,47 @@ def delete_invoice(session: Session, invoice_id: uuid.UUID, user_id: uuid.UUID) 
         if entry.invoice_id == invoice.id:
             entry.invoice_id = None
     session.delete(invoice)
+    session.flush()
+    return True
+
+
+# --- recurring (retainer) invoices ----------------------------------------
+
+
+def create_recurring_invoice(session: Session, *, user_id: uuid.UUID, **fields) -> RecurringInvoice:
+    rec = RecurringInvoice(user_id=user_id, **fields)
+    session.add(rec)
+    session.flush()
+    return rec
+
+
+def get_recurring_invoice(session: Session, rec_id: uuid.UUID, user_id: uuid.UUID) -> RecurringInvoice | None:
+    return session.execute(
+        select(RecurringInvoice).where(RecurringInvoice.id == rec_id, RecurringInvoice.user_id == user_id)
+    ).scalars().first()
+
+
+def list_recurring_invoices(
+    session: Session, user_id: uuid.UUID, *, active_only: bool = False
+) -> list[RecurringInvoice]:
+    stmt = select(RecurringInvoice).where(RecurringInvoice.user_id == user_id)
+    if active_only:
+        stmt = stmt.where(RecurringInvoice.active.is_(True))
+    return list(session.execute(stmt.order_by(RecurringInvoice.next_run)).scalars().all())
+
+
+def update_recurring_invoice(session: Session, rec: RecurringInvoice, **fields) -> RecurringInvoice:
+    for key, value in fields.items():
+        setattr(rec, key, value)
+    session.flush()
+    return rec
+
+
+def delete_recurring_invoice(session: Session, rec_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    rec = get_recurring_invoice(session, rec_id, user_id)
+    if rec is None:
+        return False
+    session.delete(rec)
     session.flush()
     return True
 

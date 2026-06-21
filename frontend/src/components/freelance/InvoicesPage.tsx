@@ -1,15 +1,86 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiPost } from "../../api/client";
+import { apiDelete, apiPatch, apiPost } from "../../api/client";
 import { useApi } from "../../hooks/useApi";
 import type {
-  BusinessProfileOut, ClientOut, InvoiceOut, ProjectOut, TimeEntryOut,
+  BusinessProfileOut, ClientOut, InvoiceOut, ProjectOut, RecurringInvoiceOut, TimeEntryOut,
 } from "../../api/types";
 import { money, num, shortDate } from "../../lib/format";
 import { Card } from "../Card";
 import { Async } from "../Async";
 import { Modal } from "../Modal";
+import { RecurringInvoiceForm } from "./RecurringInvoiceForm";
 import { LANGUAGES, fmtDuration } from "./helpers";
+
+function RecurringInvoicesCard() {
+  const state = useApi<RecurringInvoiceOut[]>("/recurring-invoices");
+  const clientsState = useApi<ClientOut[]>("/clients");
+  const profile = useApi<BusinessProfileOut>("/business-profile");
+  const [editing, setEditing] = useState<RecurringInvoiceOut | "new" | null>(null);
+
+  const clients = (clientsState.data ?? []).filter((c) => !c.archived);
+  const toggle = async (r: RecurringInvoiceOut) => {
+    await apiPatch(`/recurring-invoices/${r.id}`, { active: !r.active });
+    state.reload();
+  };
+  const remove = async (r: RecurringInvoiceOut) => {
+    if (!confirm("Delete this retainer? (existing invoices are kept)")) return;
+    await apiDelete(`/recurring-invoices/${r.id}`);
+    state.reload();
+  };
+
+  const action = (
+    <button className="btn btn--sm" disabled={clients.length === 0}
+      onClick={() => setEditing("new")}>+ Retainer</button>
+  );
+
+  return (
+    <Card title="Recurring invoices (retainers)" action={action} className="recurring-card">
+      <Async state={state}>
+        {(recs) => recs.length === 0 ? (
+          <div className="empty">No retainers. Add one to auto-draft an invoice each period.</div>
+        ) : (
+          <table className="ftable">
+            <thead>
+              <tr>
+                <th>Client</th><th>Every</th><th>Bills</th>
+                <th className="ftable__num">Next</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {recs.map((r) => (
+                <tr key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
+                  <td>{r.client_name ?? "—"}{r.project_name ? <span className="muted"> · {r.project_name}</span> : null}</td>
+                  <td>{r.cadence}</td>
+                  <td>{r.mode === "flat" ? `${money(r.amount)} pauschal` : "tracked time"}</td>
+                  <td className="ftable__num">{shortDate(r.next_run)}</td>
+                  <td className="ftable__actions">
+                    <span className="row-actions">
+                      <button className="btn btn--ghost btn--sm" onClick={() => setEditing(r)}>Edit</button>
+                      <button className="btn btn--ghost btn--sm" onClick={() => toggle(r)}>
+                        {r.active ? "Pause" : "Resume"}
+                      </button>
+                      <button className="btn btn--ghost btn--sm" style={{ padding: "2px 7px" }}
+                        title="Delete" onClick={() => remove(r)}>×</button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Async>
+      {editing && (
+        <Modal title={editing === "new" ? "New retainer" : "Edit retainer"} className="modal--md"
+          onClose={() => setEditing(null)}>
+          <RecurringInvoiceForm clients={clients} rec={editing === "new" ? undefined : editing}
+            defaultLanguage={profile.data?.default_language}
+            onSaved={() => state.reload()} onClose={() => setEditing(null)} />
+        </Modal>
+      )}
+    </Card>
+  );
+}
 
 const STATUS_CLASS: Record<string, string> = {
   draft: "badge",
@@ -212,12 +283,17 @@ export function InvoicesPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
+  // generate any due retainer drafts on load (catch-up + advance), then the list refreshes
+  useEffect(() => { apiPost("/recurring-invoices/run").catch(() => {}); }, []);
+
   const action = (
     <button className="btn btn--sm" onClick={() => setCreating(true)}>+ New invoice</button>
   );
 
   return (
-    <Card title="Invoices" action={action}>
+    <>
+      <RecurringInvoicesCard />
+      <Card title="Invoices" action={action} className="invoices-card">
       <Async state={state}>
         {(invoices) => {
           if (invoices.length === 0) return <div className="empty">No invoices yet.</div>;
@@ -266,6 +342,7 @@ export function InvoicesPage() {
           <NewInvoiceForm onClose={() => setCreating(false)} />
         </Modal>
       )}
-    </Card>
+      </Card>
+    </>
   );
 }

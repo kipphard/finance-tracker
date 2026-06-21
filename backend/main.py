@@ -24,6 +24,7 @@ from backend.api import (
     networth,
     projects,
     recurring,
+    recurring_invoices,
     reports,
     rules,
     time_entries,
@@ -70,6 +71,7 @@ app.include_router(clients.router, prefix=API)
 app.include_router(projects.router, prefix=API)
 app.include_router(time_entries.router, prefix=API)
 app.include_router(invoices.router, prefix=API)
+app.include_router(recurring_invoices.router, prefix=API)
 
 
 @app.get("/", tags=["root"])

@@ -33,6 +33,7 @@ from backend.persistence.models import (
     NetWorthSnapshot,
     Project,
     Recurring,
+    RecurringInvoice,
     Rule,
     TimeEntry,
     Transaction,
@@ -59,6 +60,7 @@ def wipe(session, uid):
     session.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(inv_ids)))
     session.execute(delete(TimeEntry).where(TimeEntry.user_id == uid))
     session.execute(delete(Invoice).where(Invoice.user_id == uid))
+    session.execute(delete(RecurringInvoice).where(RecurringInvoice.user_id == uid))
     session.execute(delete(Project).where(Project.user_id == uid))
     session.execute(delete(Client).where(Client.user_id == uid))
     session.execute(delete(BusinessProfile).where(BusinessProfile.user_id == uid))
@@ -366,10 +368,17 @@ def run() -> dict:
         tentry(mondia, 4, 14, 180, "Instagram-Grafiken (5 Posts)")
         tentry(mondia, 4, 17, 90, "Logo-Varianten")
 
+        # A monthly flat-fee retainer for Helios — auto-drafts an invoice next month.
+        session.add(RecurringInvoice(
+            user_id=uid, client_id=helios.id, cadence="monthly", mode="flat",
+            amount=D("80"), description="Monatliche Webseiten-Pflege (Pauschale)",
+            language="de", next_run=TODAY + timedelta(days=30), active=True,
+        ))
+
         session.commit()
         return {
             "transactions": len(ledger), "accounts": 5, "categories": len(cats),
-            "clients": 3, "projects": 2, "time_entries": 11, "invoices": 2,
+            "clients": 3, "projects": 2, "time_entries": 11, "invoices": 2, "retainers": 1,
         }
 
 

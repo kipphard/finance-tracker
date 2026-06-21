@@ -314,6 +314,22 @@ export interface InvoiceItemOut {
   position: number;
 }
 
+export interface RecurringInvoiceOut {
+  id: string;
+  client_id: string;
+  client_name: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  cadence: string;
+  mode: string; // "flat" | "time"
+  amount: string;
+  description: string;
+  language: InvoiceLanguage;
+  next_run: string;
+  active: boolean;
+  created_at: string;
+}
+
 export interface InvoicePaymentOut {
   id: string;
   ts: string;
