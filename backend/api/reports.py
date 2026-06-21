@@ -7,16 +7,33 @@ from decimal import Decimal
 from fastapi import APIRouter, Query, Response
 
 from backend.api.deps import CurrentUser, SessionDep
+from backend.config import get_settings
+from backend.insights.service import build_forecast
 from backend.persistence import repository
 from backend.reporting import income_expense, monthly_cashflow, transactions_csv
 from backend.schemas import (
     CategoryBreakdownItem,
     CategoryTotalOut,
+    ClientProfitOut,
+    FreelanceInsightsOut,
     IncomeExpenseOut,
     MonthlyCashflowPoint,
+    ProjectBurnOut,
+    RunwayOut,
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+# account types treated as not-liquid for the cash-runway calculation
+ILLIQUID_TYPES = {"brokerage", "investment", "property", "crypto", "retirement", "pension"}
+
+
+def _q(v: Decimal) -> Decimal:
+    return v.quantize(Decimal("0.01"))
+
+
+def _hours(minutes: int) -> Decimal:
+    return _q(Decimal(minutes) / Decimal(60))
 
 
 def _range(start: date | None, end: date | None) -> tuple[datetime, datetime, date, date]:
@@ -95,3 +112,63 @@ def transactions_csv_export(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="transactions_{s}_{e}.csv"'},
     )
+
+
+@router.get("/runway", response_model=RunwayOut)
+def runway(session: SessionDep, user: CurrentUser) -> RunwayOut:
+    """Liquid balance / monthly burn → how many months of runway you have."""
+    forecast = build_forecast(session, user.id, months=1)
+    monthly_net = Decimal(forecast.monthly_net)
+    liquid = Decimal(0)
+    for acc in repository.list_accounts(session, user.id):
+        if (acc.type or "").lower() in ILLIQUID_TYPES:
+            continue
+        liquid += repository.account_balance(session, acc)
+    runway_months = _q(liquid / (-monthly_net)) if (monthly_net < 0 and liquid > 0) else None
+    return RunwayOut(
+        currency=get_settings().app_base_currency,
+        liquid=_q(liquid), monthly_net=_q(monthly_net), runway_months=runway_months,
+    )
+
+
+@router.get("/freelance-insights", response_model=FreelanceInsightsOut)
+def freelance_insights(session: SessionDep, user: CurrentUser) -> FreelanceInsightsOut:
+    """Per-client profitability (effective €/h, utilization) + per-project budget burn-down."""
+    uid = user.id
+    invoiced: dict = {}
+    paid: dict = {}
+    for inv in repository.list_invoices(session, uid):
+        invoiced[inv.client_id] = invoiced.get(inv.client_id, Decimal(0)) + Decimal(inv.total)
+        if inv.status == "paid":
+            paid[inv.client_id] = paid.get(inv.client_id, Decimal(0)) + Decimal(inv.total)
+
+    clients_out = []
+    for c in repository.list_clients(session, uid):
+        total_min, unbilled_min = repository.client_minutes(session, uid, c.id)
+        tracked = _hours(total_min)
+        inv_total = invoiced.get(c.id, Decimal(0))
+        clients_out.append(ClientProfitOut(
+            client_id=c.id, name=c.name, tracked_hours=tracked,
+            billed_hours=_hours(total_min - unbilled_min), unbilled_hours=_hours(unbilled_min),
+            invoiced_total=_q(inv_total), paid_total=_q(paid.get(c.id, Decimal(0))),
+            effective_rate=_q(inv_total / tracked) if tracked > 0 else Decimal(0),
+        ))
+    clients_out.sort(key=lambda x: x.effective_rate, reverse=True)
+
+    projects_out = []
+    for p in repository.list_projects(session, uid):
+        if p.budget_hours is None:
+            continue
+        total_min, _ = repository.project_minutes(session, uid, p.id)
+        tracked = _hours(total_min)
+        budget = Decimal(p.budget_hours)
+        client = repository.get_client(session, p.client_id, uid)
+        projects_out.append(ProjectBurnOut(
+            project_id=p.id, name=p.name, client_name=client.name if client else None,
+            budget_hours=budget, tracked_hours=tracked, remaining_hours=_q(budget - tracked),
+            pct=_q(tracked / budget * 100) if budget > 0 else Decimal(0),
+            over_budget=tracked > budget,
+        ))
+    projects_out.sort(key=lambda x: x.pct, reverse=True)
+
+    return FreelanceInsightsOut(clients=clients_out, projects=projects_out)

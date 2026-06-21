@@ -833,3 +833,40 @@ class RecurringInvoiceOut(BaseModel):
     next_run: date
     active: bool
     created_at: datetime
+
+
+# ===== Analytics (cash runway, freelance profitability + project burn-down) =====
+
+
+class RunwayOut(BaseModel):
+    currency: str
+    liquid: Decimal           # sum of liquid (non-investment) account balances
+    monthly_net: Decimal      # average monthly net (negative = burning)
+    runway_months: Decimal | None = None  # None when net-positive (no burn)
+
+
+class ClientProfitOut(BaseModel):
+    client_id: uuid.UUID
+    name: str
+    tracked_hours: Decimal
+    billed_hours: Decimal
+    unbilled_hours: Decimal
+    invoiced_total: Decimal
+    paid_total: Decimal
+    effective_rate: Decimal   # invoiced_total / tracked_hours
+
+
+class ProjectBurnOut(BaseModel):
+    project_id: uuid.UUID
+    name: str
+    client_name: str | None = None
+    budget_hours: Decimal
+    tracked_hours: Decimal
+    remaining_hours: Decimal
+    pct: Decimal              # tracked / budget * 100
+    over_budget: bool
+
+
+class FreelanceInsightsOut(BaseModel):
+    clients: list[ClientProfitOut] = []
+    projects: list[ProjectBurnOut] = []   # only projects that have a budget

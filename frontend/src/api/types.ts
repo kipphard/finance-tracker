@@ -361,3 +361,39 @@ export interface InvoiceOut {
   items: InvoiceItemOut[];
   payments: InvoicePaymentOut[];
 }
+
+// ===== Analytics =========================================================
+
+export interface RunwayOut {
+  currency: string;
+  liquid: string;
+  monthly_net: string;
+  runway_months: string | null;
+}
+
+export interface ClientProfitOut {
+  client_id: string;
+  name: string;
+  tracked_hours: string;
+  billed_hours: string;
+  unbilled_hours: string;
+  invoiced_total: string;
+  paid_total: string;
+  effective_rate: string;
+}
+
+export interface ProjectBurnOut {
+  project_id: string;
+  name: string;
+  client_name: string | null;
+  budget_hours: string;
+  tracked_hours: string;
+  remaining_hours: string;
+  pct: string;
+  over_budget: boolean;
+}
+
+export interface FreelanceInsightsOut {
+  clients: ClientProfitOut[];
+  projects: ProjectBurnOut[];
+}

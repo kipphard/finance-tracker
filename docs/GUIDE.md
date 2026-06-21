@@ -44,6 +44,8 @@ toggle lives in the sidebar.
   **materialized** into real dated transactions.
 - **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
 - **Forecast** — net worth projected from your average monthly net + account returns.
+- **Cash runway** — how many months your **liquid** (non-investment) balance lasts at the current
+  monthly net ("∞" when you're net-positive). The freelancer's most important number.
 - **Allocation** — split the monthly leftover (income − fixed) into buckets (Savings/Invest/…).
 - **Emergency fund** — a target of N× monthly fixed costs and how funded you are.
 - **Debts / "to pay off"** — one-off obligations; overdue ones surface in Alerts.
@@ -115,6 +117,14 @@ Four tabs: **Time · Clients · Invoices · Settings**.
     manual "paid" is never auto-undone);
   - shows a **Zahlungseingang** list (which transaction(s) paid it, with date/account/amount).
 - The transactions table shows a **`#100001 · paid`** badge next to a matched invoice number.
+
+### Insights
+A dedicated tab with:
+- **Client profitability** — per client: **effective €/h** (total invoiced ÷ tracked hours,
+  flat fees included), tracked/billed/unbilled hours, and invoiced vs. paid totals — sorted by
+  the best effective rate, so you can see which clients are actually worth it.
+- **Project budgets — burn-down** — for every project with an hour budget (Kontingent): a bar of
+  tracked vs. budget, hours remaining, and an **über Budget** flag once you've blown past it.
 
 ### Settings (your business profile)
 Everything the invoice pulls from: name, company, phone, email, **street / Postleitzahl /

@@ -16,6 +16,7 @@ import { CategoriesCard } from "./CategoriesCard";
 import { DebtsCard } from "./DebtsCard";
 import { EmergencyFundCard } from "./EmergencyFundCard";
 import { AllocationCard } from "./AllocationCard";
+import { RunwayCard } from "./RunwayCard";
 import { TransactionsTable } from "./TransactionsTable";
 import { PlaybookCard } from "./PlaybookCard";
 
@@ -31,6 +32,7 @@ const DEFAULT_ORDER = [
   "forecast",
   "cashflow",
   "transactions",
+  "runway",
   "allocation",
   "alerts",
   "accounts",
@@ -69,6 +71,7 @@ export function Dashboard() {
     debts: <DebtsCard />,
     emergency: <EmergencyFundCard />,
     allocation: <AllocationCard />,
+    runway: <RunwayCard />,
     budgets: <BudgetsCard />,
     category: <CategoryBreakdownCard />,
     detected: <RecurringCard />,

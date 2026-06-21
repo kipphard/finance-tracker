@@ -1198,6 +1198,23 @@ input {
   margin-bottom: 20px;
 }
 
+// Project budget burn-down list (Insights)
+.burn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.burn-row {
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    margin-bottom: 5px;
+  }
+}
+
 // Inline action buttons inside a table row
 .row-actions {
   display: inline-flex;
