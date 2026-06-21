@@ -7,7 +7,9 @@ import { money, num, shortDate } from "../../lib/format";
 import { Card } from "../Card";
 import { Async } from "../Async";
 import { InvoiceEmailModal } from "./InvoiceEmailModal";
-import { INTRO_DEFAULTS, INVOICE_STATUSES, LANGUAGES, isDefaultIntro, reminderStage } from "./helpers";
+import {
+  INTRO_DEFAULTS, INVOICE_STATUSES, LANGUAGES, isDefaultIntro, reminderStage, tidyDescription,
+} from "./helpers";
 
 interface Line {
   description: string;
@@ -44,6 +46,23 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
   const addFlat = () =>
     mutate((ls) => [...ls, { description: "", hours: "0", rate: "0", amount: "0" }]);
   const removeLine = (i: number) => mutate((ls) => ls.filter((_, x) => x !== i));
+
+  // Rule-based "tidy": clean each description + merge duplicate lines (same desc & rate).
+  const tidy = () => mutate((ls) => {
+    const cleaned = ls.map((l) => ({ ...l, description: tidyDescription(l.description) }));
+    const groups = new Map<string, Line & { _h: number; _a: number }>();
+    const order: string[] = [];
+    for (const l of cleaned) {
+      const key = `${l.description.toLowerCase()}|${num(l.rate)}`;
+      const g = groups.get(key);
+      if (!g) { groups.set(key, { ...l, _h: num(l.hours), _a: num(l.amount) }); order.push(key); }
+      else { g._h += num(l.hours); g._a += num(l.amount); }
+    }
+    return order.map((k) => {
+      const g = groups.get(k)!;
+      return { description: g.description, hours: round2(g._h), rate: g.rate, amount: round2(g._a) };
+    });
+  });
 
   const total = lines.reduce((sum, l) => sum + num(l.amount), 0);
 
@@ -118,6 +137,8 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
       <div className="toolbar" style={{ marginTop: 12 }}>
         <button className="btn btn--ghost btn--sm" onClick={addHourly}>+ Hourly line</button>
         <button className="btn btn--ghost btn--sm" onClick={addFlat}>+ Flat line</button>
+        <button className="btn btn--ghost btn--sm" disabled={lines.length === 0} onClick={tidy}
+          title="Clean up descriptions + merge duplicate lines">✨ Tidy</button>
         <button className="btn btn--sm" disabled={busy || !dirty} onClick={save}>
           {busy ? "…" : "Save lines"}
         </button>

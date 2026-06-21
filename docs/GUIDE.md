@@ -85,7 +85,10 @@ Four tabs: **Time · Clients · Invoices · Settings**.
   (Pauschale)** or **that period's tracked time**. Drafts are generated when you open the Invoices
   tab (catch-up + advance); you review and send them. Pause/resume or delete a retainer anytime.
 - **Line items**: mix **hourly** lines (Hours × Rate) and **flat / Pauschal** lines (just an
-  Amount, no hours). Edit descriptions/amounts; total updates live.
+  Amount, no hours). Edit descriptions/amounts; total updates live. A **✨ Tidy** button does a
+  rule-based cleanup (no AI): strips URLs / internal "(siehe …)" notes / list markers, dedupes
+  repeated phrases, capitalizes, and **merges duplicate lines** (same description + rate → summed
+  hours/amount). Review the result, then **Save lines**.
 - **Language DE / EN** — switches all PDF labels, the date format, the greeting, and the §19
   note; switching language re-translates the boilerplate intro (your custom text is kept).
 - **Kleinunternehmer (§19 UStG)** — no VAT + the §19 note. Untick it in Settings and invoices

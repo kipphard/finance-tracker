@@ -64,6 +64,36 @@ export function fmtDateTime(iso: string | null | undefined): string {
 export const INVOICE_STATUSES = ["draft", "sent", "paid"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
+// Rule-based (no-AI) cleanup of one invoice-line description: drop URLs + internal
+// "(siehe …)" notes, turn newlines/semicolons/list markers into commas, dedupe repeated
+// comma-separated phrases, normalize spacing, capitalize.
+export function tidyDescription(text: string): string {
+  let t = (text || "")
+    .replace(/\r/g, "")
+    .replace(/\((?:siehe|s\.|vgl\.)[^)]*\)/gi, "") // drop "(siehe Projektdokument …)" internal refs first
+    .replace(/https?:\/\/\S+/gi, "")            // then any leftover bare URLs (not client-facing)
+    .replace(/[\n;]+/g, ", ")                   // newlines / semicolons → commas
+    .replace(/\s+[-–•*]\s+/g, ", ")             // " - " style separators → commas (keeps hyphenated words)
+    .replace(/^\s*[-–•*]\s+/g, "")              // leading list marker → none
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/(?:,\s*){2,}/g, ", ")             // collapse repeated commas
+    .replace(/^[\s,]+|[\s,:]+$/g, "")           // trim leading/trailing commas/space/colon
+    .trim();
+  // dedupe comma-separated segments (case-insensitive, keep first occurrence)
+  const seen = new Set<string>();
+  t = t
+    .split(", ")
+    .filter((seg) => {
+      const k = seg.trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .join(", ");
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
 // Short codes keep the (often cramped) language picker readable.
 export const LANGUAGES: { value: string; label: string }[] = [
   { value: "de", label: "DE" },
