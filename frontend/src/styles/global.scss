@@ -248,7 +248,9 @@ a {
   }
   .sidebar__nav {
     flex-direction: row;
+    flex-wrap: wrap;
     flex: 1;
+    gap: 6px 8px;
   }
   .sidebar__footer {
     padding-top: 0;
@@ -294,20 +296,21 @@ a {
   }
 }
 
-// Drag-and-drop dashboard grid. Two columns; "wide" cards span both.
+// Drag-and-drop dashboard. Masonry-style: two packed columns so short cards rise
+// into empty space instead of leaving gaps. "Wide" cards span both columns.
 .dash {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  align-items: start;
+  columns: 2;
+  column-gap: 20px;
 }
 
 .dash__cell {
   position: relative;
   min-width: 0; // let tables/charts shrink instead of overflowing the column
+  break-inside: avoid; // never split a card across columns
+  margin-bottom: 20px;
 
   &--wide {
-    grid-column: 1 / -1;
+    column-span: all; // full width; also resets the column flow into a fresh band
   }
 
   &.is-dragging {
@@ -345,10 +348,7 @@ a {
 
 @media (max-width: 760px) {
   .dash {
-    grid-template-columns: 1fr;
-  }
-  .dash__cell--wide {
-    grid-column: auto;
+    columns: 1;
   }
 }
 

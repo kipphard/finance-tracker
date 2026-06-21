@@ -21,6 +21,9 @@ export function CommandPalette() {
     const go = (path: string) => () => { navigate(path); setOpen(false); };
     return [
       { id: "fin", label: "Go to Finances", run: go("/") },
+      { id: "analytics", label: "Go to Analytics", run: go("/analytics") },
+      { id: "playbook", label: "Go to Playbook", run: go("/playbook") },
+      { id: "appsettings", label: "Go to Settings", run: go("/settings") },
       { id: "time", label: "Freelance · Time / Timer", run: go("/freelance") },
       { id: "clients", label: "Freelance · Clients & projects", run: go("/freelance/clients") },
       { id: "invoices", label: "Freelance · Invoices", run: go("/freelance/invoices") },

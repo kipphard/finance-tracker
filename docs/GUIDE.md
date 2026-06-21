@@ -1,9 +1,14 @@
 # Finance Tracker — Full Guide
 
-A self-hosted, single-user web app with **two sides**, switched via the left sidebar:
+A self-hosted, single-user web app. The left sidebar switches between sections:
 
-- **💰 Finances** — a personal finance tracker (net worth, transactions, budgets, forecasts).
+- **💰 Finances** — the money cockpit: things you *act on* (net worth, accounts, runway, the
+  leftover split, planned purchases, emergency fund, debts, budgets, alerts, transactions).
+- **📈 Analytics** — read-only charts & breakdowns you look at to understand *trends* (net-worth
+  forecast, 12-month cashflow, income vs expense, spending by category, detected subscriptions).
 - **🧑‍💻 Freelance** — time tracking, clients/projects, and German-style invoicing.
+- **🧭 Playbook** — the money playbook (what to prioritise, and why).
+- **⚙️ Settings** — app configuration (transaction categories).
 
 Live at <https://finance-tracker.kipphard.com>. Log in (register an account), and everything
 below is scoped to you. There's a **demo account** (`akipphard@yahoo.de`) pre-filled with
@@ -13,8 +18,9 @@ example data for every feature.
 
 ## 💰 Finances
 
-The Finances dashboard is a grid of cards you can **drag to reorder**; a 🌙/☀️ **dark-mode**
-toggle lives in the sidebar.
+The Finances dashboard is a **masonry grid** of cards you can **drag to reorder** (short cards rise
+to fill empty space, so there are no big gaps); a 🌙/☀️ **dark-mode** toggle lives in the sidebar.
+Each section below (Analytics too) keeps its own card order.
 
 ### Accounts & net worth
 - Add **accounts** (checking, cash, savings, brokerage, …). Net worth = the sum of each
@@ -39,14 +45,12 @@ toggle lives in the sidebar.
 - **Off-balance** flag for record-only entries (e.g. freelance income tracked for tax) —
   kept in lists/reports but excluded from net worth and the forecast.
 
-### Planning & insight cards
-- **Monthly cashflow** — planned recurring inflows/outflows + a monthly net summary; can be
-  **materialized** into real dated transactions.
-- **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
-- **Forecast** — net worth projected from your average monthly net + account returns.
+### Planning & action cards
 - **Cash runway** — how many months your **liquid** (non-investment) balance lasts at the current
   monthly net ("∞" when you're net-positive). The freelancer's most important number.
-- **Allocation** — split the monthly leftover (income − fixed) into buckets (Savings/Invest/…).
+- **Distribute leftover (Allocation)** — split the monthly leftover (income − fixed) into buckets
+  (Savings/Invest/Fun). **Debt** and **Emergency fund** are taken *off the top*; everything else
+  splits what remains.
 - **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
   item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
   2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in
@@ -55,9 +59,42 @@ toggle lives in the sidebar.
   pretending the money appears from nowhere. Just add an item + price, then set a monthly amount.
 - **Emergency fund** — a target of N× monthly fixed costs and how funded you are.
 - **Debts / "to pay off"** — one-off obligations; overdue ones surface in Alerts.
+- **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
 - **Alerts** — over-budget categories, bills due soon, etc.
-- **Reports** — actual monthly in/out, income vs expense, and a **CSV export** for your tax
+
+---
+
+## 📈 Analytics
+
+Charts and breakdowns — read-only, for spotting trends. Like Finances, it's a drag-to-reorder
+masonry grid.
+
+- **Net-worth forecast** — net worth projected from your average monthly net + account returns.
+- **Income & expense** — actual monthly in/out over a date range you pick.
+- **Cashflow — last 12 months** — a per-month inflow/outflow bar chart from real transactions.
+- **Spending by category** — a donut of where the money went, with a **CSV export** for your tax
   advisor.
+- **Detected subscriptions** — recurring charges spotted in your transactions you can review/import.
+
+> Tip: **Monthly cashflow** (planned recurring inflows/outflows that can be *materialized* into real
+> dated transactions) is edited from the leftover/forecast flow; the 12-month chart here shows the
+> *actuals* that result.
+
+---
+
+## 🧭 Playbook
+
+A one-screen **money playbook**: the order to put euros to work (starter buffer → free money → kill
+high-interest debt → full emergency fund → invest), and the principle behind it ("money flows to the
+highest guaranteed return"). Reference reading — not licensed financial advice.
+
+---
+
+## ⚙️ Settings
+
+App-level configuration: manage your **transaction categories** (the taxonomy the rules engine and
+budgets use). Your freelance **business profile** (sender details, IBAN, §19 note, invoice
+numbering) lives separately under **Freelance → Settings**.
 
 ---
 

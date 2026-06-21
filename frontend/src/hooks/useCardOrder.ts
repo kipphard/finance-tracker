@@ -1,14 +1,13 @@
 import { useState } from "react";
 
-const KEY = "ft_card_order";
-
-// Persisted dashboard card order. Merges in any new cards and drops removed ones.
+// Persisted dashboard card order, keyed per section. Merges in any new cards and drops removed ones.
 export function useCardOrder(
+  key: string,
   defaultOrder: string[],
 ): [string[], (order: string[]) => void] {
   const [order, setOrder] = useState<string[]>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
       if (Array.isArray(saved)) {
         const merged = saved.filter((k: string) => defaultOrder.includes(k));
         // Insert any new cards near their default position instead of at the bottom.
@@ -26,7 +25,7 @@ export function useCardOrder(
   const update = (next: string[]) => {
     setOrder(next);
     try {
-      localStorage.setItem(KEY, JSON.stringify(next));
+      localStorage.setItem(key, JSON.stringify(next));
     } catch {
       /* ignore */
     }
