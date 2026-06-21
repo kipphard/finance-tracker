@@ -257,6 +257,10 @@ export interface BusinessProfileOut {
   payment_terms_days: number;
   payment_info: string;
   default_language: InvoiceLanguage;
+  digest_cadence: "off" | "weekly" | "monthly";
+  digest_invoices: boolean;
+  digest_time: boolean;
+  digest_finance: boolean;
   default_hourly_rate: string;
   next_invoice_number: number;
 }

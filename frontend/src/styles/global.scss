@@ -1059,6 +1059,20 @@ input {
   &__error {
     flex-basis: 100%;
   }
+  &__idle {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 13px;
+  }
 }
 
 .btn--start {
@@ -1196,6 +1210,63 @@ input {
 
 .recurring-card {
   margin-bottom: 20px;
+}
+
+// Command palette (⌘K)
+.cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 18, 0.5);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 14vh;
+  z-index: 60;
+}
+.cmdk {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+
+  &__input {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    padding: 14px 18px;
+    font-size: 15px;
+    outline: none;
+  }
+  &__list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  &__item {
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+    &.is-sel {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+    }
+  }
+  &__empty {
+    padding: 14px;
+    color: var(--muted);
+  }
+  &__foot {
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+  }
 }
 
 // Project budget burn-down list (Insights)

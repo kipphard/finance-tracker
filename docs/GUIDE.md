@@ -130,7 +130,15 @@ A dedicated tab with:
 Everything the invoice pulls from: name, company, phone, email, **street / Postleitzahl /
 city**, **IBAN / BIC / tax number**, the **Kleinunternehmer/VAT** toggle, **payment term
 (days)** + **payment info/link**, **default language**, **default hourly rate**, **next invoice
-number**, and optional overrides for the §19 note and intro text.
+number**, and optional overrides for the §19 note and intro text. Plus a **Notification digest**:
+choose **Off / Weekly / Monthly**, tick which sections to include (**Invoices / Time / Finance**),
+and **Send test digest now** to preview it — emailed via your Gmail SMTP.
+
+## Cross-app niceties
+- **⌘K command palette** — press ⌘K (Ctrl+K) anywhere to jump to any section or toggle the theme.
+- **Idle detection** — if the timer runs 15 min without activity, it asks whether you're still working.
+- **Installable (PWA)** — "Add to Home Screen" on mobile/desktop for an app-like, fullscreen launch;
+  the shell works offline after first load. (The site is also just responsive in any browser.)
 
 ---
 

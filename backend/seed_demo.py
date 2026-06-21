@@ -258,6 +258,7 @@ def run() -> dict:
             intro_text="",    # blank → PDF uses the language-appropriate greeting
             payment_terms_days=14,
             payment_info="Zahlung bevorzugt an Revolut: revolut.me/andre-demo",
+            digest_cadence="weekly",
             default_language="de",
             default_hourly_rate=D("45"),
             next_invoice_number=100003,

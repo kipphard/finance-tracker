@@ -41,6 +41,18 @@ export function Timer({ clients }: { clients: ClientOut[] }) {
     return () => clearInterval(id);
   }, [entry?.id]);
 
+  // Idle detection: if there's no activity for 15 min while a timer runs, ask if you're still working.
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    if (!entry) { setIdle(false); return; }
+    let last = Date.now();
+    const bump = () => { last = Date.now(); setIdle(false); };
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const id = setInterval(() => { if (Date.now() - last > 15 * 60 * 1000) setIdle(true); }, 30 * 1000);
+    return () => { events.forEach((e) => window.removeEventListener(e, bump)); clearInterval(id); };
+  }, [entry?.id]);
+
   const onClient = (id: string) => {
     setClientId(id);
     setProjectId(""); // project belongs to a client — reset when the client changes
@@ -129,6 +141,16 @@ export function Timer({ clients }: { clients: ClientOut[] }) {
       )}
 
       {error && <div className="error timer__error">{error}</div>}
+
+      {entry && idle && (
+        <div className="timer__idle">
+          <span>⏱ Der Timer läuft seit über 15 Min ohne Aktivität — arbeitest du noch?</span>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button className="btn btn--sm" onClick={() => setIdle(false)}>Weiter</button>
+            <button className="btn btn--ghost btn--sm" onClick={stop} disabled={busy}>Stoppen</button>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

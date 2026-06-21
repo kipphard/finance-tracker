@@ -572,6 +572,10 @@ class BusinessProfileUpdate(BaseModel):
     payment_terms_days: int | None = Field(default=None, ge=0)
     payment_info: str | None = None
     default_language: str | None = None
+    digest_cadence: str | None = None
+    digest_invoices: bool | None = None
+    digest_time: bool | None = None
+    digest_finance: bool | None = None
     default_hourly_rate: Decimal | None = Field(default=None, ge=0)
     next_invoice_number: int | None = Field(default=None, ge=0)
 
@@ -595,6 +599,10 @@ class BusinessProfileOut(BaseModel):
     payment_terms_days: int
     payment_info: str
     default_language: str
+    digest_cadence: str
+    digest_invoices: bool
+    digest_time: bool
+    digest_finance: bool
     default_hourly_rate: Decimal
     next_invoice_number: int
 

@@ -25,3 +25,22 @@ def test_business_profile_default_then_update(client):
     assert p["default_language"] == "en"
     assert p["next_invoice_number"] == 100077
     assert Decimal(str(p["default_hourly_rate"])) == Decimal("45")
+
+
+def test_digest_test_endpoint(client, monkeypatch):
+    import backend.api.business_profile as bp
+
+    class FakeSettings:
+        smtp_configured = True
+        smtp_host = "h"; smtp_port = 1; smtp_user = "u"; smtp_password = "p"; smtp_from = "f@x.de"
+
+    sent = {}
+    monkeypatch.setattr(bp, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(bp, "send_text_email", lambda settings, **kw: sent.update(kw))
+
+    client.patch("/api/business-profile", json={"email": "me@x.de", "digest_cadence": "weekly"})
+    r = client.post("/api/business-profile/digest-test")
+    assert r.status_code == 200
+    assert r.json()["to"] == "me@x.de"
+    assert sent["to"] == "me@x.de"
+    assert "bersicht" in sent["subject"]  # "Uebersicht"

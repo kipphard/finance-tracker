@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../auth";
 import { useTheme } from "../theme";
+import { CommandPalette } from "./CommandPalette";
 import { Dashboard } from "./Dashboard";
 import { Freelance } from "./freelance/Freelance";
 
@@ -40,6 +41,8 @@ export function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      <CommandPalette />
     </div>
   );
 }

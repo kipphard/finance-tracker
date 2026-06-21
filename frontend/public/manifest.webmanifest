@@ -1,0 +1,13 @@
+{
+  "name": "Finance Tracker",
+  "short_name": "Finance",
+  "description": "Personal finance + freelance time tracking & invoicing.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d0f15",
+  "theme_color": "#5b5bd6",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

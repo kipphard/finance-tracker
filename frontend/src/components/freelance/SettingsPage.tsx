@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiPatch } from "../../api/client";
+import { apiPatch, apiPost } from "../../api/client";
 import { useApi } from "../../hooks/useApi";
 import type { BusinessProfileOut } from "../../api/types";
 import { Card } from "../Card";
@@ -25,6 +25,11 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
   const [language, setLanguage] = useState(profile.default_language);
   const [rate, setRate] = useState(profile.default_hourly_rate);
   const [nextNo, setNextNo] = useState(String(profile.next_invoice_number));
+  const [digestCadence, setDigestCadence] = useState(profile.digest_cadence);
+  const [digestInvoices, setDigestInvoices] = useState(profile.digest_invoices);
+  const [digestTime, setDigestTime] = useState(profile.digest_time);
+  const [digestFinance, setDigestFinance] = useState(profile.digest_finance);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +54,21 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
     setLanguage(profile.default_language);
     setRate(profile.default_hourly_rate);
     setNextNo(String(profile.next_invoice_number));
+    setDigestCadence(profile.digest_cadence);
+    setDigestInvoices(profile.digest_invoices);
+    setDigestTime(profile.digest_time);
+    setDigestFinance(profile.digest_finance);
   }, [profile]);
+
+  const sendTestDigest = async () => {
+    setTestMsg(null);
+    try {
+      const r = await apiPost<{ to: string }>("/business-profile/digest-test");
+      setTestMsg(`Test digest sent to ${r.to}`);
+    } catch (err) {
+      setTestMsg(err instanceof Error ? err.message : "Failed to send");
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +83,8 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
         payment_terms_days: parseInt(paymentTerms || "0", 10) || 0, payment_info: paymentInfo,
         intro_text: intro, default_language: language, default_hourly_rate: rate || "0",
         next_invoice_number: parseInt(nextNo || "0", 10) || 0,
+        digest_cadence: digestCadence, digest_invoices: digestInvoices,
+        digest_time: digestTime, digest_finance: digestFinance,
       });
       setSaved(true);
       onSaved();
@@ -187,6 +208,32 @@ function ProfileForm({ profile, onSaved }: { profile: BusinessProfileOut; onSave
         <label>Default intro text (optional — overrides the default)</label>
         <textarea className="input" rows={3} value={intro} onChange={(e) => setIntro(e.target.value)}
           placeholder="Leave blank to use the standard greeting for the chosen language" />
+      </div>
+      <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "6px 0" }} />
+      <div className="field">
+        <label>Notification digest (email)</label>
+        <div className="field-row">
+          <div className="field" style={{ flex: "0 0 160px" }}>
+            <select className="select" value={digestCadence}
+              onChange={(e) => setDigestCadence(e.target.value as BusinessProfileOut["digest_cadence"])}>
+              <option value="off">Off</option>
+              <option value="weekly">Weekly (Mon)</option>
+              <option value="monthly">Monthly (1st)</option>
+            </select>
+          </div>
+          <div className="field" style={{ flexDirection: "row", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <label className="check"><input type="checkbox" checked={digestInvoices}
+              onChange={(e) => setDigestInvoices(e.target.checked)} disabled={digestCadence === "off"} /><span>Invoices</span></label>
+            <label className="check"><input type="checkbox" checked={digestTime}
+              onChange={(e) => setDigestTime(e.target.checked)} disabled={digestCadence === "off"} /><span>Time</span></label>
+            <label className="check"><input type="checkbox" checked={digestFinance}
+              onChange={(e) => setDigestFinance(e.target.checked)} disabled={digestCadence === "off"} /><span>Finance</span></label>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6 }}>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={sendTestDigest}>Send test digest now</button>
+          {testMsg && <span className="muted" style={{ fontSize: 12 }}>{testMsg}</span>}
+        </div>
       </div>
       {error && <div className="error">{error}</div>}
       <div className="form__actions" style={{ alignItems: "center" }}>

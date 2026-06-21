@@ -390,6 +390,11 @@ class BusinessProfile(Base):
     payment_terms_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
     payment_info: Mapped[str] = mapped_column(Text, default="", nullable=False)  # extra pay instructions/link
     default_language: Mapped[str] = mapped_column(String(2), default="de", nullable=False)
+    # notification digest preferences
+    digest_cadence: Mapped[str] = mapped_column(String(8), default="off", nullable=False)  # off|weekly|monthly
+    digest_invoices: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    digest_time: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    digest_finance: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     default_hourly_rate: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
     next_invoice_number: Mapped[int] = mapped_column(Integer, default=100001, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
