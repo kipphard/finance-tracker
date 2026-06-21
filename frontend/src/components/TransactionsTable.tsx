@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost, apiUpload } from "../api/client";
-import type { AccountOut, CategoryOut, TransactionOut } from "../api/types";
+import type { AccountOut, CategoryOut, InvoiceOut, TransactionOut } from "../api/types";
 import { money, num, shortDate } from "../lib/format";
 import { useManualOrder } from "../hooks/useManualOrder";
 import { Card } from "./Card";
@@ -354,6 +354,12 @@ export function TransactionsTable({ className }: { className?: string }) {
   const txns = useApi<TransactionOut[]>("/transactions");
   const cats = useApi<CategoryOut[]>("/categories");
   const accounts = useApi<AccountOut[]>("/accounts");
+  // freelance invoices, to link a transaction's invoice number to its invoice status
+  const invoices = useApi<InvoiceOut[]>("/invoices");
+  const invByNumber = useMemo(
+    () => new Map((invoices.data ?? []).map((i) => [i.number, i])),
+    [invoices.data]
+  );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
@@ -538,6 +544,12 @@ export function TransactionsTable({ className }: { className?: string }) {
                             {t.counterparty}
                             {t.counterparty && t.invoice_number ? " · " : ""}
                             {t.invoice_number ? `#${t.invoice_number}` : ""}
+                            {t.invoice_number && invByNumber.has(t.invoice_number) && (
+                              <span className="badge" style={{ marginLeft: 6 }}
+                                title="Linked freelance invoice">
+                                Rechnung · {invByNumber.get(t.invoice_number)!.status}
+                              </span>
+                            )}
                           </div>
                         )}
                         {t.description && <div className="li-sub">{t.description}</div>}

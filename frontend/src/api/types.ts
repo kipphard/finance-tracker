@@ -235,3 +235,107 @@ export interface AllocationPlanOut {
   unallocated_amount: string;
   buckets: AllocationBucketOut[];
 }
+
+// ===== Freelance (time tracking + invoicing) =============================
+
+export type InvoiceLanguage = "de" | "en";
+
+export interface BusinessProfileOut {
+  name: string;
+  company_name: string;
+  phone: string;
+  email: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  iban: string;
+  bic: string;
+  tax_number: string;
+  is_kleinunternehmer: boolean;
+  vat_note: string;
+  intro_text: string;
+  default_language: InvoiceLanguage;
+  default_hourly_rate: string;
+  next_invoice_number: number;
+}
+
+export interface ProjectOut {
+  id: string;
+  client_id: string;
+  name: string;
+  hourly_rate: string | null;
+  budget_hours: string | null;
+  notes: string | null;
+  archived: boolean;
+  created_at: string;
+  // computed
+  effective_rate: string;
+  tracked_hours: string;
+  unbilled_hours: string;
+  unbilled_amount: string;
+}
+
+export interface ClientOut {
+  id: string;
+  name: string;
+  email: string | null;
+  address: string;
+  hourly_rate: string;
+  budget_hours: string | null;
+  notes: string | null;
+  archived: boolean;
+  created_at: string;
+  // computed
+  tracked_hours: string;
+  unbilled_hours: string;
+  unbilled_amount: string;
+}
+
+export interface TimeEntryOut {
+  id: string;
+  client_id: string;
+  project_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  minutes: number;
+  description: string | null;
+  invoice_id: string | null;
+  created_at: string;
+}
+
+export interface InvoiceItemOut {
+  id: string;
+  description: string;
+  hours: string;
+  rate: string;
+  amount: string;
+  position: number;
+}
+
+export interface InvoicePaymentOut {
+  id: string;
+  ts: string;
+  amount: string;
+  account_name: string | null;
+  payee: string | null;
+}
+
+export interface InvoiceOut {
+  id: string;
+  client_id: string;
+  client_name: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  number: string;
+  issue_date: string;
+  place: string;
+  language: InvoiceLanguage;
+  intro_text: string;
+  status: string;
+  vat_rate: string;
+  total: string;
+  paid_amount: string;
+  created_at: string;
+  items: InvoiceItemOut[];
+  payments: InvoicePaymentOut[];
+}

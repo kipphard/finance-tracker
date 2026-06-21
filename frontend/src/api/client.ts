@@ -46,6 +46,8 @@ export const apiPost = <T>(path: string, body?: unknown) =>
   req<T>(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined });
 export const apiPatch = <T>(path: string, body: unknown) =>
   req<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+export const apiPut = <T>(path: string, body: unknown) =>
+  req<T>(path, { method: "PUT", body: JSON.stringify(body) });
 export const apiDelete = (path: string) => req<void>(path, { method: "DELETE" });
 
 // Multipart file upload with auth.

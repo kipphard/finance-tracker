@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useAuth } from "../auth";
-import { useTheme } from "../theme";
 import { apiPost } from "../api/client";
 import { useCardOrder } from "../hooks/useCardOrder";
 import { NetWorthHero } from "./NetWorthHero";
@@ -46,8 +44,6 @@ const DEFAULT_ORDER = [
 ];
 
 export function Dashboard() {
-  const { user, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const [ready, setReady] = useState(false);
   const [order, setOrder] = useCardOrder(DEFAULT_ORDER);
   const dragId = useRef<string | null>(null);
@@ -92,22 +88,6 @@ export function Dashboard() {
   };
 
   return (
-    <>
-      <header className="topbar">
-        <div className="topbar__title">
-          <span>💰</span> Finance Tracker
-        </div>
-        <div className="topbar__right">
-          <button className="icon-btn" onClick={toggle} aria-label="Toggle theme" title="Toggle light / dark">
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
-          <div className="topbar__user">
-            <span className="muted">{user?.email}</span>
-            <button className="btn btn--ghost btn--sm" onClick={logout}>Log out</button>
-          </div>
-        </div>
-      </header>
-
       <div className="container">
         {!ready ? (
           <div className="muted">Loading…</div>
@@ -151,6 +131,5 @@ export function Dashboard() {
           </div>
         )}
       </div>
-    </>
   );
 }
