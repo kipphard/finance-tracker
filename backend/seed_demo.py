@@ -31,6 +31,7 @@ from backend.persistence.models import (
     Invoice,
     InvoiceItem,
     NetWorthSnapshot,
+    PlannedPurchase,
     Project,
     Recurring,
     RecurringInvoice,
@@ -72,6 +73,7 @@ def wipe(session, uid):
     session.execute(delete(Budget).where(Budget.user_id == uid))
     session.execute(delete(Debt).where(Debt.user_id == uid))
     session.execute(delete(Allocation).where(Allocation.user_id == uid))
+    session.execute(delete(PlannedPurchase).where(PlannedPurchase.user_id == uid))
     session.execute(delete(EmergencyFund).where(EmergencyFund.user_id == uid))
     session.execute(delete(NetWorthSnapshot).where(NetWorthSnapshot.user_id == uid))
     session.execute(delete(Rule).where(Rule.user_id == uid))
@@ -224,6 +226,11 @@ def run() -> dict:
         for name, pct in [("Debt", 1), ("Emergency fund", 1), ("Savings", 40),
                           ("Invest", 35), ("Fun", 15)]:
             session.add(Allocation(user_id=uid, name=name, percent=D(str(pct))))
+
+        # --- planned purchases (wishlist; app projects when each is affordable) ---
+        for pname, price in [("Nintendo Switch 2", "499"), ("Urlaub Lissabon", "1000"),
+                             ("MacBook Pro", "2500")]:
+            session.add(PlannedPurchase(user_id=uid, name=pname, price=D(price)))
 
         # --- net-worth snapshots: monthly trend computed from the ledger ---
         sy, sm = _add_month(start_y, start_m, 6)

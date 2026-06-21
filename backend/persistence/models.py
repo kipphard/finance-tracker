@@ -296,6 +296,20 @@ class Debt(Base):
     )
 
 
+class PlannedPurchase(Base):
+    """A wishlist item (name + price); the app projects when it becomes affordable."""
+
+    __tablename__ = "planned_purchases"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    price: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class Allocation(Base):
     """A percentage bucket for distributing the monthly leftover (income − fixed costs),
     e.g. Savings 50%, Invest 20%, Buffer 30%."""

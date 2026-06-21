@@ -486,6 +486,35 @@ class ForecastOut(BaseModel):
 # --- debts / to pay off ---------------------------------------------------
 
 
+class PlannedPurchaseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    price: Decimal = Field(gt=0)
+
+
+class PlannedPurchaseUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    price: Decimal | None = Field(default=None, gt=0)
+
+
+class PlannedPurchaseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    price: Decimal
+    created_at: datetime
+    # computed
+    affordable_now: bool = False
+    months: int | None = None       # months to save up (None = no free cash at current rate)
+    target_month: date | None = None  # ~ when it becomes affordable
+
+
+class PlannedPurchasesOut(BaseModel):
+    currency: str
+    monthly_budget: Decimal         # free-to-save after debt / emergency / invest
+    items: list[PlannedPurchaseOut] = []
+
+
 class DebtCreate(BaseModel):
     name: str
     amount: Decimal = Field(gt=0)

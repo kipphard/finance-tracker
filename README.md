@@ -12,7 +12,8 @@ Original product plan: [`docs/plan.md`](docs/plan.md).
 (manual entry, German-tolerant CSV import, categories + a payee→category rules engine, tags,
 receipt attachments, transfers, recurring/series with auto-posting, off-balance flag); planning
 (monthly cashflow, per-category budgets, net-worth forecast, allocation buckets, emergency fund,
-debts, alerts); reports + a tax-advisor CSV export.
+debts, a planned-purchases wishlist that projects when each item is affordable, alerts); reports +
+a tax-advisor CSV export.
 
 **🧑‍💻 Freelance** — start/stop timer (survives reloads) + manual entries; clients with hour
 budgets and projects with per-project rate/budget overrides; invoices built from tracked time

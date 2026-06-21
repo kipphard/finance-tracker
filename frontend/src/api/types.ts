@@ -236,6 +236,22 @@ export interface AllocationPlanOut {
   buckets: AllocationBucketOut[];
 }
 
+export interface PlannedPurchaseOut {
+  id: string;
+  name: string;
+  price: string;
+  created_at: string;
+  affordable_now: boolean;
+  months: number | null;
+  target_month: string | null;
+}
+
+export interface PlannedPurchasesOut {
+  currency: string;
+  monthly_budget: string;
+  items: PlannedPurchaseOut[];
+}
+
 // ===== Freelance (time tracking + invoicing) =============================
 
 export type InvoiceLanguage = "de" | "en";

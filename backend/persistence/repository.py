@@ -33,6 +33,7 @@ from backend.persistence.models import (
     Invoice,
     InvoiceItem,
     NetWorthSnapshot,
+    PlannedPurchase,
     Project,
     Recurring,
     RecurringInvoice,
@@ -875,6 +876,45 @@ def delete_budget(session: Session, budget_id: uuid.UUID, user_id: uuid.UUID) ->
     if budget is None:
         return False
     session.delete(budget)
+    session.flush()
+    return True
+
+
+# --- planned purchases (wishlist) ----------------------------------------
+
+
+def create_planned_purchase(session: Session, *, user_id: uuid.UUID, **fields) -> PlannedPurchase:
+    item = PlannedPurchase(user_id=user_id, **fields)
+    session.add(item)
+    session.flush()
+    return item
+
+
+def get_planned_purchase(session: Session, item_id: uuid.UUID, user_id: uuid.UUID) -> PlannedPurchase | None:
+    return session.execute(
+        select(PlannedPurchase).where(PlannedPurchase.id == item_id, PlannedPurchase.user_id == user_id)
+    ).scalars().first()
+
+
+def list_planned_purchases(session: Session, user_id: uuid.UUID) -> list[PlannedPurchase]:
+    return list(session.execute(
+        select(PlannedPurchase).where(PlannedPurchase.user_id == user_id)
+        .order_by(PlannedPurchase.price)
+    ).scalars().all())
+
+
+def update_planned_purchase(session: Session, item: PlannedPurchase, **fields) -> PlannedPurchase:
+    for key, value in fields.items():
+        setattr(item, key, value)
+    session.flush()
+    return item
+
+
+def delete_planned_purchase(session: Session, item_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    item = get_planned_purchase(session, item_id, user_id)
+    if item is None:
+        return False
+    session.delete(item)
     session.flush()
     return True
 
