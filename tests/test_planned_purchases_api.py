@@ -1,32 +1,39 @@
 from decimal import Decimal
 
 
-def test_planned_purchase_affordability(client):
-    # leftover = 3000 in − 1000 out = 2000/month
-    client.post("/api/cashflow", json={"direction": "inflow", "name": "Salary", "amount": "3000", "cadence": "monthly"})
-    client.post("/api/cashflow", json={"direction": "outflow", "name": "Rent", "amount": "1000", "cadence": "monthly"})
-    # allocate 50% to Invest (committed) → free-to-save = 2000 − 1000 = 1000/month
-    client.post("/api/allocations", json={"name": "Invest", "percent": "50"})
-
+def test_planned_purchase_timeline_from_monthly_save(client):
+    # No monthly_save → no timeline yet (None)
     client.post("/api/planned-purchases", json={"name": "Switch", "price": "499"})
-    client.post("/api/planned-purchases", json={"name": "Vacation", "price": "3000"})
+    # With a monthly_save → months = ceil(price / save), plus a target month
+    client.post("/api/planned-purchases", json={"name": "Vacation", "price": "3000", "monthly_save": "500"})
 
     r = client.get("/api/planned-purchases").json()
-    assert Decimal(str(r["monthly_budget"])) == Decimal("1000.00")
     by = {i["name"]: i for i in r["items"]}
-    assert by["Switch"]["affordable_now"] is True and by["Switch"]["months"] == 0
-    assert by["Vacation"]["affordable_now"] is False
-    assert by["Vacation"]["months"] == 3        # ceil(3000 / 1000)
+    assert by["Switch"]["months"] is None
+    assert by["Switch"]["target_month"] is None
+    assert by["Vacation"]["months"] == 6        # ceil(3000 / 500)
     assert by["Vacation"]["target_month"] is not None
+    # fund = sum of monthly_save across items
+    assert Decimal(str(r["planned_fund"])) == Decimal("500.00")
+    # items are sorted soonest-first; the unplanned one sinks to the bottom
+    assert r["items"][0]["name"] == "Vacation"
+    assert r["items"][-1]["name"] == "Switch"
 
 
-def test_planned_purchase_no_budget(client):
-    # no income → leftover 0 → no free cash → months is None
-    client.post("/api/planned-purchases", json={"name": "TV", "price": "800"})
+def test_planned_purchase_save_covers_price_in_one_month(client):
+    # monthly_save >= price → 1 month (never 0)
+    client.post("/api/planned-purchases", json={"name": "Shoes", "price": "80", "monthly_save": "200"})
+    item = client.get("/api/planned-purchases").json()["items"][0]
+    assert item["months"] == 1
+
+
+def test_planned_purchase_update_monthly_save(client):
+    iid = client.post("/api/planned-purchases", json={"name": "Bike", "price": "1200"}).json()["id"]
+    assert client.get("/api/planned-purchases").json()["items"][0]["months"] is None
+    client.patch(f"/api/planned-purchases/{iid}", json={"monthly_save": "100"})
     r = client.get("/api/planned-purchases").json()
-    assert Decimal(str(r["monthly_budget"])) == Decimal("0.00")
-    assert r["items"][0]["months"] is None
-    assert r["items"][0]["affordable_now"] is False
+    assert r["items"][0]["months"] == 12        # ceil(1200 / 100)
+    assert Decimal(str(r["planned_fund"])) == Decimal("100.00")
 
 
 def test_planned_purchase_isolation(client, second_client):

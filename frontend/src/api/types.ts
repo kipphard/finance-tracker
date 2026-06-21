@@ -240,15 +240,16 @@ export interface PlannedPurchaseOut {
   id: string;
   name: string;
   price: string;
+  monthly_save: string;
   created_at: string;
-  affordable_now: boolean;
   months: number | null;
   target_month: string | null;
 }
 
 export interface PlannedPurchasesOut {
   currency: string;
-  monthly_budget: string;
+  monthly_leftover: string;
+  planned_fund: string;
   items: PlannedPurchaseOut[];
 }
 

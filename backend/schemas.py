@@ -489,11 +489,13 @@ class ForecastOut(BaseModel):
 class PlannedPurchaseCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     price: Decimal = Field(gt=0)
+    monthly_save: Decimal = Field(default=Decimal(0), ge=0)
 
 
 class PlannedPurchaseUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     price: Decimal | None = Field(default=None, gt=0)
+    monthly_save: Decimal | None = Field(default=None, ge=0)
 
 
 class PlannedPurchaseOut(BaseModel):
@@ -502,16 +504,17 @@ class PlannedPurchaseOut(BaseModel):
     id: uuid.UUID
     name: str
     price: Decimal
+    monthly_save: Decimal
     created_at: datetime
-    # computed
-    affordable_now: bool = False
-    months: int | None = None       # months to save up (None = no free cash at current rate)
-    target_month: date | None = None  # ~ when it becomes affordable
+    # computed from monthly_save: how long until you've saved up for it
+    months: int | None = None       # None = no monthly amount set yet
+    target_month: date | None = None  # ~ when you'll have saved enough
 
 
 class PlannedPurchasesOut(BaseModel):
     currency: str
-    monthly_budget: Decimal         # free-to-save after debt / emergency / invest
+    monthly_leftover: Decimal       # income − fixed costs (rough ceiling, before debt/emergency)
+    planned_fund: Decimal           # Σ monthly_save — the "Planned purchases fund" pot
     items: list[PlannedPurchaseOut] = []
 
 

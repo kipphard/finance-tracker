@@ -305,6 +305,8 @@ class PlannedPurchase(Base):
     user_id: Mapped[uuid.UUID] = _user_fk()
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     price: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    # How much to set aside per month for this item (0 = not actively saving yet).
+    monthly_save: Mapped[Decimal] = mapped_column(Money, nullable=False, default=Decimal(0))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )

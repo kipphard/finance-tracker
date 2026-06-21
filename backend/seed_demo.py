@@ -227,10 +227,12 @@ def run() -> dict:
                           ("Invest", 35), ("Fun", 15)]:
             session.add(Allocation(user_id=uid, name=name, percent=D(str(pct))))
 
-        # --- planned purchases (wishlist; app projects when each is affordable) ---
-        for pname, price in [("Nintendo Switch 2", "499"), ("Urlaub Lissabon", "1000"),
-                             ("MacBook Pro", "2500")]:
-            session.add(PlannedPurchase(user_id=uid, name=pname, price=D(price)))
+        # --- planned purchases (wishlist; a monthly_save feeds the "Planned purchases fund") ---
+        for pname, price, save in [("Nintendo Switch 2", "499", "100"),
+                                   ("Urlaub Lissabon", "1000", "150"),
+                                   ("MacBook Pro", "2500", "0")]:
+            session.add(PlannedPurchase(user_id=uid, name=pname, price=D(price),
+                                        monthly_save=D(save)))
 
         # --- net-worth snapshots: monthly trend computed from the ledger ---
         sy, sm = _add_month(start_y, start_m, 6)

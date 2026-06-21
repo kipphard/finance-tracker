@@ -47,11 +47,12 @@ toggle lives in the sidebar.
 - **Cash runway** — how many months your **liquid** (non-investment) balance lasts at the current
   monthly net ("∞" when you're net-positive). The freelancer's most important number.
 - **Allocation** — split the monthly leftover (income − fixed) into buckets (Savings/Invest/…).
-- **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Vacation · €1000*). The
-  app shows **when you can afford each**: "✅ Affordable now" or "in ~3 months · by Sep 2026". Your
-  monthly *free to save* is computed automatically — the leftover **minus** what the Allocation
-  card already commits to debt, emergency fund and investing — so the dates stay honest. Just add an
-  item + price; nothing to configure.
+- **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
+  item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
+  2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in
+  the **Distribute leftover** card *off the top* (alongside Debt and Emergency fund) — so deciding to
+  save for something visibly shrinks what's left to split between Savings / Invest / Fun, instead of
+  pretending the money appears from nowhere. Just add an item + price, then set a monthly amount.
 - **Emergency fund** — a target of N× monthly fixed costs and how funded you are.
 - **Debts / "to pay off"** — one-off obligations; overdue ones surface in Alerts.
 - **Alerts** — over-budget categories, bills due soon, etc.

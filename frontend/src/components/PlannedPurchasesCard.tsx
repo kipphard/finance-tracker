@@ -1,29 +1,27 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
-import { apiDelete, apiPost } from "../api/client";
+import { apiDelete, apiPatch, apiPost } from "../api/client";
 import type { PlannedPurchaseOut, PlannedPurchasesOut } from "../api/types";
-import { money } from "../lib/format";
+import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
-function whenLabel(item: PlannedPurchaseOut, currency: string): { text: string; cls: string } {
-  if (item.affordable_now) return { text: "✅ Affordable now", cls: "pos" };
-  if (item.months == null)
-    return { text: "Set income & allocation to plan this", cls: "muted" };
+function whenLabel(item: PlannedPurchaseOut): { text: string; cls: string } {
+  if (item.months == null || num(item.monthly_save) <= 0)
+    return { text: "set a monthly amount →", cls: "muted" };
   const by = item.target_month
     ? new Date(item.target_month).toLocaleDateString(undefined, { month: "short", year: "numeric" })
     : null;
   const n = item.months;
-  return {
-    text: `in ~${n} ${n === 1 ? "month" : "months"}${by ? ` · by ${by}` : ""}`,
-    cls: "",
-  };
+  if (n <= 1) return { text: `ready next month${by ? ` · ${by}` : ""}`, cls: "pos" };
+  return { text: `in ~${n} months${by ? ` · by ${by}` : ""}`, cls: "" };
 }
 
 export function PlannedPurchasesCard({ className }: { className?: string }) {
   const state = useApi<PlannedPurchasesOut>("/planned-purchases");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const add = async () => {
@@ -39,6 +37,25 @@ export function PlannedPurchasesCard({ className }: { className?: string }) {
     }
   };
 
+  const commitSave = async (item: PlannedPurchaseOut) => {
+    const v = draft[item.id];
+    if (v == null || num(v) === num(item.monthly_save)) {
+      setDraft((d) => {
+        const next = { ...d };
+        delete next[item.id];
+        return next;
+      });
+      return;
+    }
+    await apiPatch(`/planned-purchases/${item.id}`, { monthly_save: v || "0" });
+    setDraft((d) => {
+      const next = { ...d };
+      delete next[item.id];
+      return next;
+    });
+    state.reload();
+  };
+
   const remove = async (id: string) => {
     await apiDelete(`/planned-purchases/${id}`);
     state.reload();
@@ -50,40 +67,66 @@ export function PlannedPurchasesCard({ className }: { className?: string }) {
         {(plan) => (
           <>
             <div className="muted" style={{ fontSize: 12 }}>
-              {Number(plan.monthly_budget) > 0 ? (
+              {num(plan.planned_fund) > 0 ? (
                 <>
-                  ~{money(plan.monthly_budget, plan.currency)}/month free to save{" "}
-                  <span style={{ opacity: 0.7 }}>(after debt, emergency fund &amp; investing)</span>
+                  Saving <b>{money(plan.planned_fund, plan.currency)}/month</b> toward your wishlist
+                  <span style={{ opacity: 0.7 }}> — shows up as a pot in Distribute leftover.</span>
                 </>
               ) : (
-                <>No money free to save yet — set income, fixed costs &amp; allocation first.</>
+                <>Set a monthly amount per item to see when you can buy it.</>
               )}
             </div>
 
             <ul className="list" style={{ marginTop: 10 }}>
               {plan.items.map((item) => {
-                const w = whenLabel(item, plan.currency);
+                const w = whenLabel(item);
                 return (
-                  <li key={item.id}>
-                    <span className="li-main">
-                      {item.name}{" "}
-                      <span className="muted" style={{ fontWeight: 400 }}>
-                        · {money(item.price, plan.currency)}
+                  <li key={item.id} style={{ display: "block" }}>
+                    <div
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <span className="li-main">
+                        {item.name}{" "}
+                        <span className="muted" style={{ fontWeight: 400 }}>
+                          · {money(item.price, plan.currency)}
+                        </span>
                       </span>
-                    </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className={w.cls} style={{ fontSize: 13 }}>
-                        {w.text}
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className={w.cls} style={{ fontSize: 13 }}>
+                          {w.text}
+                        </span>
+                        <button
+                          className="btn btn--ghost"
+                          style={{ padding: "0 6px" }}
+                          onClick={() => remove(item.id)}
+                          title="Remove"
+                        >
+                          ×
+                        </button>
                       </span>
-                      <button
-                        className="btn btn--ghost"
-                        style={{ padding: "0 6px" }}
-                        onClick={() => remove(item.id)}
-                        title="Remove"
-                      >
-                        ×
-                      </button>
-                    </span>
+                    </div>
+                    <div
+                      className="alloc__tick"
+                      style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        save / month
+                      </span>
+                      <input
+                        className="input alloc__amt"
+                        type="number"
+                        min="0"
+                        step="10"
+                        value={draft[item.id] ?? String(num(item.monthly_save) || "")}
+                        placeholder="0"
+                        onChange={(e) => setDraft((d) => ({ ...d, [item.id]: e.target.value }))}
+                        onBlur={() => commitSave(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                      />
+                      <span className="muted">€</span>
+                    </div>
                   </li>
                 );
               })}
