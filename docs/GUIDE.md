@@ -1,14 +1,14 @@
 # Finance Tracker — Full Guide
 
-A self-hosted, single-user web app. The left sidebar switches between sections:
+A self-hosted, single-user web app. The left sidebar switches between two areas:
 
-- **💰 Finances** — the money cockpit: things you *act on* (net worth, accounts, runway, the
-  leftover split, planned purchases, emergency fund, debts, budgets, alerts, transactions).
-- **📈 Analytics** — read-only charts & breakdowns you look at to understand *trends* (net-worth
-  forecast, 12-month cashflow, income vs expense, spending by category, detected subscriptions).
+- **💰 Finances** — personal finance, with three sub-tabs:
+  - **Overview** — the money cockpit: things you *act on* (net worth, accounts, runway, the leftover
+    split, planned purchases, emergency fund, debts, budgets, alerts, transactions).
+  - **Analytics** — read-only charts & breakdowns you look at to understand *trends* (net-worth
+    forecast, 12-month cashflow, income vs expense, spending by category, detected subscriptions).
+  - **Settings** — app configuration (transaction categories) plus the **money playbook**.
 - **🧑‍💻 Freelance** — time tracking, clients/projects, and German-style invoicing.
-- **🧭 Playbook** — the money playbook (what to prioritise, and why).
-- **⚙️ Settings** — app configuration (transaction categories).
 
 Live at <https://finance-tracker.kipphard.com>. Log in (register an account), and everything
 below is scoped to you. There's a **demo account** (`akipphard@yahoo.de`) pre-filled with
@@ -18,9 +18,12 @@ example data for every feature.
 
 ## 💰 Finances
 
-The Finances dashboard is a **masonry grid** of cards you can **drag to reorder** (short cards rise
-to fill empty space, so there are no big gaps); a 🌙/☀️ **dark-mode** toggle lives in the sidebar.
-Each section below (Analytics too) keeps its own card order.
+Finances has three sub-tabs — **Overview · Analytics · Settings**. The **Overview** (below) and
+**Analytics** are each a **masonry grid** of cards you can **drag to reorder** (short cards rise to
+fill empty space, so there are no big gaps), and each keeps its own order. A 🌙/☀️ **dark-mode**
+toggle lives in the sidebar.
+
+#### Overview
 
 ### Accounts & net worth
 - Add **accounts** (checking, cash, savings, brokerage, …). Net worth = the sum of each
@@ -62,12 +65,9 @@ Each section below (Analytics too) keeps its own card order.
 - **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
 - **Alerts** — over-budget categories, bills due soon, etc.
 
----
+### 📈 Analytics (sub-tab)
 
-## 📈 Analytics
-
-Charts and breakdowns — read-only, for spotting trends. Like Finances, it's a drag-to-reorder
-masonry grid.
+Charts and breakdowns — read-only, for spotting trends. Its own drag-to-reorder masonry grid.
 
 - **Net-worth forecast** — net worth projected from your average monthly net + account returns.
 - **Income & expense** — actual monthly in/out over a date range you pick.
@@ -80,21 +80,15 @@ masonry grid.
 > dated transactions) is edited from the leftover/forecast flow; the 12-month chart here shows the
 > *actuals* that result.
 
----
-
-## 🧭 Playbook
-
-A one-screen **money playbook**: the order to put euros to work (starter buffer → free money → kill
-high-interest debt → full emergency fund → invest), and the principle behind it ("money flows to the
-highest guaranteed return"). Reference reading — not licensed financial advice.
-
----
-
-## ⚙️ Settings
+### ⚙️ Settings (sub-tab)
 
 App-level configuration: manage your **transaction categories** (the taxonomy the rules engine and
 budgets use). Your freelance **business profile** (sender details, IBAN, §19 note, invoice
 numbering) lives separately under **Freelance → Settings**.
+
+It also holds the **🧭 money playbook**: the order to put euros to work (starter buffer → free
+money → kill high-interest debt → full emergency fund → invest), and the principle behind it
+("money flows to the highest guaranteed return"). Reference reading — not licensed financial advice.
 
 ---
 

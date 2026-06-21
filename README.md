@@ -1,8 +1,9 @@
 # Finance Tracker
 
 Self-hosted web app — a **personal finance tracker** and a **freelance time-tracking &
-invoicing** tool. The left sidebar switches between **💰 Finances** (act), **📈 Analytics**
-(charts/trends), **🧑‍💻 Freelance**, **🧭 Playbook**, and **⚙️ Settings**.
+invoicing** tool. The left sidebar switches between **💰 Finances** and **🧑‍💻 Freelance**;
+Finances has **Overview** (act), **Analytics** (charts/trends), and **Settings** (categories +
+money playbook) sub-tabs.
 
 **📖 For a full walkthrough of everything the app does, see [`docs/GUIDE.md`](docs/GUIDE.md).**
 Original product plan: [`docs/plan.md`](docs/plan.md).

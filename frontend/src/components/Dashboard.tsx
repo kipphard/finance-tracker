@@ -54,13 +54,8 @@ export function Dashboard() {
     transactions: <TransactionsTable />,
   };
 
+  if (!ready) return <div className="muted">Loading…</div>;
   return (
-    <div className="container">
-      {!ready ? (
-        <div className="muted">Loading…</div>
-      ) : (
-        <CardGrid storageKey="ft_card_order_finances" defaultOrder={DEFAULT_ORDER} wide={WIDE} cards={cards} />
-      )}
-    </div>
+    <CardGrid storageKey="ft_card_order_finances" defaultOrder={DEFAULT_ORDER} wide={WIDE} cards={cards} />
   );
 }

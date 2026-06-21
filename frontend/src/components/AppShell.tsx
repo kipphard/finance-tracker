@@ -1,39 +1,28 @@
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 import { useTheme } from "../theme";
 import { CommandPalette } from "./CommandPalette";
-import { Dashboard } from "./Dashboard";
-import { AnalyticsPage } from "./AnalyticsPage";
-import { PlaybookPage } from "./PlaybookPage";
-import { SettingsPage } from "./SettingsPage";
+import { Finances } from "./Finances";
 import { Freelance } from "./freelance/Freelance";
-
-const linkClass = ({ isActive }: { isActive: boolean }) =>
-  "sidebar__link" + (isActive ? " is-active" : "");
 
 export function AppShell() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  // Finances owns every route that isn't under /freelance (incl. its Analytics/Settings sub-tabs),
+  // so drive the sidebar active state from the path rather than NavLink's exact matching.
+  const inFreelance = useLocation().pathname.startsWith("/freelance");
+  const cls = (active: boolean) => "sidebar__link" + (active ? " is-active" : "");
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar__brand">💰 Finance</div>
         <nav className="sidebar__nav">
-          <NavLink to="/" end className={linkClass}>
+          <NavLink to="/" className={() => cls(!inFreelance)}>
             <span className="sidebar__icon">💰</span> Finances
           </NavLink>
-          <NavLink to="/analytics" className={linkClass}>
-            <span className="sidebar__icon">📈</span> Analytics
-          </NavLink>
-          <NavLink to="/freelance" className={linkClass}>
+          <NavLink to="/freelance" className={() => cls(inFreelance)}>
             <span className="sidebar__icon">🧑‍💻</span> Freelance
-          </NavLink>
-          <NavLink to="/playbook" className={linkClass}>
-            <span className="sidebar__icon">🧭</span> Playbook
-          </NavLink>
-          <NavLink to="/settings" className={linkClass}>
-            <span className="sidebar__icon">⚙️</span> Settings
           </NavLink>
         </nav>
         <div className="sidebar__footer">
@@ -48,12 +37,8 @@ export function AppShell() {
 
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/playbook" element={<PlaybookPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/freelance/*" element={<Freelance />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/*" element={<Finances />} />
         </Routes>
       </main>
 

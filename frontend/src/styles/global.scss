@@ -311,6 +311,11 @@ a {
 
   &--wide {
     column-span: all; // full width; also resets the column flow into a fresh band
+    margin-top: 20px; // the preceding band's bottom margin is trimmed at the column break, so add our own
+
+    &:first-child {
+      margin-top: 0; // ...but not for the very first card (e.g. the net-worth hero)
+    }
   }
 
   &.is-dragging {

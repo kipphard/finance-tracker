@@ -20,8 +20,6 @@ export function AnalyticsPage() {
   };
 
   return (
-    <div className="container">
-      <CardGrid storageKey="ft_card_order_analytics" defaultOrder={DEFAULT_ORDER} wide={WIDE} cards={cards} />
-    </div>
+    <CardGrid storageKey="ft_card_order_analytics" defaultOrder={DEFAULT_ORDER} wide={WIDE} cards={cards} />
   );
 }
