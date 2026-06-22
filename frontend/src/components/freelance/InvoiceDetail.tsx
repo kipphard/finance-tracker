@@ -86,6 +86,7 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
 
   return (
     <>
+      <div className="table-scroll">
       <table className="ftable inv-items">
         <thead>
           <tr>
@@ -130,6 +131,7 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
           </tr>
         </tfoot>
       </table>
+      </div>
       <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
         Hourly line: set Hours × Rate. Flat line: leave Hours at 0 and just type the Amount (shows no hours on the PDF).
       </div>

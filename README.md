@@ -32,6 +32,10 @@ Pauschale** or **häusliches Arbeitszimmer**, and business **travel** (km × rat
 not tax advice), a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
 Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER.
 
+*Works on any screen — the desktop sidebar collapses to a mobile **bottom-nav** layout on phones
+(touch-friendly forms, horizontally scrollable sub-tabs & tables, bottom-sheet modals), and it's
+installable as a PWA.*
+
 **Status**
 - **Phase 0 (done):** scaffold, the `AccountConnector` abstraction (§4.1), a
   `ManualConnector`, manual accounts/balances, end-to-end net-worth aggregation (§4.5).

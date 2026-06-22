@@ -289,6 +289,7 @@ export function AccountsCard({ className }: { className?: string }) {
               const eff = dnd.reconcile(byName.map((a) => a.id));
               const ordered = [...accounts].sort((a, b) => eff.indexOf(a.id) - eff.indexOf(b.id));
               return (
+                <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
@@ -347,6 +348,7 @@ export function AccountsCard({ className }: { className?: string }) {
                     ))}
                   </tbody>
                 </table>
+                </div>
               );
             })()
           )

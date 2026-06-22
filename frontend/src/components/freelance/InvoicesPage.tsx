@@ -40,6 +40,7 @@ function RecurringInvoicesCard() {
         {(recs) => recs.length === 0 ? (
           <div className="empty">No retainers. Add one to auto-draft an invoice each period.</div>
         ) : (
+          <div className="table-scroll">
           <table className="ftable">
             <thead>
               <tr>
@@ -68,6 +69,7 @@ function RecurringInvoicesCard() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Async>
       {editing && (
@@ -301,6 +303,7 @@ export function InvoicesPage() {
             (a, b) => new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime()
           );
           return (
+            <div className="table-scroll">
             <table className="ftable ftable--click">
               <thead>
                 <tr>
@@ -333,6 +336,7 @@ export function InvoicesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           );
         }}
       </Async>

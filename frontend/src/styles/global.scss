@@ -230,34 +230,200 @@ a {
   min-width: 0;
 }
 
+// ===== Mobile bottom navigation + "More" sheet ===========================
+// Hidden on desktop (the sidebar handles nav); the mobile media query shows it.
+.bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 3.4rem;
+    padding: 6px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &.is-active {
+      color: var(--primary-strong);
+    }
+  }
+
+  &__icon {
+    font-size: 21px;
+    line-height: 1;
+  }
+}
+
+.more-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(8, 10, 18, 0.5);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-end;
+
+  &__panel {
+    width: 100%;
+    background: var(--surface);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+// Wrap any wide table so it scrolls horizontally instead of overflowing its card.
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 760px) {
-  .app-shell {
+  // Swap the desktop sidebar for the fixed bottom tab bar.
+  .sidebar {
+    display: none;
+  }
+  .bottom-nav {
+    display: flex;
+  }
+
+  // Leave room under content for the fixed bottom nav (height + safe area).
+  .container {
+    padding: 16px 16px calc(74px + env(safe-area-inset-bottom));
+  }
+
+  // Comfortable tap targets; 16px font stops iOS from zooming in on focus.
+  .input,
+  .select {
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+  .btn {
+    padding: 9px 15px;
+    font-size: 14px;
+  }
+  .btn--sm {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  // Stack paired form fields and toolbars so nothing gets squished.
+  .field-row {
     flex-direction: column;
   }
-  .sidebar {
-    width: auto;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 10px 16px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    z-index: 20;
+  .field-row > * {
+    // override inline flex-basis (e.g. the fixed-width language picker) so
+    // every field goes full width when the row stacks vertically.
+    flex: 1 1 auto !important;
   }
-  .sidebar__nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    flex: 1;
-    gap: 6px 8px;
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
-  .sidebar__footer {
-    padding-top: 0;
-    border-top: none;
+  .toolbar > * {
+    width: 100%;
   }
-  .sidebar__email {
+
+  // Headings + hero scale down for narrow screens.
+  .page-head h1 {
+    font-size: 20px;
+  }
+  .hero__value {
+    font-size: 34px;
+  }
+  .metric-row {
+    gap: 18px;
+  }
+
+  // Sub-tab nav: a horizontally scrollable strip rather than a wrapping block.
+  .subnav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .subnav::-webkit-scrollbar {
     display: none;
+  }
+  .subnav__link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  // Tighter table cells; the .table-scroll wrapper handles overflow.
+  table th,
+  table td,
+  .ftable th,
+  .ftable td {
+    padding: 9px 8px;
+  }
+
+  // Modals dock to the bottom as a full-width sheet with an internally scrolling body.
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal,
+  .modal--wide,
+  .modal--md {
+    max-width: 100%;
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal__body {
+    overflow-y: auto;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .form__actions {
+    flex-wrap: wrap;
+  }
+
+  // The ⌘K palette has no mobile trigger, but if opened keep it on-screen.
+  .cmdk-backdrop {
+    padding: 12vh 12px 0;
   }
 }
 

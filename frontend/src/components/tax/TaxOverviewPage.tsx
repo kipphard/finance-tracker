@@ -263,6 +263,7 @@ function LineItemsCard({ report: r }: { report: EurReportOut }) {
       {r.line_items.length === 0 ? (
         <div className="empty">Keine als „{r.tag}" markierten oder gemischt genutzten Buchungen in {r.year}.</div>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -287,6 +288,7 @@ function LineItemsCard({ report: r }: { report: EurReportOut }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Card>
   );

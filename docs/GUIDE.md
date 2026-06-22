@@ -214,8 +214,13 @@ the **km rate**, and a **mixed-use %** per expense category (Internet, Mobile, K
 ## Cross-app niceties
 - **⌘K command palette** — press ⌘K (Ctrl+K) anywhere to jump to any section or toggle the theme.
 - **Idle detection** — if the timer runs 15 min without activity, it asks whether you're still working.
+- **Mobile-optimised** — on phones (≤ 760px) the desktop sidebar is replaced by a fixed **bottom
+  tab bar** (💰 Finances · 🧑‍💻 Freelance · 🧾 Taxes · ☰ More), with theme/account/logout in the
+  "More" sheet. Section sub-tabs become a horizontally scrollable strip, paired form fields stack,
+  wide tables scroll sideways inside their card, inputs use 16px text (no iOS zoom-on-focus), and
+  modals dock as full-width bottom sheets. iPhone safe-area insets are respected.
 - **Installable (PWA)** — "Add to Home Screen" on mobile/desktop for an app-like, fullscreen launch;
-  the shell works offline after first load. (The site is also just responsive in any browser.)
+  the shell works offline after first load.
 
 ---
 

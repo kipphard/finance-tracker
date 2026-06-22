@@ -487,7 +487,7 @@ export function TransactionsTable({ className }: { className?: string }) {
           const { pages, page: p, slice } = paginate(rows, page, size);
           return (
             <>
-            <div style={{ overflowX: "auto" }}>
+            <div className="table-scroll">
               <table>
                 <thead>
                   <tr>

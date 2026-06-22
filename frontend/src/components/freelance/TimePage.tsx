@@ -81,6 +81,7 @@ export function TimePage() {
             const { slice, pages, page: p } = paginate(entries, page, size);
             return (
               <>
+                <div className="table-scroll">
                 <table className="ftable">
                   <thead>
                     <tr>
@@ -123,6 +124,7 @@ export function TimePage() {
                     })}
                   </tbody>
                 </table>
+                </div>
                 <Pager page={p} pages={pages} total={entries.length} onPage={setPage} />
               </>
             );

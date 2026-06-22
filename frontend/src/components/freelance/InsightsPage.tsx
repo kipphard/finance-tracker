@@ -15,6 +15,7 @@ export function InsightsPage() {
           {(ins) => ins.clients.length === 0 ? (
             <div className="empty">No clients yet.</div>
           ) : (
+            <div className="table-scroll">
             <table className="ftable">
               <thead>
                 <tr>
@@ -41,6 +42,7 @@ export function InsightsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </Async>
         <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
