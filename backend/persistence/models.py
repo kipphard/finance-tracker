@@ -559,3 +559,59 @@ class RecurringInvoice(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
+
+
+# ===== Taxes: German freelance EÜR (Einnahmenüberschussrechnung) ==========
+
+
+class TaxProfile(Base):
+    """Stable per-user tax settings for the EÜR. One row per user.
+
+    Year-specific numbers (other income, days worked from home, business km) live on
+    TaxYearInput instead — this row holds the setup that rarely changes."""
+
+    __tablename__ = "tax_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    # The transaction tag that marks business income/expenses (lowercased), e.g. "freelance".
+    freelance_tag: Mapped[str] = mapped_column(String(50), default="freelance", nullable=False)
+    # freiberufler (Anlage S) | gewerbe (Anlage G) — drives the ELSTER prompt.
+    business_type: Mapped[str] = mapped_column(String(16), default="freiberufler", nullable=False)
+    # Mixed-use expense categories → business-use percent, e.g. {"<category_id>": 50}.
+    mixed_use_rates: Mapped[dict] = mapped_column(JSONType, default=dict, nullable=False)
+    # Kilometre rate for business travel (Reisekosten), default €0.30/km.
+    km_rate: Mapped[Decimal] = mapped_column(Money, default=Decimal("0.30"), nullable=False)
+    # none | flat (Homeoffice-Pauschale) | room (häusliches Arbeitszimmer)
+    home_office_mode: Mapped[str] = mapped_column(String(8), default="none", nullable=False)
+    # For room mode: use the €1.260 Jahrespauschale instead of actual area-based cost.
+    room_use_pauschale: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    room_sqm: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    home_total_sqm: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    home_annual_cost: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
+class TaxYearInput(Base):
+    """Year-specific tax inputs the user enters for a given calendar/tax year. One per (user, year)."""
+
+    __tablename__ = "tax_year_inputs"
+    __table_args__ = (UniqueConstraint("user_id", "year", name="uq_tax_year_inputs_user_year"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Other taxable income (e.g. salary) used to stack the §32a tax estimate on top of.
+    other_taxable_income: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    # Days worked from home that year (for the Homeoffice-Pauschale, €6/day, capped €1.260).
+    home_office_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Kilometres driven for the business that year (× km_rate → Reisekosten).
+    business_km: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )

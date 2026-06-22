@@ -36,6 +36,8 @@ from backend.persistence.models import (
     Recurring,
     RecurringInvoice,
     Rule,
+    TaxProfile,
+    TaxYearInput,
     TimeEntry,
     Transaction,
     User,
@@ -77,6 +79,8 @@ def wipe(session, uid):
     session.execute(delete(EmergencyFund).where(EmergencyFund.user_id == uid))
     session.execute(delete(NetWorthSnapshot).where(NetWorthSnapshot.user_id == uid))
     session.execute(delete(Rule).where(Rule.user_id == uid))
+    session.execute(delete(TaxYearInput).where(TaxYearInput.user_id == uid))
+    session.execute(delete(TaxProfile).where(TaxProfile.user_id == uid))
     session.execute(delete(Budget).where(Budget.user_id == uid))
     session.execute(delete(Category).where(Category.user_id == uid))
     session.execute(delete(Account).where(Account.user_id == uid))
@@ -187,6 +191,13 @@ def run() -> dict:
                     cat=cats["Freelance income"].id, tags=["freelance"], series=retainer_series)
             y, m = _add_month(y, m, 1)
 
+        # --- bigger one-off freelance expenses (Arbeitsmittel) for the Taxes/EÜR view ---
+        for fy in (TODAY.year - 1, TODAY.year):
+            txn(giro, date(fy, 3, 12), -1299, "MacBook Air (Arbeitsmittel)",
+                cat=cats["Shopping"].id, tags=["freelance"], desc="Tax record")
+            txn(giro, date(fy, 5, 8), -249, "Online-Kurs (Fortbildung)",
+                cat=cats["Other"].id, tags=["freelance"], desc="Tax record")
+
         # --- recurring cashflow items (drive Distribute leftover + Scheduled) ---
         def cf(direction, name, amount, acc, next_due, cat=None):
             session.add(CashflowItem(
@@ -272,6 +283,23 @@ def run() -> dict:
             default_hourly_rate=D("45"),
             next_invoice_number=100003,
         ))
+
+        # === Taxes: EÜR profile + per-year inputs ===
+        session.add(TaxProfile(
+            user_id=uid,
+            freelance_tag="freelance",
+            business_type="freiberufler",
+            mixed_use_rates={str(cats["Internet"].id): 50, str(cats["Mobile"].id): 60},
+            km_rate=D("0.30"),
+            home_office_mode="flat",
+        ))
+        for fy in (TODAY.year - 1, TODAY.year):
+            session.add(TaxYearInput(
+                user_id=uid, year=fy,
+                other_taxable_income=D("54000"),  # the seeded Salary (4.500 €/mo)
+                home_office_days=120, business_km=D("1500"),
+                notes="Demo-Werte für die EÜR.",
+            ))
 
         brandwerk = Client(user_id=uid, name="Studio Brandwerk GmbH",
                            email="rechnung@brandwerk.de",

@@ -38,6 +38,8 @@ from backend.persistence.models import (
     Recurring,
     RecurringInvoice,
     Rule,
+    TaxProfile,
+    TaxYearInput,
     TimeEntry,
     Transaction,
     User,
@@ -1378,3 +1380,80 @@ def reconcile_invoice_payments(session: Session, user_id: uuid.UUID) -> int:
     if changed:
         session.flush()
     return changed
+
+
+# ===== Taxes: EÜR ==========================================================
+
+
+def transactions_by_tag(
+    session: Session,
+    user_id: uuid.UUID,
+    tag: str,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    include_excluded: bool = True,
+) -> list[Transaction]:
+    """All transactions carrying `tag` (case-insensitive), optionally within [start, end).
+
+    Internal transfers are always dropped. `excluded` (off-balance) records are kept by
+    default — they're the bookkeeping rows that still count for taxes. Tag membership is
+    filtered in Python so it works the same on JSONB (Postgres) and JSON (SQLite)."""
+    stmt = select(Transaction).where(
+        Transaction.user_id == user_id,
+        Transaction.is_transfer.is_(False),
+    )
+    if start is not None:
+        stmt = stmt.where(Transaction.ts >= start)
+    if end is not None:
+        stmt = stmt.where(Transaction.ts < end)
+    stmt = stmt.order_by(Transaction.ts)
+    want = (tag or "").strip().lower()
+    out: list[Transaction] = []
+    for txn in session.execute(stmt).scalars().all():
+        if not include_excluded and txn.excluded:
+            continue
+        if want in [str(t).lower() for t in (txn.tags or [])]:
+            out.append(txn)
+    return out
+
+
+def get_tax_profile(session: Session, user_id: uuid.UUID) -> TaxProfile:
+    """Return the user's tax profile, creating a default row on first use."""
+    profile = session.execute(
+        select(TaxProfile).where(TaxProfile.user_id == user_id)
+    ).scalars().first()
+    if profile is None:
+        profile = TaxProfile(user_id=user_id)
+        session.add(profile)
+        session.flush()
+    return profile
+
+
+def update_tax_profile(session: Session, profile: TaxProfile, **fields) -> TaxProfile:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(profile, key, value)
+    session.flush()
+    return profile
+
+
+def get_tax_year_input(session: Session, user_id: uuid.UUID, year: int) -> TaxYearInput:
+    """Return the per-year tax inputs for `year`, creating a default row on first use."""
+    row = session.execute(
+        select(TaxYearInput).where(
+            TaxYearInput.user_id == user_id, TaxYearInput.year == year
+        )
+    ).scalars().first()
+    if row is None:
+        row = TaxYearInput(user_id=user_id, year=year)
+        session.add(row)
+        session.flush()
+    return row
+
+
+def update_tax_year_input(session: Session, row: TaxYearInput, **fields) -> TaxYearInput:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(row, key, value)
+    session.flush()
+    return row

@@ -418,3 +418,73 @@ export interface FreelanceInsightsOut {
   clients: ClientProfitOut[];
   projects: ProjectBurnOut[];
 }
+
+// --- taxes: EÜR ---
+
+export type BusinessType = "freiberufler" | "gewerbe";
+export type HomeOfficeMode = "none" | "flat" | "room";
+
+export interface TaxProfileOut {
+  freelance_tag: string;
+  business_type: BusinessType;
+  mixed_use_rates: Record<string, number>; // category_id -> percent
+  km_rate: string;
+  home_office_mode: HomeOfficeMode;
+  room_use_pauschale: boolean;
+  room_sqm: string | null;
+  home_total_sqm: string | null;
+  home_annual_cost: string;
+}
+
+export interface TaxYearInputOut {
+  year: number;
+  other_taxable_income: string;
+  home_office_days: number;
+  business_km: string;
+  notes: string;
+}
+
+export interface ExpenseLineOut {
+  key: "direct" | "mixed" | "home_office" | "travel";
+  label: string;
+  amount: string;
+  gross: string | null;
+  percent: string | null;
+  count: number;
+}
+
+export interface TaxLineItemOut {
+  date: string;
+  payee: string;
+  category: string | null;
+  bucket: "income" | "direct" | "mixed";
+  amount: string;
+  deductible: string;
+  tags: string[];
+}
+
+export interface EurReportOut {
+  year: number;
+  tag: string;
+  business_type: BusinessType;
+  is_kleinunternehmer: boolean;
+  income: string;
+  expense_total: string;
+  profit: string;
+  expense_lines: ExpenseLineOut[];
+  line_items: TaxLineItemOut[];
+  other_income: string;
+  tariff_year: number;
+  tax_with: string;
+  tax_without: string;
+  tax_estimate: string;
+  home_office_mode: HomeOfficeMode;
+  home_office_days: number;
+  business_km: string;
+  km_rate: string;
+}
+
+export interface ElsterPromptOut {
+  year: number;
+  prompt: string;
+}

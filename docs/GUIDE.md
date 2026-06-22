@@ -171,6 +171,46 @@ number**, and optional overrides for the §19 note and intro text. Plus a **Noti
 choose **Off / Weekly / Monthly**, tick which sections to include (**Invoices / Time / Finance**),
 and **Send test digest now** to preview it — emailed via your Gmail SMTP.
 
+---
+
+## 🧾 Taxes
+
+Everything you need to prepare your German freelance taxes (Einnahmenüberschussrechnung → ELSTER)
+for one tax year, built from the transactions you already track. Pick the **tax year** at the top
+of the Overview (defaults to the last completed year — the one you file).
+
+### Overview (the EÜR)
+- **Betriebseinnahmen − Betriebsausgaben = Gewinn.** Income is every transaction tagged with your
+  freelance tag (default `freelance`) with a positive amount; expenses come from three buckets:
+  - **Direct (100%)** — freelance-tagged costs, grouped by category. Off-balance bookkeeping rows
+    (the `excluded` flag) are **included** here — they still count for taxes.
+  - **Mixed-use (%)** — categories you marked as partly business in Settings (e.g. Internet 50%),
+    applied to that category's transactions that are *not* freelance-tagged (so nothing is counted
+    twice).
+  - **Allowances** — the **Homeoffice-Pauschale** (6 €/day, max 1.260 €) or a **häusliches
+    Arbeitszimmer** (the 1.260 € Jahrespauschale or actual area-based cost), and business **travel**
+    (km × your rate, default 0,30 €/km).
+- **Income-tax estimate.** A rough §32a estimate of the extra income tax your freelance profit adds,
+  stacked on top of the *übrige Einkünfte* (e.g. salary) you enter. **It's an estimate, not tax
+  advice** — Soli and church tax are not included.
+- **Angaben für <year>.** Edit the year-specific numbers here — other taxable income, Homeoffice
+  days, business km — and the figures recompute.
+- **Erfasste Buchungen.** The underlying transactions (income / direct / mixed) with the amount
+  counted toward the EÜR, so you can check every euro. Export them as **CSV**.
+
+### ELSTER helper
+Click **Generate ELSTER prompt** to produce a ready-to-paste text: all your EÜR figures grouped by
+the Anlage EÜR's sections (Betriebseinnahmen, Arbeitsmittel, Arbeitszimmer/Homeoffice, Reisekosten,
+gemischte Kosten …), your Freiberufler/Gewerbe + §19 status, and the profit. Paste it into the
+**Claude browser extension** (or any AI) to be guided through filling the Anlage EÜR in **Mein
+ELSTER**. It deliberately doesn't hard-code Zeilen numbers (they change each year) — it tells the
+assistant to match each value to the current form.
+
+### Settings (how your taxes work)
+The stable setup, separate from the per-year numbers: the **freelance tag**, **Freiberufler
+(Anlage S) / Gewerbe (Anlage G)**, the **Arbeitszimmer/Homeoffice** mode (none / Pauschale / room),
+the **km rate**, and a **mixed-use %** per expense category (Internet, Mobile, Kfz …).
+
 ## Cross-app niceties
 - **⌘K command palette** — press ⌘K (Ctrl+K) anywhere to jump to any section or toggle the theme.
 - **Idle detection** — if the timer runs 15 min without activity, it asks whether you're still working.

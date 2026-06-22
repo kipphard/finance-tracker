@@ -1453,3 +1453,33 @@ input {
     width: 100%;
   }
 }
+
+// ===== Taxes (EÜR) ========================================================
+.tax-subhead {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+.tax-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+
+  .label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .value {
+    font-size: 22px;
+    font-weight: 700;
+  }
+}

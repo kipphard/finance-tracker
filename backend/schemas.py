@@ -910,3 +910,94 @@ class ProjectBurnOut(BaseModel):
 class FreelanceInsightsOut(BaseModel):
     clients: list[ClientProfitOut] = []
     projects: list[ProjectBurnOut] = []   # only projects that have a budget
+
+
+# --- taxes: EÜR ----------------------------------------------------------
+
+
+class TaxProfileUpdate(BaseModel):
+    freelance_tag: str | None = Field(default=None, min_length=1, max_length=50)
+    business_type: str | None = None          # freiberufler | gewerbe
+    mixed_use_rates: dict[str, float] | None = None  # {category_id: percent}
+    km_rate: Decimal | None = Field(default=None, ge=0)
+    home_office_mode: str | None = None       # none | flat | room
+    room_use_pauschale: bool | None = None
+    room_sqm: Decimal | None = Field(default=None, ge=0)
+    home_total_sqm: Decimal | None = Field(default=None, ge=0)
+    home_annual_cost: Decimal | None = Field(default=None, ge=0)
+
+
+class TaxProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    freelance_tag: str
+    business_type: str
+    mixed_use_rates: dict[str, float] = {}
+    km_rate: Decimal
+    home_office_mode: str
+    room_use_pauschale: bool
+    room_sqm: Decimal | None = None
+    home_total_sqm: Decimal | None = None
+    home_annual_cost: Decimal
+
+
+class TaxYearInputUpdate(BaseModel):
+    other_taxable_income: Decimal | None = Field(default=None, ge=0)
+    home_office_days: int | None = Field(default=None, ge=0, le=365)
+    business_km: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+
+
+class TaxYearInputOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    year: int
+    other_taxable_income: Decimal
+    home_office_days: int
+    business_km: Decimal
+    notes: str
+
+
+class ExpenseLineOut(BaseModel):
+    key: str                       # direct | mixed | home_office | travel
+    label: str
+    amount: Decimal
+    gross: Decimal | None = None
+    percent: Decimal | None = None
+    count: int = 0
+
+
+class TaxLineItemOut(BaseModel):
+    date: str
+    payee: str
+    category: str | None = None
+    bucket: str                    # income | direct | mixed
+    amount: Decimal
+    deductible: Decimal
+    tags: list[str] = []
+
+
+class EurReportOut(BaseModel):
+    year: int
+    tag: str
+    business_type: str
+    is_kleinunternehmer: bool
+    income: Decimal
+    expense_total: Decimal
+    profit: Decimal
+    expense_lines: list[ExpenseLineOut] = []
+    line_items: list[TaxLineItemOut] = []
+    other_income: Decimal
+    tariff_year: int
+    tax_with: Decimal
+    tax_without: Decimal
+    tax_estimate: Decimal
+    home_office_mode: str
+    home_office_days: int
+    business_km: Decimal
+    km_rate: Decimal
+
+
+class ElsterPromptOut(BaseModel):
+    year: int
+    prompt: str

@@ -1,9 +1,9 @@
 # Finance Tracker
 
-Self-hosted web app — a **personal finance tracker** and a **freelance time-tracking &
-invoicing** tool. The left sidebar switches between **💰 Finances** and **🧑‍💻 Freelance**;
-Finances has **Overview** (act), **Analytics** (charts/trends), and **Settings** (categories +
-money playbook) sub-tabs.
+Self-hosted web app — a **personal finance tracker**, a **freelance time-tracking &
+invoicing** tool, and a **German freelance tax (EÜR)** helper. The left sidebar switches between
+**💰 Finances**, **🧑‍💻 Freelance**, and **🧾 Taxes**; Finances has **Overview** (act),
+**Analytics** (charts/trends), and **Settings** (categories + money playbook) sub-tabs.
 
 **📖 For a full walkthrough of everything the app does, see [`docs/GUIDE.md`](docs/GUIDE.md).**
 Original product plan: [`docs/plan.md`](docs/plan.md).
@@ -23,6 +23,14 @@ or as a blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** lan
 **Kleinunternehmer §19 / 19% VAT**, due dates + overdue tracking, a scan-to-pay **GiroCode**,
 **PDF** download, in-app **email** (Gmail SMTP), and **auto-reconciliation** that marks an
 invoice paid from the matching bank transaction (and lists the Zahlungseingang).
+
+**🧾 Taxes** — a German freelance **EÜR** (Einnahmenüberschussrechnung) for a chosen tax year:
+pulls everything tagged `freelance` into Betriebseinnahmen − Betriebsausgaben = **Gewinn**, plus
+**mixed-use** expenses (internet/phone/car at a per-category business %), the **Homeoffice-
+Pauschale** or **häusliches Arbeitszimmer**, and business **travel** (km × rate). Adds a rough
+**income-tax estimate** on the profit (§32a tariff, stacked on your other income — an estimate,
+not tax advice), a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
+Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER.
 
 **Status**
 - **Phase 0 (done):** scaffold, the `AccountConnector` abstraction (§4.1), a

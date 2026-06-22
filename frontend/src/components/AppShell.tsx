@@ -4,13 +4,16 @@ import { useTheme } from "../theme";
 import { CommandPalette } from "./CommandPalette";
 import { Finances } from "./Finances";
 import { Freelance } from "./freelance/Freelance";
+import { Taxes } from "./tax/Taxes";
 
 export function AppShell() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
-  // Finances owns every route that isn't under /freelance (incl. its Analytics/Settings sub-tabs),
-  // so drive the sidebar active state from the path rather than NavLink's exact matching.
-  const inFreelance = useLocation().pathname.startsWith("/freelance");
+  // Finances owns every route that isn't under /freelance or /taxes (incl. its Analytics/Settings
+  // sub-tabs), so drive the sidebar active state from the path rather than NavLink's exact matching.
+  const path = useLocation().pathname;
+  const inFreelance = path.startsWith("/freelance");
+  const inTaxes = path.startsWith("/taxes");
   const cls = (active: boolean) => "sidebar__link" + (active ? " is-active" : "");
 
   return (
@@ -18,11 +21,14 @@ export function AppShell() {
       <aside className="sidebar">
         <div className="sidebar__brand">💰 Finance</div>
         <nav className="sidebar__nav">
-          <NavLink to="/" className={() => cls(!inFreelance)}>
+          <NavLink to="/" className={() => cls(!inFreelance && !inTaxes)}>
             <span className="sidebar__icon">💰</span> Finances
           </NavLink>
           <NavLink to="/freelance" className={() => cls(inFreelance)}>
             <span className="sidebar__icon">🧑‍💻</span> Freelance
+          </NavLink>
+          <NavLink to="/taxes" className={() => cls(inTaxes)}>
+            <span className="sidebar__icon">🧾</span> Taxes
           </NavLink>
         </nav>
         <div className="sidebar__footer">
@@ -38,6 +44,7 @@ export function AppShell() {
       <main className="app-main">
         <Routes>
           <Route path="/freelance/*" element={<Freelance />} />
+          <Route path="/taxes/*" element={<Taxes />} />
           <Route path="/*" element={<Finances />} />
         </Routes>
       </main>
