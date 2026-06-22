@@ -362,6 +362,10 @@ a {
     align-items: stretch;
   }
   .toolbar > * {
+    // override inline flex-basis (e.g. the tax-year field's `flex: 0 0 160px`)
+    // so a stacked toolbar item is sized by its content, not stretched to that
+    // width-as-height in the column layout.
+    flex: 0 0 auto !important;
     width: 100%;
   }
 
