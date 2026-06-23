@@ -54,8 +54,9 @@ toggle lives in the sidebar.
   **tax-reserve account** (see *Steuerrücklage* below) is **earmarked and excluded** from this
   liquid pool — so the Finanzamt's share never inflates your runway.
 - **Distribute leftover (Allocation)** — split the monthly leftover (income − fixed) into buckets
-  (Savings/Invest/Fun). **Debt**, **Emergency fund**, **Planned purchases** and the
-  **Steuerrücklage** are taken *off the top*; everything else splits what remains.
+  (Savings/Invest/Fun). These are taken *off the top* in order: **Debt** first, then the
+  **Emergency fund** cut from what's left after debt (its % applies to *leftover − debt*), then
+  **Planned purchases** and the **Steuerrücklage**; everything else splits what remains.
 - **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
   item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
   2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in

@@ -187,12 +187,15 @@ export function AllocationCard({ className }: { className?: string }) {
             .reduce((s, d) => s + num(d.amount), 0);
           const months = debtPay > 0 && tickedTotal > 0 ? Math.ceil(tickedTotal / debtPay) : null;
 
+          // Debts are the first claim; the emergency-fund cut comes out of what's left after debt.
+          const afterDebt = Math.max(0, gross - debtPay);
+
           const ef = efApi.data;
-          // Contribution can be a fixed € or a % of the monthly leftover (income − fixed).
+          // Contribution is a fixed € or a % of the leftover remaining after debt.
           const efContribution = efBucket
             ? efMode === "percent"
-              ? (num(efPay) / 100) * gross
-              : num(efPay)
+              ? (num(efPay) / 100) * afterDebt
+              : Math.min(num(efPay), afterDebt)
             : 0;
           const efGap = ef ? num(ef.gap) : 0;
           const efMonths = efContribution > 0 && efGap > 0 ? Math.ceil(efGap / efContribution) : null;
@@ -201,7 +204,8 @@ export function AllocationCard({ className }: { className?: string }) {
           const plannedCount = ppApi.data?.items.length ?? 0;
           // Tax reserve (Steuerrücklage) — the recommended monthly set-aside, also off the top.
           const taxReserve = num(trApi.data?.recommended_monthly ?? 0);
-          const distributable = Math.max(0, gross - debtPay - efContribution - plannedFund - taxReserve);
+          // Then planned purchases, Steuerrücklage, and the percentage buckets share the rest.
+          const distributable = Math.max(0, afterDebt - efContribution - plannedFund - taxReserve);
           const allocatedPct = otherBuckets.reduce((s, b) => s + num(b.percent), 0);
           const over = allocatedPct > 100;
           const denom = Math.max(100, allocatedPct);
@@ -339,7 +343,7 @@ export function AllocationCard({ className }: { className?: string }) {
                           <button type="button" className="btn btn--ghost btn--sm"
                             style={{ padding: "2px 8px" }}
                             onClick={() => setEfMode(efMode === "percent" ? "amount" : "percent")}
-                            title="Switch between € and % of leftover">
+                            title="Switch between € and % of leftover after debt">
                             {efMode === "percent" ? "%" : "€"}
                           </button>
                         </div>
