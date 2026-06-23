@@ -51,8 +51,11 @@ toggle lives in the sidebar.
 ### Planning & action cards
 - **Cash runway** — how many months your **liquid** (non-investment) balance lasts at the current
   monthly net ("∞" when you're net-positive). The freelancer's most important number. Money in a
-  **tax-reserve account** (see *Steuerrücklage* below) is **earmarked and excluded** from this
-  liquid pool — so the Finanzamt's share never inflates your runway.
+  **tax-reserve account** (see *Steuerrücklage* below) is always **earmarked and excluded** from this
+  liquid pool — so the Finanzamt's share never inflates your runway. Each other goal account can be
+  earmarked too via an **"exclude from runway"** toggle: a linked **emergency fund** is excluded by
+  default (it's money you've set aside — flip it off if you'd rather count it as survival runway),
+  and any linked **%-bucket** (e.g. a Savings → Tagesgeld) can be opted in.
 - **Distribute leftover (Allocation)** — split the monthly leftover (income − fixed) into buckets
   (Savings/Invest/Fun). These are taken *off the top* in order: **Debt** first, then the
   **Emergency fund** cut from what's left after debt (its % applies to *leftover − debt*), then

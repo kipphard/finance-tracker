@@ -333,6 +333,8 @@ class Allocation(Base):
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )
+    # Exclude the linked account from the spendable cash-runway pool. Off by default for %-buckets.
+    earmarked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
@@ -358,6 +360,9 @@ class EmergencyFund(Base):
     )
     # Fill order when this account also backs another goal (lower = filled first). Default 100.
     account_priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    # Exclude the linked account from the spendable cash-runway pool. On by default — the emergency
+    # fund is money you've consciously set aside, like the tax reserve.
+    earmarked: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )

@@ -417,12 +417,14 @@ class AllocationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     percent: Decimal = Field(gt=0, le=100)
     account_id: uuid.UUID | None = None  # optional destination account for "Apply this month"
+    earmarked: bool = False  # exclude the linked account from cash runway
 
 
 class AllocationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     percent: Decimal | None = Field(default=None, gt=0, le=100)
     account_id: uuid.UUID | None = None  # null clears the link
+    earmarked: bool | None = None
 
 
 class AllocationOut(BaseModel):
@@ -432,6 +434,7 @@ class AllocationOut(BaseModel):
     name: str
     percent: Decimal
     account_id: uuid.UUID | None = None
+    earmarked: bool = False
     created_at: datetime
 
 
@@ -441,6 +444,7 @@ class AllocationBucketOut(BaseModel):
     percent: Decimal
     amount: Decimal
     account_id: uuid.UUID | None = None
+    earmarked: bool = False
 
 
 class AllocationPlanOut(BaseModel):
@@ -486,6 +490,7 @@ class EmergencyFundUpdate(BaseModel):
     current_amount: Decimal | None = Field(default=None, ge=0)
     account_id: uuid.UUID | None = None  # account holding the fund; null tracks notionally
     account_priority: int | None = Field(default=None, ge=0)  # fill order on a shared account
+    earmarked: bool | None = None  # exclude the linked account from cash runway
 
 
 class EmergencyFundOut(BaseModel):
@@ -500,6 +505,7 @@ class EmergencyFundOut(BaseModel):
     account_name: str | None = None
     account_priority: int = 100
     shared_with: str | None = None  # the other goal sharing the linked account, if any
+    earmarked: bool = True
 
 
 class TaxReserveUpdate(BaseModel):

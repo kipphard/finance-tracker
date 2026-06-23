@@ -96,6 +96,14 @@ export function EmergencyFundCard({ className }: { className?: string }) {
                 </select>
               </div>
 
+              {f.account_id && (
+                <label className="ef__row" style={{ marginTop: 6, fontSize: 12, cursor: "pointer" }}>
+                  <span className="muted">Exclude from cash runway</span>
+                  <input type="checkbox" disabled={busy} checked={f.earmarked}
+                    onChange={(e) => patch({ earmarked: e.target.checked })} />
+                </label>
+              )}
+
               {f.shared_with && (
                 <div className="ef__row" style={{ marginTop: 8 }}>
                   <span className="muted" style={{ fontSize: 12 }}>

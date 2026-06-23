@@ -68,3 +68,38 @@ def test_overfunded_caps_at_100(client):
     f = client.get("/api/emergency-fund").json()
     assert Decimal(str(f["gap"])) == Decimal("0.00")
     assert Decimal(str(f["funded_pct"])) == Decimal("100.00")
+
+
+def test_earmark_toggle_excludes_account_from_runway(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "5000", "raw_payee": "Savings"})
+    assert Decimal(str(client.get("/api/reports/runway").json()["liquid"])) == Decimal("5000.00")
+
+    # linking the emergency fund earmarks the account by default → out of runway
+    ef = client.patch("/api/emergency-fund", json={"account_id": acc}).json()
+    assert ef["earmarked"] is True
+    rw = client.get("/api/reports/runway").json()
+    assert Decimal(str(rw["liquid"])) == Decimal("0.00")
+    assert Decimal(str(rw["earmarked"])) == Decimal("5000.00")
+
+    # turning the toggle off puts it back into the spendable pool (the EF is your survival money)
+    client.patch("/api/emergency-fund", json={"earmarked": False})
+    rw = client.get("/api/reports/runway").json()
+    assert Decimal(str(rw["liquid"])) == Decimal("5000.00")
+    assert Decimal(str(rw["earmarked"])) == Decimal("0.00")
+
+
+def test_bucket_earmark_toggle_excludes_from_runway(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "2000", "raw_payee": "Savings"})
+    # a %-bucket linked to the account is NOT earmarked by default → stays in runway
+    aid = client.post("/api/allocations",
+                      json={"name": "Savings", "percent": "40", "account_id": acc}).json()["id"]
+    assert Decimal(str(client.get("/api/reports/runway").json()["liquid"])) == Decimal("2000.00")
+    # opting the bucket in earmarks its account out of runway
+    client.patch(f"/api/allocations/{aid}", json={"earmarked": True})
+    rw = client.get("/api/reports/runway").json()
+    assert Decimal(str(rw["liquid"])) == Decimal("0.00")
+    assert Decimal(str(rw["earmarked"])) == Decimal("2000.00")

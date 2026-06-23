@@ -931,9 +931,11 @@ def delete_planned_purchase(session: Session, item_id: uuid.UUID, user_id: uuid.
 
 def create_allocation(
     session: Session, *, user_id: uuid.UUID, name: str, percent: Decimal,
-    account_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None, earmarked: bool = False,
 ) -> Allocation:
-    allocation = Allocation(user_id=user_id, name=name, percent=percent, account_id=account_id)
+    allocation = Allocation(
+        user_id=user_id, name=name, percent=percent, account_id=account_id, earmarked=earmarked
+    )
     session.add(allocation)
     session.flush()
     return allocation
@@ -1027,14 +1029,25 @@ def update_tax_reserve(session: Session, reserve: TaxReserve, **fields) -> TaxRe
 
 
 def earmarked_account_ids(session: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
-    """Account ids that are spoken-for by a savings goal (currently the tax reserve) and so
-    should be excluded from the spendable / cash-runway liquid pool."""
-    ids = session.execute(
+    """Account ids spoken-for by a savings goal and so excluded from the spendable / cash-runway
+    liquid pool: the tax-reserve account (always), plus the emergency fund and any %-bucket whose
+    own 'earmarked' toggle is on."""
+    ids: set[uuid.UUID] = set()
+    tr = session.execute(
         select(TaxReserve.reserve_account_id).where(
             TaxReserve.user_id == user_id, TaxReserve.reserve_account_id.is_not(None)
         )
     ).scalars().all()
-    return {i for i in ids if i is not None}
+    ids |= {i for i in tr if i is not None}
+
+    fund = get_emergency_fund(session, user_id)
+    if fund.account_id is not None and fund.earmarked:
+        ids.add(fund.account_id)
+
+    for a in list_allocations(session, user_id):
+        if a.account_id is not None and a.earmarked:
+            ids.add(a.account_id)
+    return ids
 
 
 # --- debts (things to pay off) -------------------------------------------

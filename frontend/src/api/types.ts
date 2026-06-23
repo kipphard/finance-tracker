@@ -222,6 +222,7 @@ export interface EmergencyFundOut {
   account_name: string | null;
   account_priority: number;
   shared_with: string | null;
+  earmarked: boolean;
 }
 
 export interface TaxReserveOut {
@@ -256,6 +257,7 @@ export interface AllocationBucketOut {
   percent: string;
   amount: string;
   account_id: string | null;
+  earmarked: boolean;
 }
 
 export interface AllocationPlanOut {

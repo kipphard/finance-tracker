@@ -158,6 +158,11 @@ export function AllocationCard({ className }: { className?: string }) {
     state.reload();
   };
 
+  const earmarkBucket = async (id: string, earmarked: boolean) => {
+    await apiPatch(`/allocations/${id}`, { earmarked });
+    state.reload();
+  };
+
   const remove = async (id: string) => {
     await apiDelete(`/allocations/${id}`);
     state.reload();
@@ -465,6 +470,14 @@ export function AllocationCard({ className }: { className?: string }) {
                           <option key={a.id} value={a.id}>→ {a.name}</option>
                         ))}
                       </select>
+                      {b.account_id && (
+                        <label className="muted" style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 11 }}
+                          title="Exclude this account from cash runway">
+                          <input type="checkbox" checked={b.earmarked}
+                            onChange={(e) => earmarkBucket(b.id, e.target.checked)} />
+                          🔒
+                        </label>
+                      )}
                       <input
                         className="input alloc__pct"
                         type="number"

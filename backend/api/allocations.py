@@ -43,6 +43,7 @@ def _plan(session, user_id: uuid.UUID) -> AllocationPlanOut:
                 percent=a.percent,
                 amount=_q(base * a.percent / Decimal(100)),
                 account_id=a.account_id,
+                earmarked=a.earmarked,
             )
         )
 
@@ -81,7 +82,7 @@ def create_allocation(
         raise HTTPException(status_code=404, detail="account not found")
     allocation = repository.create_allocation(
         session, user_id=user.id, name=payload.name, percent=payload.percent,
-        account_id=payload.account_id,
+        account_id=payload.account_id, earmarked=payload.earmarked,
     )
     session.commit()
     return AllocationOut.model_validate(allocation)

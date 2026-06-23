@@ -56,6 +56,7 @@ def _fund_out(session, user_id: uuid.UUID, fund: EmergencyFund) -> EmergencyFund
         account_priority=fund.account_priority,
         shared_with=shared_with_label(session, user_id, fund.account_id, EMERGENCY_FUND)
         if account is not None else None,
+        earmarked=fund.earmarked,
     )
 
 
