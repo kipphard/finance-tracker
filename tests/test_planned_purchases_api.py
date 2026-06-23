@@ -40,3 +40,23 @@ def test_planned_purchase_isolation(client, second_client):
     iid = client.post("/api/planned-purchases", json={"name": "X", "price": "10"}).json()["id"]
     assert second_client.get("/api/planned-purchases").json()["items"] == []
     assert second_client.delete(f"/api/planned-purchases/{iid}").status_code == 404
+
+
+def test_account_link_and_earmark_out_of_runway(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": "2020-01-01T00:00:00Z", "amount": "1500", "raw_payee": "Savings"})
+    item = client.post("/api/planned-purchases", json={
+        "name": "Urlaub", "price": "1000", "monthly_save": "100",
+        "account_id": acc, "earmarked": True,
+    }).json()
+    assert item["account_id"] == acc and item["earmarked"] is True
+
+    # earmarked planned-purchase account → excluded from runway
+    rw = client.get("/api/reports/runway").json()
+    assert Decimal(str(rw["liquid"])) == Decimal("0.00")
+    assert Decimal(str(rw["earmarked"])) == Decimal("1500.00")
+
+    # clearing the link puts the balance back into runway
+    client.patch(f"/api/planned-purchases/{item['id']}", json={"account_id": None})
+    assert Decimal(str(client.get("/api/reports/runway").json()["liquid"])) == Decimal("1500.00")

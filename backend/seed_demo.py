@@ -267,12 +267,13 @@ def run() -> dict:
             session.add(Allocation(user_id=uid, name=name, percent=D(str(pct)),
                                    account_id=bucket_accounts.get(name)))
 
-        # --- planned purchases (wishlist; a monthly_save feeds the "Planned purchases fund") ---
-        for pname, price, save in [("Nintendo Switch 2", "499", "100"),
-                                   ("Urlaub Lissabon", "1000", "150"),
-                                   ("MacBook Pro", "2500", "0")]:
+        # --- planned purchases (wishlist; a monthly_save feeds the "Planned purchases fund").
+        #     "Urlaub" saves into the Tagesgeld account so "Apply this month" can transfer into it ---
+        for pname, price, save, pacc in [("Nintendo Switch 2", "499", "100", None),
+                                          ("Urlaub Lissabon", "1000", "150", savings.id),
+                                          ("MacBook Pro", "2500", "0", None)]:
             session.add(PlannedPurchase(user_id=uid, name=pname, price=D(price),
-                                        monthly_save=D(save)))
+                                        monthly_save=D(save), account_id=pacc))
 
         # --- net-worth snapshots: monthly trend computed from the ledger ---
         sy, sm = _add_month(start_y, start_m, 6)

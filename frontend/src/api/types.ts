@@ -269,6 +269,7 @@ export interface AllocationPlanOut {
   unallocated_percent: string;
   unallocated_amount: string;
   buckets: AllocationBucketOut[];
+  last_applied_at: string | null;
 }
 
 export interface PlannedPurchaseOut {
@@ -276,6 +277,8 @@ export interface PlannedPurchaseOut {
   name: string;
   price: string;
   monthly_save: string;
+  account_id: string | null;
+  earmarked: boolean;
   created_at: string;
   months: number | null;
   target_month: string | null;

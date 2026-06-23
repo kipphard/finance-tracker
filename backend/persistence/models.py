@@ -313,9 +313,27 @@ class PlannedPurchase(Base):
     price: Mapped[Decimal] = mapped_column(Money, nullable=False)
     # How much to set aside per month for this item (0 = not actively saving yet).
     monthly_save: Mapped[Decimal] = mapped_column(Money, nullable=False, default=Decimal(0))
+    # Optional savings account: "Apply this month" transfers monthly_save into it.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    # Exclude the linked account from the spendable cash-runway pool (opt-in, like %-buckets).
+    earmarked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
+
+
+class AllocationApply(Base):
+    """A log row each time the user runs 'Apply this month' on the leftover distribution — used to
+    warn before applying twice in the same month."""
+
+    __tablename__ = "allocation_applies"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    total_moved: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
 
 
 class Allocation(Base):

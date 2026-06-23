@@ -60,6 +60,7 @@ def _plan(session, user_id: uuid.UUID) -> AllocationPlanOut:
         unallocated_percent=_q(unallocated_pct),
         unallocated_amount=unallocated_amount,
         buckets=buckets,
+        last_applied_at=repository.last_allocation_apply(session, user_id),
     )
 
 
@@ -159,6 +160,7 @@ def apply_allocation(
         debts_paid += 1
         total += p.amount
 
+    repository.create_allocation_apply(session, user_id=user.id, applied_at=ts, total_moved=_q(total))
     session.commit()
     return ApplyAllocationResult(
         transfers_made=len(payload.transfers), debts_paid=debts_paid, total_moved=_q(total),

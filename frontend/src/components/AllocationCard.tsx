@@ -237,6 +237,9 @@ export function AllocationCard({ className }: { className?: string }) {
             ...otherBuckets
               .filter((b) => b.account_id && bucketAmt(b) > 0)
               .map((b) => ({ to: b.account_id as string, amount: bucketAmt(b), label: b.name, account: accById.get(b.account_id as string) ?? "?" })),
+            ...(ppApi.data?.items ?? [])
+              .filter((it) => it.account_id && num(it.monthly_save) > 0)
+              .map((it) => ({ to: it.account_id as string, amount: num(it.monthly_save), label: `Planned: ${it.name}`, account: accById.get(it.account_id as string) ?? "?" })),
           ];
           const debtMoves = debtBucket
             ? unpaidDebts
@@ -247,6 +250,12 @@ export function AllocationCard({ className }: { className?: string }) {
             + debtMoves.reduce((s, m) => s + m.amount, 0);
           const canApply = transferMoves.length > 0 || debtMoves.length > 0;
           const source = applySource || (accountsApi.data?.[0]?.id ?? "");
+          // Guard against booking the same month twice.
+          const lastApplied = plan.last_applied_at ? new Date(plan.last_applied_at) : null;
+          const nowD = new Date();
+          const appliedThisMonth = !!lastApplied
+            && lastApplied.getFullYear() === nowD.getFullYear()
+            && lastApplied.getMonth() === nowD.getMonth();
           const doApply = async () => {
             if (!source) return;
             setApplyBusy(true);
@@ -532,10 +541,18 @@ export function AllocationCard({ className }: { className?: string }) {
               )}
 
               {canApply && (
-                <button className="btn btn--sm" style={{ marginTop: 12 }}
-                  onClick={() => setApplyOpen(true)} disabled={busy}>
-                  ✅ Apply this month → {money(applyTotal, plan.currency)}
-                </button>
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn--sm"
+                    onClick={() => setApplyOpen(true)} disabled={busy}>
+                    ✅ Apply this month → {money(applyTotal, plan.currency)}
+                  </button>
+                  {lastApplied && (
+                    <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>
+                      {appliedThisMonth ? "✓ already applied " : "last applied "}
+                      {lastApplied.toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               )}
 
               <div className="toolbar" style={{ marginTop: 12 }}>
@@ -549,6 +566,12 @@ export function AllocationCard({ className }: { className?: string }) {
               {applyOpen && (
                 <Modal title="Apply this month's distribution" onClose={() => setApplyOpen(false)}>
                   <div className="form">
+                    {appliedThisMonth && (
+                      <div className="error" style={{ background: "rgba(245,158,11,0.12)", color: "var(--warning, #b45309)" }}>
+                        ⚠ Already applied this month (on {lastApplied!.toLocaleDateString()}). Applying
+                        again will book <b>duplicate</b> transfers and debt payments.
+                      </div>
+                    )}
                     <div className="field">
                       <label>From account (source)</label>
                       <select className="select" value={source}

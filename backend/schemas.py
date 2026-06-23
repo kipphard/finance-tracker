@@ -456,6 +456,7 @@ class AllocationPlanOut(BaseModel):
     unallocated_percent: Decimal
     unallocated_amount: Decimal
     buckets: list[AllocationBucketOut]
+    last_applied_at: datetime | None = None  # most recent "Apply this month", for the re-run guard
 
 
 class ApplyTransferItem(BaseModel):
@@ -568,12 +569,16 @@ class PlannedPurchaseCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     price: Decimal = Field(gt=0)
     monthly_save: Decimal = Field(default=Decimal(0), ge=0)
+    account_id: uuid.UUID | None = None
+    earmarked: bool = False
 
 
 class PlannedPurchaseUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     price: Decimal | None = Field(default=None, gt=0)
     monthly_save: Decimal | None = Field(default=None, ge=0)
+    account_id: uuid.UUID | None = None
+    earmarked: bool | None = None
 
 
 class PlannedPurchaseOut(BaseModel):
@@ -583,6 +588,8 @@ class PlannedPurchaseOut(BaseModel):
     name: str
     price: Decimal
     monthly_save: Decimal
+    account_id: uuid.UUID | None = None
+    earmarked: bool = False
     created_at: datetime
     # computed from monthly_save: how long until you've saved up for it
     months: int | None = None       # None = no monthly amount set yet

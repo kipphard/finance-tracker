@@ -101,3 +101,16 @@ def test_apply_rejects_unknown_source(client):
     import uuid
     assert client.post("/api/allocations/apply", json={
         "source_account_id": str(uuid.uuid4()), "transfers": [], "debt_payments": []}).status_code == 404
+
+
+def test_apply_records_last_applied_at(client):
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    sav = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{src}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "1000", "raw_payee": "x"})
+    assert client.get("/api/allocations/plan").json()["last_applied_at"] is None
+    client.post("/api/allocations/apply", json={
+        "source_account_id": src,
+        "transfers": [{"to_account_id": sav, "amount": "100", "label": "Savings"}],
+    })
+    assert client.get("/api/allocations/plan").json()["last_applied_at"] is not None

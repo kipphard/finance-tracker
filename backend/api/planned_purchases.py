@@ -57,8 +57,14 @@ def list_purchases(session: SessionDep, user: CurrentUser) -> PlannedPurchasesOu
     )
 
 
+def _check_account(session, user_id, account_id) -> None:
+    if account_id is not None and repository.get_account(session, account_id, user_id) is None:
+        raise HTTPException(status_code=404, detail="account not found")
+
+
 @router.post("", response_model=PlannedPurchaseOut, status_code=201)
 def create_purchase(payload: PlannedPurchaseCreate, session: SessionDep, user: CurrentUser) -> PlannedPurchaseOut:
+    _check_account(session, user.id, payload.account_id)
     item = repository.create_planned_purchase(session, user_id=user.id, **payload.model_dump())
     session.commit()
     return _item_out(item, datetime.now(timezone.utc).date())
@@ -71,7 +77,10 @@ def update_purchase(
     item = repository.get_planned_purchase(session, item_id, user.id)
     if item is None:
         raise HTTPException(status_code=404, detail="planned purchase not found")
-    repository.update_planned_purchase(session, item, **payload.model_dump(exclude_unset=True))
+    fields = payload.model_dump(exclude_unset=True)
+    if "account_id" in fields:
+        _check_account(session, user.id, fields["account_id"])
+    repository.update_planned_purchase(session, item, **fields)
     session.commit()
     return _item_out(item, datetime.now(timezone.utc).date())
 

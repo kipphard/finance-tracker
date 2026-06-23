@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
-import type { PlannedPurchaseOut, PlannedPurchasesOut } from "../api/types";
+import type { AccountOut, PlannedPurchaseOut, PlannedPurchasesOut } from "../api/types";
 import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
@@ -19,6 +19,7 @@ function whenLabel(item: PlannedPurchaseOut): { text: string; cls: string } {
 
 export function PlannedPurchasesCard({ className }: { className?: string }) {
   const state = useApi<PlannedPurchasesOut>("/planned-purchases");
+  const accounts = useApi<AccountOut[]>("/accounts");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -58,6 +59,11 @@ export function PlannedPurchasesCard({ className }: { className?: string }) {
 
   const remove = async (id: string) => {
     await apiDelete(`/planned-purchases/${id}`);
+    state.reload();
+  };
+
+  const patchItem = async (id: string, body: Record<string, unknown>) => {
+    await apiPatch(`/planned-purchases/${id}`, body);
     state.reload();
   };
 
@@ -126,6 +132,23 @@ export function PlannedPurchasesCard({ className }: { className?: string }) {
                         }}
                       />
                       <span className="muted">€</span>
+                      <select className="select" style={{ maxWidth: 120, fontSize: 12, marginLeft: "auto" }}
+                        value={item.account_id ?? ""}
+                        onChange={(e) => patchItem(item.id, { account_id: e.target.value || null })}
+                        title="Savings account — 'Apply this month' transfers the monthly amount into it">
+                        <option value="">no account</option>
+                        {(accounts.data ?? []).map((a) => (
+                          <option key={a.id} value={a.id}>→ {a.name}</option>
+                        ))}
+                      </select>
+                      {item.account_id && (
+                        <label className="muted" style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 11 }}
+                          title="Exclude this account from cash runway">
+                          <input type="checkbox" checked={item.earmarked}
+                            onChange={(e) => patchItem(item.id, { earmarked: e.target.checked })} />
+                          🔒
+                        </label>
+                      )}
                     </div>
                   </li>
                 );

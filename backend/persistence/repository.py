@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from backend.persistence.models import (
     Account,
     Allocation,
+    AllocationApply,
     Attachment,
     Balance,
     Budget,
@@ -1047,7 +1048,26 @@ def earmarked_account_ids(session: Session, user_id: uuid.UUID) -> set[uuid.UUID
     for a in list_allocations(session, user_id):
         if a.account_id is not None and a.earmarked:
             ids.add(a.account_id)
+
+    for p in list_planned_purchases(session, user_id):
+        if p.account_id is not None and p.earmarked:
+            ids.add(p.account_id)
     return ids
+
+
+def create_allocation_apply(
+    session: Session, *, user_id: uuid.UUID, applied_at: datetime, total_moved: Decimal
+) -> AllocationApply:
+    row = AllocationApply(user_id=user_id, applied_at=applied_at, total_moved=total_moved)
+    session.add(row)
+    session.flush()
+    return row
+
+
+def last_allocation_apply(session: Session, user_id: uuid.UUID) -> datetime | None:
+    return session.execute(
+        select(func.max(AllocationApply.applied_at)).where(AllocationApply.user_id == user_id)
+    ).scalar_one_or_none()
 
 
 # --- debts (things to pay off) -------------------------------------------
