@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../auth";
 import { apiDelete, apiDownload, apiPatch, apiPut } from "../../api/client";
 import { useApi } from "../../hooks/useApi";
 import type { BusinessProfileOut, ClientOut, InvoiceOut } from "../../api/types";
@@ -232,6 +233,7 @@ function DetailsForm({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
 
 export function InvoiceDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const state = useApi<InvoiceOut>(`/invoices/${id}`);
   const clients = useApi<ClientOut[]>("/clients");
@@ -259,8 +261,10 @@ export function InvoiceDetail() {
             action={
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn btn--sm" onClick={() => download(inv)}>⬇ PDF</button>
-                <button className="btn btn--sm" onClick={() => setEmailing({ inv, reminder: false })}>✉ Email</button>
-                {inv.status !== "paid" && (inv.status === "sent" || inv.overdue) && (
+                {!user?.is_demo && (
+                  <button className="btn btn--sm" onClick={() => setEmailing({ inv, reminder: false })}>✉ Email</button>
+                )}
+                {!user?.is_demo && inv.status !== "paid" && (inv.status === "sent" || inv.overdue) && (
                   <button className="btn btn--sm" style={{ background: "var(--warn)", borderColor: "var(--warn)" }}
                     onClick={() => setEmailing({ inv, reminder: true })}>
                     ⏰ {reminderStage(inv.reminder_level + 1, inv.language)}

@@ -34,7 +34,8 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    email: EmailStr
+    email: str  # output-only; real emails are validated on input (RegisterIn). Demo users use
+    is_demo: bool = False  # the reserved demo+<id>@demo.invalid domain which EmailStr would reject.
     created_at: datetime
 
 

@@ -51,8 +51,10 @@ from backend.persistence.models import (
 # --- users ----------------------------------------------------------------
 
 
-def create_user(session: Session, *, email: str, password_hash: str) -> User:
-    user = User(email=email, password_hash=password_hash)
+def create_user(
+    session: Session, *, email: str, password_hash: str, is_demo: bool = False
+) -> User:
+    user = User(email=email, password_hash=password_hash, is_demo=is_demo)
     session.add(user)
     session.flush()
     return user
@@ -66,26 +68,28 @@ def get_user_by_email(session: Session, email: str) -> User | None:
     return session.execute(select(User).where(User.email == email)).scalars().first()
 
 
+def count_demo_users(session: Session) -> int:
+    return session.execute(
+        select(func.count()).select_from(User).where(User.is_demo.is_(True))
+    ).scalar_one()
+
+
 def delete_user(session: Session, user_id: uuid.UUID) -> bool:
-    """GDPR: purge a user and all of their data."""
+    """GDPR / demo cleanup: purge a user and ALL of their data. Deletes every per-user table
+    explicitly (children before parents) so it works on SQLite (tests) as well as on Postgres,
+    rather than relying on the DB's ON DELETE CASCADE for the bulk of it."""
     user = session.get(User, user_id)
     if user is None:
         return False
-    account_ids = [a.id for a in list_accounts(session, user_id)]
-    if account_ids:
-        session.execute(delete(Balance).where(Balance.account_id.in_(account_ids)))
+    inv_ids = select(Invoice.id).where(Invoice.user_id == user_id)
+    acct_ids = select(Account.id).where(Account.user_id == user_id)
+    session.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(inv_ids)))
+    session.execute(delete(Balance).where(Balance.account_id.in_(acct_ids)))
     for model in (
-        Attachment,
-        Transaction,
-        Recurring,
-        Account,
-        Rule,
-        Budget,
-        CashflowItem,
-        Debt,
-        Category,
-        NetWorthSnapshot,
-        Connection,
+        TimeEntry, Invoice, RecurringInvoice, Project, Client, BusinessProfile,
+        Attachment, Transaction, CashflowItem, Recurring, Budget, Debt,
+        Allocation, AllocationApply, PlannedPurchase, EmergencyFund, TaxReserve,
+        NetWorthSnapshot, Rule, TaxYearInput, TaxProfile, Connection, Category, Account,
     ):
         session.execute(delete(model).where(model.user_id == user_id))
     session.delete(user)

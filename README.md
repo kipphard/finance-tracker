@@ -1,9 +1,21 @@
 # Finance Tracker
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Self-hosted web app — a **personal finance tracker**, a **business time-tracking &
 invoicing** tool, and a **German freelance tax (EÜR)** helper. The left sidebar switches between
 **💰 Finances**, **🧑‍💻 Business**, and **🧾 Taxes**; Finances has **Overview** (act),
 **Analytics** (charts/trends), and **Settings** (categories + money playbook) sub-tabs.
+
+### 🚀 Live demo — **https://finance-tracker.kipphard.com/?demo=1**
+
+Click **"Try the live demo"** (or use the link above) to get a **private, throwaway sandbox** seeded
+with realistic sample data. Every change is isolated to your sandbox, never touches anyone else, and
+is **deleted automatically** after a few hours. Built by [André Kipphard](https://kipphard.com).
+
+<!-- screenshots: drop PNGs in docs/screenshots/ and reference them here -->
+<!-- ![Overview](docs/screenshots/overview.png) -->
+<!-- ![Taxes / EÜR](docs/screenshots/taxes.png) -->
 
 **📖 For a full walkthrough of everything the app does, see [`docs/GUIDE.md`](docs/GUIDE.md).**
 Original product plan: [`docs/plan.md`](docs/plan.md).
@@ -232,11 +244,37 @@ behind nginx, against the host's **system PostgreSQL** (a dedicated `finance` ro
 - **nginx vhost:** `finance-tracker.kipphard.com` → `127.0.0.1:8002`, reusing the shared
   `*.kipphard.com` Cloudflare origin cert (no per-vhost `real_ip_header`).
 - **Push-to-deploy:** `.github/workflows/deploy.yml` rsyncs to the server and restarts the
-  service on push to `main`. Needs repo secret `DEPLOY_SSH_KEY`; GitHub Actions billing
-  must be active. First deploy was done manually via rsync/SSH.
+  service on push to `main`. Needs repo secrets `DEPLOY_SSH_KEY` and `DEPLOY_HOST` (the server
+  host/IP — kept out of the repo). First deploy was done manually via rsync/SSH.
 - **Dev model:** edit + test locally (`pytest`, `docker compose up` for a local stack) →
   push → it deploys to and runs on the server (the single live instance). Development and
   tests still happen locally; only the running app lives on the server.
+
+## Live demo & accounts
+
+Public sign-up is **off** by default (`REGISTRATION_ENABLED=false`); the only entry points are
+**Login** and the public **live-demo** sandbox.
+
+- **Create a real user** by hand:
+  ```bash
+  python -m backend.create_user you@example.com 'your-password'
+  ```
+- **Live-demo sandboxes** — `POST /api/auth/demo` (public) creates an ephemeral, fully-isolated
+  user (`is_demo=True`) seeded with the demo data and returns a normal login token. It's rate-limited
+  per IP (`DEMO_RATE_PER_HOUR`, default 5) and capped overall (`DEMO_MAX_USERS`, default 200 → 503).
+  Demo users can use every feature except sending invoice emails and linking real banks (those 403).
+- **Cleanup** — delete demo users older than `DEMO_TTL_HOURS` (default 3) and all their rows:
+  ```bash
+  python -m backend.cleanup_demos
+  ```
+  Schedule it every 30 minutes. On the box this is a systemd timer (`finance-tracker-cleanup.timer`,
+  `OnCalendar=*:0/30`); the equivalent **cron** line is:
+  ```cron
+  */30 * * * * cd /opt/finance-tracker && set -a && . ./.env && set +a && .venv/bin/python -m backend.cleanup_demos
+  ```
+
+**Config flags** (in `.env`): `REGISTRATION_ENABLED` (default `false`), `DEMO_TTL_HOURS` (`3`),
+`DEMO_MAX_USERS` (`200`), `DEMO_RATE_PER_HOUR` (`5`).
 
 ## Security notes (§8)
 

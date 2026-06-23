@@ -2,68 +2,62 @@ import { useState } from "react";
 import { useAuth } from "../auth";
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const { login, startDemo } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "login" | "demo">(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
+    setBusy("login");
     setError(null);
     try {
-      if (mode === "login") await login(email, password);
-      else await register(email, password);
+      await login(email, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  };
+
+  const demo = async () => {
+    setBusy("demo");
+    setError(null);
+    try {
+      await startDemo();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start the demo — try again shortly");
+    } finally {
+      setBusy(null);
     }
   };
 
   return (
     <div className="auth-screen">
-      <form className="auth-card" onSubmit={submit}>
+      <div className="auth-card">
         <h1>💰 Finance Tracker</h1>
-        <p className="muted">
-          {mode === "login" ? "Sign in to your account" : "Create a new account"}
+
+        <button className="btn btn--demo" type="button" onClick={demo} disabled={busy !== null}>
+          {busy === "demo" ? "Spinning up your sandbox…" : "🚀 Try the live demo"}
+        </button>
+        <p className="muted" style={{ fontSize: 12, margin: "2px 0 4px" }}>
+          A private, throwaway sandbox seeded with sample data. Resets automatically.
         </p>
-        <input
-          className="input"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-        />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password (min 8 characters)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-        />
-        {error && <div className="error">{error}</div>}
-        <button className="btn" type="submit" disabled={busy}>
-          {busy ? "…" : mode === "login" ? "Sign in" : "Register"}
-        </button>
-        <button
-          type="button"
-          className="btn btn--ghost"
-          onClick={() => {
-            setMode(mode === "login" ? "register" : "login");
-            setError(null);
-          }}
-        >
-          {mode === "login" ? "Need an account? Register" : "Have an account? Sign in"}
-        </button>
-      </form>
+
+        <div className="auth-divider"><span>or sign in</span></div>
+
+        <form className="form" onSubmit={submit}>
+          <input className="input" type="email" placeholder="Email" value={email}
+            onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
+          <input className="input" type="password" placeholder="Password" value={password}
+            onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+          {error && <div className="error">{error}</div>}
+          <button className="btn" type="submit" disabled={busy !== null}>
+            {busy === "login" ? "…" : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

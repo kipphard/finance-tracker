@@ -10,6 +10,10 @@ from cryptography.fernet import Fernet
 os.environ.setdefault("FERNET_KEY", Fernet.generate_key().decode())
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("APP_BASE_CURRENCY", "EUR")
+# The `client` fixture authenticates via /api/auth/register, which is gated off by default.
+os.environ.setdefault("REGISTRATION_ENABLED", "true")
+# The demo rate limiter is a module singleton; keep it out of the way across the whole test session.
+os.environ.setdefault("DEMO_RATE_PER_HOUR", "1000")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

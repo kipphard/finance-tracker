@@ -5,7 +5,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Response
 
-from backend.api.deps import CurrentUser, GoCardlessClientDep, SessionDep
+from backend.api.deps import CurrentUser, DemoBlockedUser, GoCardlessClientDep, SessionDep
 from backend.config import get_settings
 from backend.connectors.gocardless.connector import BankConnector
 from backend.persistence import repository
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/banks", tags=["banks"])
 
 @router.get("/institutions")
 def list_institutions(
-    client: GoCardlessClientDep, user: CurrentUser, country: str | None = None
+    user: DemoBlockedUser, client: GoCardlessClientDep, country: str | None = None
 ) -> list[dict]:
     settings = get_settings()
     return client.get_institutions(country or settings.gocardless_country)
@@ -33,7 +33,7 @@ def list_institutions(
 
 @router.post("/requisitions", response_model=RequisitionCreateOut, status_code=201)
 def create_requisition(
-    payload: RequisitionCreate, session: SessionDep, user: CurrentUser, client: GoCardlessClientDep
+    payload: RequisitionCreate, session: SessionDep, user: DemoBlockedUser, client: GoCardlessClientDep
 ) -> RequisitionCreateOut:
     settings = get_settings()
     reference = str(uuid.uuid4())
@@ -71,7 +71,7 @@ def _finalize(session, client, connection) -> FinalizeOut:
 
 @router.post("/requisitions/{requisition_id}/finalize", response_model=FinalizeOut)
 def finalize_requisition(
-    requisition_id: str, session: SessionDep, user: CurrentUser, client: GoCardlessClientDep
+    requisition_id: str, session: SessionDep, user: DemoBlockedUser, client: GoCardlessClientDep
 ) -> FinalizeOut:
     connection = repository.get_connection_by_requisition(session, user.id, requisition_id)
     if connection is None:
@@ -81,7 +81,7 @@ def finalize_requisition(
 
 @router.get("/callback")
 def consent_callback(
-    session: SessionDep, user: CurrentUser, client: GoCardlessClientDep, ref: str | None = None
+    session: SessionDep, user: DemoBlockedUser, client: GoCardlessClientDep, ref: str | None = None
 ) -> FinalizeOut:
     """GoCardless redirects the user here after consent with ?ref=<reference>."""
     if not ref:
@@ -102,7 +102,7 @@ def list_connections(session: SessionDep, user: CurrentUser) -> list[ConnectionO
 
 @router.post("/connections/{connection_id}/sync", response_model=SyncResultOut)
 def sync(
-    connection_id: uuid.UUID, session: SessionDep, user: CurrentUser, client: GoCardlessClientDep
+    connection_id: uuid.UUID, session: SessionDep, user: DemoBlockedUser, client: GoCardlessClientDep
 ) -> SyncResultOut:
     connection = repository.get_connection(session, connection_id, user.id)
     if connection is None:

@@ -42,6 +42,17 @@ def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def get_non_demo_user(user: CurrentUser) -> User:
+    """Like CurrentUser, but 403s for demo-sandbox users — for actions that reach the outside
+    world (sending invoice emails, linking real banks)."""
+    if user.is_demo:
+        raise HTTPException(status_code=403, detail="disabled in demo")
+    return user
+
+
+DemoBlockedUser = Annotated[User, Depends(get_non_demo_user)]
+
+
 def get_gocardless_client() -> GoCardlessClient:
     """Build a GoCardless client from settings, or 503 if credentials are missing.
 

@@ -25,6 +25,7 @@ export function AppShell() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [bannerHidden, setBannerHidden] = useState(false);
   const path = useLocation().pathname;
   const cls = (active: boolean) => "sidebar__link" + (active ? " is-active" : "");
 
@@ -51,6 +52,16 @@ export function AppShell() {
       </aside>
 
       <main className="app-main">
+        {user?.is_demo && !bannerHidden && (
+          <div className="demo-banner">
+            <span>
+              🚀 <b>Live demo</b> — your changes are private and reset automatically · Built by{" "}
+              <a href="https://kipphard.com" target="_blank" rel="noopener noreferrer">André Kipphard</a>
+            </span>
+            <button className="demo-banner__close" onClick={() => setBannerHidden(true)}
+              aria-label="Dismiss">×</button>
+          </div>
+        )}
         <Routes>
           <Route path="/business/*" element={<Freelance />} />
           <Route path="/taxes/*" element={<Taxes />} />

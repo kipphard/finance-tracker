@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Response
 
-from backend.api.deps import CurrentUser, SessionDep
+from backend.api.deps import CurrentUser, DemoBlockedUser, SessionDep
 from backend.config import get_settings
 from backend.invoicing.email import send_invoice_email
 from backend.invoicing.i18n import texts
@@ -243,7 +243,7 @@ def invoice_pdf(invoice_id: uuid.UUID, session: SessionDep, user: CurrentUser) -
 
 @router.post("/{invoice_id}/email")
 def email_invoice(
-    invoice_id: uuid.UUID, payload: InvoiceEmail, session: SessionDep, user: CurrentUser
+    invoice_id: uuid.UUID, payload: InvoiceEmail, session: SessionDep, user: DemoBlockedUser
 ) -> dict:
     settings = get_settings()
     if not settings.smtp_configured:

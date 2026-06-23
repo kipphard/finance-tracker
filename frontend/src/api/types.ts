@@ -3,6 +3,7 @@
 export interface UserOut {
   id: string;
   email: string;
+  is_demo: boolean;
   created_at: string;
 }
 

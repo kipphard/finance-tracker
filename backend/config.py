@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     jwt_secret: str | None = None
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    # Public sign-up is OFF by default — create real users with `python -m backend.create_user`.
+    # The /api/auth/demo sandbox endpoint is separate and always public.
+    registration_enabled: bool = False
+    # Throwaway demo sandboxes: TTL before cleanup deletes them, a hard cap on concurrent demo users,
+    # and a per-IP creation rate limit (per hour).
+    demo_ttl_hours: int = 3
+    demo_max_users: int = 200
+    demo_rate_per_hour: int = 5
+
     @property
     def effective_jwt_secret(self) -> str:
         return self.jwt_secret or self.fernet_key
