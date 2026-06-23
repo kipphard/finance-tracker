@@ -55,6 +55,7 @@ def add_transaction(
         counterparty=payload.counterparty,
         invoice_number=payload.invoice_number,
         vat_rate=payload.vat_rate,
+        deductible_pct=payload.deductible_pct,
         excluded=payload.excluded,
         tags=payload.tags,
     )
@@ -125,6 +126,7 @@ def add_transaction_series(
             counterparty=payload.counterparty,
             invoice_number=payload.invoice_number,
             vat_rate=payload.vat_rate,
+            deductible_pct=payload.deductible_pct,
             excluded=payload.excluded,
             tags=payload.tags,
             series_id=series_id,

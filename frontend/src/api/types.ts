@@ -99,6 +99,7 @@ export interface TransactionOut {
   counterparty: string | null;
   invoice_number: string | null;
   vat_rate: string | null;
+  deductible_pct: string | null;
   excluded: boolean;
   tags: string[];
   is_transfer: boolean;
@@ -485,6 +486,7 @@ export interface TaxLineItemOut {
   bucket: "income" | "direct" | "mixed";
   amount: string;
   deductible: string;
+  percent: string | null;
   tags: string[];
 }
 

@@ -164,6 +164,9 @@ class Transaction(Base):
     counterparty: Mapped[str | None] = mapped_column(String(255), nullable=True)
     invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     vat_rate: Mapped[Decimal | None] = mapped_column(Numeric(6, 3), nullable=True)
+    # Business-deductible share (0–100%) for this single expense; overrides the category's
+    # mixed-use rate in the EÜR. Null = fall back to the freelance-tag / category-rate handling.
+    deductible_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 3), nullable=True)
     # Off-balance bookkeeping record (e.g. past freelancing entries for taxes): kept for the
     # transaction list, reports and CSV exports, but excluded from account balances, net worth
     # and the forecast.

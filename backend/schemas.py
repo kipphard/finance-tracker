@@ -259,6 +259,7 @@ class TransactionCreate(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    deductible_pct: Decimal | None = Field(default=None, ge=0, le=100)
     excluded: bool = False  # record-only: don't affect balances / net worth
     tags: list[str] = []
 
@@ -278,6 +279,7 @@ class TransactionOut(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    deductible_pct: Decimal | None = None
     excluded: bool = False
     tags: list[str] = []
     is_transfer: bool = False
@@ -292,6 +294,7 @@ class TransactionUpdate(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    deductible_pct: Decimal | None = Field(default=None, ge=0, le=100)
     category_id: uuid.UUID | None = None
     account_id: uuid.UUID | None = None  # move the transaction to another account
     excluded: bool | None = None
@@ -328,6 +331,7 @@ class TransactionSeriesCreate(BaseModel):
     counterparty: str | None = None
     invoice_number: str | None = None
     vat_rate: Decimal | None = None
+    deductible_pct: Decimal | None = Field(default=None, ge=0, le=100)
     excluded: bool = False
     tags: list[str] = []
 
@@ -1000,6 +1004,7 @@ class TaxLineItemOut(BaseModel):
     bucket: str                    # income | direct | mixed
     amount: Decimal
     deductible: Decimal
+    percent: Decimal | None = None  # business share applied (mixed bucket only)
     tags: list[str] = []
 
 

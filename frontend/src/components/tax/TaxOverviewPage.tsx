@@ -281,7 +281,12 @@ function LineItemsCard({ report: r }: { report: EurReportOut }) {
                 <td>{i.date}</td>
                 <td>{i.payee || "—"}</td>
                 <td>{i.category || "—"}</td>
-                <td><span className="badge">{BUCKET_LABEL[i.bucket] ?? i.bucket}</span></td>
+                <td>
+                  <span className="badge">{BUCKET_LABEL[i.bucket] ?? i.bucket}</span>
+                  {i.percent != null && (
+                    <span className="li-sub"> · {num(i.percent)}%</span>
+                  )}
+                </td>
                 <td className={"amount tnum " + (num(i.amount) >= 0 ? "pos" : "neg")}>{money(i.amount)}</td>
                 <td className="amount tnum">{money(i.deductible)}</td>
               </tr>

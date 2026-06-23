@@ -72,6 +72,80 @@ def test_compute_eur_service(db_session, user):
     assert keys == {"direct", "mixed", "home_office", "travel"}
 
 
+def test_compute_eur_per_transaction_override(db_session, user):
+    acc = Account(user_id=user.id, connector="manual", type="checking", name="Giro", currency="EUR")
+    db_session.add(acc)
+    db_session.flush()
+    shop = Category(user_id=user.id, name="Shopping", kind=CategoryKind.expense)
+    net = Category(user_id=user.id, name="Internet", kind=CategoryKind.expense)
+    db_session.add_all([shop, net])
+    db_session.flush()
+
+    def txn(day, amount, payee, cat, tags=None, pct=None):
+        db_session.add(Transaction(
+            user_id=user.id, account_id=acc.id,
+            ts=datetime(2025, 6, day, tzinfo=timezone.utc), amount=Decimal(str(amount)),
+            raw_payee=payee, category_id=cat.id, tags=list(tags or []),
+            deductible_pct=None if pct is None else Decimal(str(pct)),
+            hash=f"{payee}{day}{amount}",
+        ))
+
+    txn(1, 6000, "Client", shop, tags=["freelance"])         # income (positive + tagged)
+    txn(5, -200, "Werkzeug", shop, pct=30)                    # override on a non-mixed category
+    txn(6, -100, "Buch", shop, tags=["freelance"], pct=50)   # override wins over the 100% tag
+    txn(7, -100, "Telekom", net)                             # category rate 50%
+    txn(8, -100, "Telekom privat", net, pct=0)               # explicit 0% → nothing deductible
+
+    tp = repository.get_tax_profile(db_session, user.id)
+    tp.mixed_use_rates = {str(net.id): 50}
+    db_session.flush()
+
+    eur = compute_eur(db_session, user.id, 2025)
+
+    assert eur.income == Decimal("6000.00")
+    # Shopping: 200*30% + 100*50% = 110 ; Internet: 100*50% + 100*0% = 50
+    assert eur.expense_total == Decimal("160.00")
+    assert eur.profit == Decimal("5840.00")
+
+    by_payee = {i.payee: i for i in eur.line_items}
+    assert by_payee["Werkzeug"].bucket == "mixed"
+    assert by_payee["Werkzeug"].percent == Decimal("30")
+    assert by_payee["Werkzeug"].deductible == Decimal("60.00")
+    # the explicit per-transaction % beats the freelance tag's 100%
+    assert by_payee["Buch"].bucket == "mixed"
+    assert by_payee["Buch"].deductible == Decimal("50.00")
+    # both Shopping overrides aggregate into one mixed expense line
+    shop_line = next(l for l in eur.expense_lines if l.label.startswith("Shopping"))
+    assert shop_line.amount == Decimal("110.00")
+
+
+def test_per_transaction_override_via_api(client):
+    acc = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    # create with an override, then clear it, then set it again via PATCH
+    t = client.post(f"/api/accounts/{acc}/transactions", json={
+        "ts": "2025-04-10T00:00:00Z", "amount": "-100", "raw_payee": "Werkzeug",
+        "deductible_pct": "30",
+    }).json()
+    assert Decimal(str(t["deductible_pct"])) == Decimal("30")
+
+    client.patch(f"/api/transactions/{t['id']}", json={"deductible_pct": None})
+    assert client.get(f"/api/transactions/{t['id']}").json()["deductible_pct"] is None
+
+    client.patch(f"/api/transactions/{t['id']}", json={"deductible_pct": "40"})
+    assert Decimal(str(client.get(f"/api/transactions/{t['id']}").json()["deductible_pct"])) == Decimal("40")
+
+    # out-of-range is rejected
+    assert client.post(f"/api/accounts/{acc}/transactions", json={
+        "ts": "2025-04-11T00:00:00Z", "amount": "-100", "deductible_pct": "150",
+    }).status_code == 422
+
+    eur = client.get("/api/tax/eur", params={"year": 2025}).json()
+    line = next(i for i in eur["line_items"] if i["payee"] == "Werkzeug")
+    assert line["bucket"] == "mixed"
+    assert Decimal(str(line["percent"])) == Decimal("40")
+    assert Decimal(str(line["deductible"])) == Decimal("40.00")
+
+
 def test_tax_profile_and_year_endpoints(client):
     # Default profile is created on first GET.
     prof = client.get("/api/tax/profile").json()

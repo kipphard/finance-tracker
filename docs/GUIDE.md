@@ -199,7 +199,10 @@ of the Overview (defaults to the last completed year — the one you file).
     (the `excluded` flag) are **included** here — they still count for taxes.
   - **Mixed-use (%)** — categories you marked as partly business in Settings (e.g. Internet 50%),
     applied to that category's transactions that are *not* freelance-tagged (so nothing is counted
-    twice).
+    twice). You can also set a **business deductible %** on a *single* transaction (edit it, or the
+    "details" section when adding) — that per-transaction share overrides the category rate (and the
+    freelance tag's 100%) for just that expense, and works even in categories without a mixed rate.
+    Blank = fall back to the tag / category rate.
   - **Allowances** — the **Homeoffice-Pauschale** (6 €/day, max 1.260 €) or a **häusliches
     Arbeitszimmer** (the 1.260 € Jahrespauschale or actual area-based cost), and business **travel**
     (km × your rate, default 0,30 €/km).
@@ -209,7 +212,8 @@ of the Overview (defaults to the last completed year — the one you file).
 - **Angaben für <year>.** Edit the year-specific numbers here — other taxable income, Homeoffice
   days, business km — and the figures recompute.
 - **Erfasste Buchungen.** The underlying transactions (income / direct / mixed) with the amount
-  counted toward the EÜR, so you can check every euro. Export them as **CSV**.
+  counted toward the EÜR — mixed rows also show the **business %** applied — so you can check every
+  euro. Export them as **CSV** (now including a `percent` column).
 
 ### ELSTER helper
 Click **Generate ELSTER prompt** to produce a ready-to-paste text: all your EÜR figures grouped by

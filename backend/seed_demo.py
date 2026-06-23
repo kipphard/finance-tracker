@@ -99,11 +99,12 @@ def run() -> dict:
         ledger: list[tuple[datetime, Decimal, bool]] = []  # (ts, amount, excluded) for snapshots
 
         def txn(acc, d: date, amount, payee, *, cat=None, tags=None, excluded=False,
-                is_transfer=False, series=None, desc=None):
+                is_transfer=False, series=None, desc=None, deductible_pct=None):
             t = Transaction(
                 user_id=uid, account_id=acc.id, ts=_dt(d), amount=D(str(amount)), currency="EUR",
                 raw_payee=payee, description=desc, category_id=cat, tags=list(tags or []),
                 excluded=excluded, is_transfer=is_transfer, series_id=series, hash=uuid.uuid4().hex,
+                deductible_pct=None if deductible_pct is None else D(str(deductible_pct)),
             )
             session.add(t)
             ledger.append((t.ts, t.amount, excluded))
@@ -199,6 +200,9 @@ def run() -> dict:
                 cat=cats["Shopping"].id, tags=["freelance"], desc="Tax record")
             txn(giro, date(fy, 5, 8), -249, "Online-Kurs (Fortbildung)",
                 cat=cats["Other"].id, tags=["freelance"], desc="Tax record")
+            # Partly-business purchase: per-transaction 70% override (no category rate needed).
+            txn(giro, date(fy, 6, 18), -880, "Bürostuhl (anteilig betrieblich)",
+                cat=cats["Shopping"].id, deductible_pct=70, desc="70% betrieblich genutzt")
 
         # --- bigger current-year freelance projects so the EÜR + Steuerrücklage show a real
         #     profit this year (only book those dated on/before today) ---

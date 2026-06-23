@@ -79,7 +79,7 @@ def _to_out(eur: EurResult) -> EurReportOut:
         ],
         line_items=[
             TaxLineItemOut(date=i.date, payee=i.payee, category=i.category, bucket=i.bucket,
-                           amount=i.amount, deductible=i.deductible, tags=i.tags)
+                           amount=i.amount, deductible=i.deductible, percent=i.percent, tags=i.tags)
             for i in eur.line_items
         ],
         other_income=eur.other_income, tariff_year=eur.tariff_year,
@@ -121,11 +121,12 @@ def export_csv(
     session.commit()
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(["date", "payee", "category", "bucket", "amount", "deductible", "tags"])
+    writer.writerow(["date", "payee", "category", "bucket", "amount", "deductible", "percent", "tags"])
     for i in eur.line_items:
         writer.writerow([
             i.date, i.payee, i.category or "", i.bucket,
-            str(i.amount), str(i.deductible), ";".join(i.tags),
+            str(i.amount), str(i.deductible), "" if i.percent is None else str(i.percent),
+            ";".join(i.tags),
         ])
     return Response(
         content=out.getvalue(),

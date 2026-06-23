@@ -48,6 +48,7 @@ class TaxLineItem:
     amount: Decimal                # the ledger amount (signed)
     deductible: Decimal           # counted toward the EÜR (income amount, or deductible expense)
     tags: list[str]
+    percent: Decimal | None = None  # business share applied (mixed bucket only)
 
 
 @dataclass
@@ -107,42 +108,60 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
             continue
 
     income = Decimal(0)
-    direct: dict[uuid.UUID | None, list] = {}        # cat_id -> [sum, count]
-    mixed: dict[uuid.UUID, list] = {}                # cat_id -> [gross_sum, count]
+    direct: dict[uuid.UUID | None, list] = {}        # cat_id -> [deductible_sum, count]
+    mixed: dict[uuid.UUID | None, list] = {}         # cat_id -> [gross_sum, deductible_sum, count]
     line_items: list[TaxLineItem] = []
+
+    def _add_mixed(cat_id, gross: Decimal, deductible: Decimal) -> None:
+        agg = mixed.setdefault(cat_id, [Decimal(0), Decimal(0), 0])
+        agg[0] += gross
+        agg[1] += deductible
+        agg[2] += 1
 
     for txn in repository.transactions_between(session, user_id, start, end):
         txn_tags = [str(t).lower() for t in (txn.tags or [])]
         cat = categories.get(txn.category_id)
         cat_name = cat.name if cat else None
         is_freelance = tag in txn_tags
+        date_iso = txn.ts.date().isoformat()
+        payee = txn.raw_payee or ""
 
-        if is_freelance:
-            if txn.amount >= 0:
+        # Income: positive amounts tagged with the freelance tag.
+        if txn.amount >= 0:
+            if is_freelance:
                 income += txn.amount
                 line_items.append(TaxLineItem(
-                    date=txn.ts.date().isoformat(), payee=txn.raw_payee or "",
-                    category=cat_name, bucket="income", amount=txn.amount,
-                    deductible=txn.amount, tags=txn_tags,
+                    date=date_iso, payee=payee, category=cat_name, bucket="income",
+                    amount=txn.amount, deductible=txn.amount, tags=txn_tags,
                 ))
-            else:
-                agg = direct.setdefault(txn.category_id, [Decimal(0), 0])
-                agg[0] += -txn.amount
-                agg[1] += 1
-                line_items.append(TaxLineItem(
-                    date=txn.ts.date().isoformat(), payee=txn.raw_payee or "",
-                    category=cat_name, bucket="direct", amount=txn.amount,
-                    deductible=-txn.amount, tags=txn_tags,
-                ))
-        elif txn.amount < 0 and txn.category_id in mixed_rates:
-            pct = mixed_rates[txn.category_id]
-            agg = mixed.setdefault(txn.category_id, [Decimal(0), 0])
-            agg[0] += -txn.amount
+            continue
+
+        # Expense. Precedence: an explicit per-transaction % wins, then the freelance tag (100%),
+        # then the category's mixed-use rate; anything else is not deductible.
+        gross = -txn.amount
+        if txn.deductible_pct is not None:
+            pct = Decimal(txn.deductible_pct)
+            deductible = _q(gross * pct / Decimal(100))
+            _add_mixed(txn.category_id, gross, deductible)
+            line_items.append(TaxLineItem(
+                date=date_iso, payee=payee, category=cat_name, bucket="mixed",
+                amount=txn.amount, deductible=deductible, percent=pct, tags=txn_tags,
+            ))
+        elif is_freelance:
+            agg = direct.setdefault(txn.category_id, [Decimal(0), 0])
+            agg[0] += gross
             agg[1] += 1
             line_items.append(TaxLineItem(
-                date=txn.ts.date().isoformat(), payee=txn.raw_payee or "",
-                category=cat_name, bucket="mixed", amount=txn.amount,
-                deductible=_q(-txn.amount * pct / Decimal(100)), tags=txn_tags,
+                date=date_iso, payee=payee, category=cat_name, bucket="direct",
+                amount=txn.amount, deductible=gross, tags=txn_tags,
+            ))
+        elif txn.category_id in mixed_rates:
+            pct = mixed_rates[txn.category_id]
+            deductible = _q(gross * pct / Decimal(100))
+            _add_mixed(txn.category_id, gross, deductible)
+            line_items.append(TaxLineItem(
+                date=date_iso, payee=payee, category=cat_name, bucket="mixed",
+                amount=txn.amount, deductible=deductible, percent=pct, tags=txn_tags,
             ))
 
     expense_lines: list[ExpenseLine] = []
@@ -158,15 +177,17 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
         ))
         expense_total += total
 
-    for cat_id, (gross, count) in sorted(
-        mixed.items(), key=lambda kv: kv[1][0], reverse=True
+    for cat_id, (gross, deductible, count) in sorted(
+        mixed.items(), key=lambda kv: kv[1][1], reverse=True
     ):
         cat = categories.get(cat_id)
-        pct = mixed_rates[cat_id]
-        deductible = gross * pct / Decimal(100)
+        # Blended share across the category's transactions; equals the single rate when uniform,
+        # or reflects the mix once individual transactions carry their own % override.
+        blended = (deductible / gross * Decimal(100)) if gross > 0 else Decimal(0)
+        blended = _q(blended)
         expense_lines.append(ExpenseLine(
-            key="mixed", label=f"{cat.name if cat else 'Uncategorized'} ({_pct(pct)}%)",
-            amount=_q(deductible), gross=_q(gross), percent=pct, count=count,
+            key="mixed", label=f"{cat.name if cat else 'Uncategorized'} ({_pct(blended)}%)",
+            amount=_q(deductible), gross=_q(gross), percent=blended, count=count,
         ))
         expense_total += deductible
 

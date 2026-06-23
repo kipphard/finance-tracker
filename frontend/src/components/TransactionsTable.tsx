@@ -44,6 +44,7 @@ function TransactionForm({
   const [counterparty, setCounterparty] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [vatRate, setVatRate] = useState("");
+  const [deductiblePct, setDeductiblePct] = useState("");
   const [description, setDescription] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [repeat, setRepeat] = useState("none");
@@ -73,6 +74,7 @@ function TransactionForm({
           counterparty: counterparty || null,
           invoice_number: invoiceNumber || null,
           vat_rate: vatRate || null,
+          deductible_pct: deductiblePct || null,
           excluded,
           tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
           backfill: backfill && repeat !== "none" ? { from: date, to: toDate } : null,
@@ -163,6 +165,12 @@ function TransactionForm({
               <input className="input" type="number" step="0.1" placeholder="19" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
             </div>
           </div>
+          <div className="field">
+            <label>Business deductible % — taxes (optional)</label>
+            <input className="input" type="number" min="0" max="100" step="1"
+              placeholder="e.g. 60 — overrides the category's mixed-use rate in the EÜR"
+              value={deductiblePct} onChange={(e) => setDeductiblePct(e.target.value)} />
+          </div>
         </>
       ) : (
         <button type="button" className="btn btn--ghost btn--sm" style={{ alignSelf: "flex-start" }}
@@ -229,6 +237,9 @@ function EditTransactionForm({
   const [counterparty, setCounterparty] = useState(txn.counterparty ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(txn.invoice_number ?? "");
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? "");
+  const [deductiblePct, setDeductiblePct] = useState(
+    txn.deductible_pct != null ? String(Number(txn.deductible_pct)) : "",
+  );
   const [excluded, setExcluded] = useState(txn.excluded);
   const [tags, setTags] = useState((txn.tags ?? []).join(", "));
   const [busy, setBusy] = useState(false);
@@ -248,6 +259,7 @@ function EditTransactionForm({
         counterparty: counterparty || null,
         invoice_number: invoiceNumber || null,
         vat_rate: vatRate || null,
+        deductible_pct: deductiblePct === "" ? null : deductiblePct,
         excluded,
         tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
       });
@@ -315,6 +327,16 @@ function EditTransactionForm({
           <label>VAT %</label>
           <input className="input" type="number" step="0.1" value={vatRate} onChange={(e) => setVatRate(e.target.value)} />
         </div>
+      </div>
+      <div className="field">
+        <label>Business deductible % (taxes)</label>
+        <input className="input" type="number" min="0" max="100" step="1"
+          placeholder="e.g. 60 — leave blank for category default"
+          value={deductiblePct} onChange={(e) => setDeductiblePct(e.target.value)} />
+        <span className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Sets this one expense's business share in the EÜR, overriding the category's mixed-use
+          rate. Leave blank to fall back to the freelance tag / category rate.
+        </span>
       </div>
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
@@ -404,6 +426,7 @@ export function TransactionsTable({ className }: { className?: string }) {
         counterparty: body.counterparty,
         invoice_number: body.invoice_number,
         vat_rate: body.vat_rate,
+        deductible_pct: body.deductible_pct,
         excluded: body.excluded,
         tags: body.tags,
       });

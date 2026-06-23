@@ -28,8 +28,9 @@ invoice paid from the matching bank transaction (and lists the Zahlungseingang).
 
 **🧾 Taxes** — a German freelance **EÜR** (Einnahmenüberschussrechnung) for a chosen tax year:
 pulls everything tagged `freelance` into Betriebseinnahmen − Betriebsausgaben = **Gewinn**, plus
-**mixed-use** expenses (internet/phone/car at a per-category business %), the **Homeoffice-
-Pauschale** or **häusliches Arbeitszimmer**, and business **travel** (km × rate). Adds a rough
+**mixed-use** expenses (internet/phone/car at a per-category business %, overridable per single
+transaction), the **Homeoffice-Pauschale** or **häusliches Arbeitszimmer**, and business **travel**
+(km × rate). Adds a rough
 **income-tax estimate** on the profit (§32a tariff, stacked on your other income — an estimate,
 not tax advice), a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
 Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER.
