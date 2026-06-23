@@ -13,15 +13,15 @@ export function Freelance() {
   return (
     <div className="container">
       <div className="page-head">
-        <h1>🧑‍💻 Freelance</h1>
+        <h1>🧑‍💻 Business</h1>
       </div>
 
       <nav className="subnav">
-        <NavLink to="/freelance" end className={tabClass}>Time</NavLink>
-        <NavLink to="/freelance/clients" className={tabClass}>Clients</NavLink>
-        <NavLink to="/freelance/invoices" className={tabClass}>Invoices</NavLink>
-        <NavLink to="/freelance/insights" className={tabClass}>Insights</NavLink>
-        <NavLink to="/freelance/settings" className={tabClass}>Settings</NavLink>
+        <NavLink to="/business" end className={tabClass}>Time</NavLink>
+        <NavLink to="/business/clients" className={tabClass}>Clients</NavLink>
+        <NavLink to="/business/invoices" className={tabClass}>Invoices</NavLink>
+        <NavLink to="/business/insights" className={tabClass}>Insights</NavLink>
+        <NavLink to="/business/settings" className={tabClass}>Settings</NavLink>
       </nav>
 
       <Routes>
@@ -31,7 +31,7 @@ export function Freelance() {
         <Route path="invoices/:id" element={<InvoiceDetail />} />
         <Route path="insights" element={<InsightsPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/freelance" replace />} />
+        <Route path="*" element={<Navigate to="/business" replace />} />
       </Routes>
     </div>
   );

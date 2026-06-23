@@ -8,7 +8,7 @@ A self-hosted, single-user web app. The left sidebar switches between two areas:
   - **Analytics** — read-only charts & breakdowns you look at to understand *trends* (net-worth
     forecast, 12-month cashflow, income vs expense, spending by category, detected subscriptions).
   - **Settings** — app configuration (transaction categories) plus the **money playbook**.
-- **🧑‍💻 Freelance** — time tracking, clients/projects, and German-style invoicing.
+- **🧑‍💻 Business** — time tracking, clients/projects, and German-style invoicing.
 
 Live at <https://finance-tracker.kipphard.com>. Log in (register an account), and everything
 below is scoped to you. There's a **demo account** (`akipphard@yahoo.de`) pre-filled with
@@ -96,8 +96,8 @@ Charts and breakdowns — read-only, for spotting trends. Its own drag-to-reorde
 ### ⚙️ Settings (sub-tab)
 
 App-level configuration: manage your **transaction categories** (the taxonomy the rules engine and
-budgets use). Your freelance **business profile** (sender details, IBAN, §19 note, invoice
-numbering) lives separately under **Freelance → Settings**.
+budgets use). Your **business profile** (sender details, IBAN, §19 note, invoice
+numbering) lives separately under **Business → Settings**.
 
 It also holds the **🧭 money playbook**: the order to put euros to work (starter buffer → free
 money → kill high-interest debt → full emergency fund → invest), and the principle behind it
@@ -105,7 +105,7 @@ money → kill high-interest debt → full emergency fund → invest), and the p
 
 ---
 
-## 🧑‍💻 Freelance
+## 🧑‍💻 Business
 
 Four tabs: **Time · Clients · Invoices · Settings**.
 
@@ -193,16 +193,17 @@ for one tax year, built from the transactions you already track. Pick the **tax 
 of the Overview (defaults to the last completed year — the one you file).
 
 ### Overview (the EÜR)
-- **Betriebseinnahmen − Betriebsausgaben = Gewinn.** Income is every transaction tagged with your
-  freelance tag (default `freelance`) with a positive amount; expenses come from three buckets:
-  - **Direct (100%)** — freelance-tagged costs, grouped by category. Off-balance bookkeeping rows
+- **Betriebseinnahmen − Betriebsausgaben = Gewinn.** Income is every transaction marked **Business**
+  (the Business/Private toggle when you add or edit a transaction) with a positive amount; expenses
+  come from three buckets:
+  - **Direct (100%)** — business-flagged costs, grouped by category. Off-balance bookkeeping rows
     (the `excluded` flag) are **included** here — they still count for taxes.
   - **Mixed-use (%)** — categories you marked as partly business in Settings (e.g. Internet 50%),
-    applied to that category's transactions that are *not* freelance-tagged (so nothing is counted
+    applied to that category's transactions that are *not* marked business (so nothing is counted
     twice). You can also set a **business deductible %** on a *single* transaction (edit it, or the
     "details" section when adding) — that per-transaction share overrides the category rate (and the
-    freelance tag's 100%) for just that expense, and works even in categories without a mixed rate.
-    Blank = fall back to the tag / category rate.
+    business flag's 100%) for just that expense, and works even in categories without a mixed rate.
+    Blank = fall back to the business flag / category rate.
   - **Allowances** — the **Homeoffice-Pauschale** (6 €/day, max 1.260 €) or a **häusliches
     Arbeitszimmer** (the 1.260 € Jahrespauschale or actual area-based cost), and business **travel**
     (km × your rate, default 0,30 €/km).
@@ -224,7 +225,7 @@ ELSTER**. It deliberately doesn't hard-code Zeilen numbers (they change each yea
 assistant to match each value to the current form.
 
 ### Settings (how your taxes work)
-The stable setup, separate from the per-year numbers: the **freelance tag**, **Freiberufler
+The stable setup, separate from the per-year numbers: **Freiberufler
 (Anlage S) / Gewerbe (Anlage G)**, the **Arbeitszimmer/Homeoffice** mode (none / Pauschale / room),
 the **km rate**, and a **mixed-use %** per expense category (Internet, Mobile, Kfz …).
 
@@ -232,7 +233,7 @@ the **km rate**, and a **mixed-use %** per expense category (Internet, Mobile, K
 - **⌘K command palette** — press ⌘K (Ctrl+K) anywhere to jump to any section or toggle the theme.
 - **Idle detection** — if the timer runs 15 min without activity, it asks whether you're still working.
 - **Mobile-optimised** — on phones (≤ 760px) the desktop sidebar is replaced by a fixed **bottom
-  tab bar** (💰 Finances · 🧑‍💻 Freelance · 🧾 Taxes · ☰ More), with theme/account/logout in the
+  tab bar** (💰 Finances · 🧑‍💻 Business · 🧾 Taxes · ☰ More), with theme/account/logout in the
   "More" sheet. Section sub-tabs become a horizontally scrollable strip, paired form fields stack,
   wide tables scroll sideways inside their card, inputs use 16px text (no iOS zoom-on-focus), and
   modals dock as full-width bottom sheets. iPhone safe-area insets are respected.

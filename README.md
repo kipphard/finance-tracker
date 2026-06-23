@@ -1,8 +1,8 @@
 # Finance Tracker
 
-Self-hosted web app — a **personal finance tracker**, a **freelance time-tracking &
+Self-hosted web app — a **personal finance tracker**, a **business time-tracking &
 invoicing** tool, and a **German freelance tax (EÜR)** helper. The left sidebar switches between
-**💰 Finances**, **🧑‍💻 Freelance**, and **🧾 Taxes**; Finances has **Overview** (act),
+**💰 Finances**, **🧑‍💻 Business**, and **🧾 Taxes**; Finances has **Overview** (act),
 **Analytics** (charts/trends), and **Settings** (categories + money playbook) sub-tabs.
 
 **📖 For a full walkthrough of everything the app does, see [`docs/GUIDE.md`](docs/GUIDE.md).**
@@ -19,7 +19,7 @@ in an earmarked reserve account, with a recommended monthly set-aside that feeds
 debts, a planned-purchases wishlist (save €X/mo per item → a "Planned purchases fund" pot in the
 leftover split), alerts); reports + a tax-advisor CSV export.
 
-**🧑‍💻 Freelance** — start/stop timer (survives reloads) + manual entries; clients with hour
+**🧑‍💻 Business** — start/stop timer (survives reloads) + manual entries; clients with hour
 budgets and projects with per-project rate/budget overrides; invoices built from tracked time
 or as a blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** language,
 **Kleinunternehmer §19 / 19% VAT**, due dates + overdue tracking, a scan-to-pay **GiroCode**,
@@ -27,7 +27,8 @@ or as a blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** lan
 invoice paid from the matching bank transaction (and lists the Zahlungseingang).
 
 **🧾 Taxes** — a German freelance **EÜR** (Einnahmenüberschussrechnung) for a chosen tax year:
-pulls everything tagged `freelance` into Betriebseinnahmen − Betriebsausgaben = **Gewinn**, plus
+pulls every transaction marked **Business** (a per-transaction toggle) into Betriebseinnahmen −
+Betriebsausgaben = **Gewinn**, plus
 **mixed-use** expenses (internet/phone/car at a per-category business %, overridable per single
 transaction), the **Homeoffice-Pauschale** or **häusliches Arbeitszimmer**, and business **travel**
 (km × rate). Adds a rough

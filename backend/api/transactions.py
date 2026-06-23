@@ -57,6 +57,7 @@ def add_transaction(
         vat_rate=payload.vat_rate,
         deductible_pct=payload.deductible_pct,
         excluded=payload.excluded,
+        is_business=payload.is_business,
         tags=payload.tags,
     )
     categorize_transaction(session, user.id, txn)
@@ -128,6 +129,7 @@ def add_transaction_series(
             vat_rate=payload.vat_rate,
             deductible_pct=payload.deductible_pct,
             excluded=payload.excluded,
+            is_business=payload.is_business,
             tags=payload.tags,
             series_id=series_id,
         )

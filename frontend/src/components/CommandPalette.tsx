@@ -23,12 +23,12 @@ export function CommandPalette() {
       { id: "fin", label: "Finances · Overview", run: go("/") },
       { id: "analytics", label: "Finances · Analytics", run: go("/analytics") },
       { id: "appsettings", label: "Finances · Settings (categories & playbook)", run: go("/settings") },
-      { id: "time", label: "Freelance · Time / Timer", run: go("/freelance") },
-      { id: "clients", label: "Freelance · Clients & projects", run: go("/freelance/clients") },
-      { id: "invoices", label: "Freelance · Invoices", run: go("/freelance/invoices") },
-      { id: "newinv", label: "New invoice", run: go("/freelance/invoices") },
-      { id: "insights", label: "Freelance · Insights", run: go("/freelance/insights") },
-      { id: "settings", label: "Freelance · Settings", run: go("/freelance/settings") },
+      { id: "time", label: "Business · Time / Timer", run: go("/business") },
+      { id: "clients", label: "Business · Clients & projects", run: go("/business/clients") },
+      { id: "invoices", label: "Business · Invoices", run: go("/business/invoices") },
+      { id: "newinv", label: "New invoice", run: go("/business/invoices") },
+      { id: "insights", label: "Business · Insights", run: go("/business/insights") },
+      { id: "settings", label: "Business · Settings", run: go("/business/settings") },
       { id: "theme", label: "Toggle dark / light theme", run: () => { toggle(); setOpen(false); } },
     ];
   }, [navigate, toggle]);

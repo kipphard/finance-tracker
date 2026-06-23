@@ -31,7 +31,6 @@ function ProfileForm({
   categories: CategoryOut[];
   onSaved: () => void;
 }) {
-  const [tag, setTag] = useState(profile.freelance_tag);
   const [businessType, setBusinessType] = useState(profile.business_type);
   const [kmRate, setKmRate] = useState(profile.km_rate);
   const [homeMode, setHomeMode] = useState(profile.home_office_mode);
@@ -70,7 +69,6 @@ function ProfileForm({
 
     try {
       await apiPatch("/tax/profile", {
-        freelance_tag: tag.trim() || "freelance",
         business_type: businessType,
         km_rate: kmRate || "0",
         home_office_mode: homeMode,
@@ -91,23 +89,17 @@ function ProfileForm({
 
   return (
     <form className="form" onSubmit={submit}>
-      <div className="field-row">
-        <div className="field">
-          <label>Freelance tag</label>
-          <input className="input" value={tag} onChange={(e) => setTag(e.target.value)}
-            placeholder="freelance" />
-        </div>
-        <div className="field">
-          <label>Business type</label>
-          <select className="select" value={businessType}
-            onChange={(e) => setBusinessType(e.target.value as TaxProfileOut["business_type"])}>
-            <option value="freiberufler">Freiberufler (Anlage S)</option>
-            <option value="gewerbe">Gewerbe (Anlage G)</option>
-          </select>
-        </div>
+      <div className="field">
+        <label>Business type</label>
+        <select className="select" value={businessType}
+          onChange={(e) => setBusinessType(e.target.value as TaxProfileOut["business_type"])}>
+          <option value="freiberufler">Freiberufler (Anlage S)</option>
+          <option value="gewerbe">Gewerbe (Anlage G)</option>
+        </select>
       </div>
       <div className="muted" style={{ fontSize: 12, marginTop: -6 }}>
-        Transaktionen mit diesem Tag zählen als Betriebseinnahmen/-ausgaben (zu 100%).
+        Als <b>geschäftlich</b> markierte Transaktionen zählen als Betriebseinnahmen/-ausgaben
+        (zu 100%). Den Schalter findest du beim Bearbeiten einer Transaktion.
       </div>
 
       <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "6px 0" }} />
@@ -162,7 +154,7 @@ function ProfileForm({
         <label>Gemischt genutzte Kategorien (betrieblicher Anteil in %)</label>
         <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
           z.B. Internet 50%, Mobile 60%. Der Prozentsatz wird auf alle Buchungen dieser Kategorie
-          angewendet, die NICHT mit „{tag || "freelance"}" getaggt sind (sonst doppelte Zählung).
+          angewendet, die NICHT als geschäftlich markiert sind (sonst doppelte Zählung).
         </div>
         {expenseCats.length === 0 ? (
           <div className="empty">Noch keine Ausgaben-Kategorien.</div>

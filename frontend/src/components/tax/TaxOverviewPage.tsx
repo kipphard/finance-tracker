@@ -80,7 +80,6 @@ function EurSummary({ report: r }: { report: EurReportOut }) {
           : "Regelbesteuerung — Umsatzsteuer ist relevant, wird hier aber nicht berechnet."}
         {" · "}
         {r.business_type === "freiberufler" ? "Freiberufler (Anlage S)" : "Gewerbe (Anlage G)"}
-        {" · Tag: "}<code>{r.tag}</code>
       </div>
 
       <h3 className="tax-subhead">Betriebsausgaben im Detail</h3>
@@ -261,7 +260,7 @@ function LineItemsCard({ report: r }: { report: EurReportOut }) {
   return (
     <Card title="Erfasste Buchungen">
       {r.line_items.length === 0 ? (
-        <div className="empty">Keine als „{r.tag}" markierten oder gemischt genutzten Buchungen in {r.year}.</div>
+        <div className="empty">Keine als geschäftlich markierten oder gemischt genutzten Buchungen in {r.year}.</div>
       ) : (
         <div className="table-scroll">
         <table>

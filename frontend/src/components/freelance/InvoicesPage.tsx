@@ -162,7 +162,7 @@ function NewInvoiceForm({ onClose }: { onClose: () => void }) {
         client_id: clientId, project_id: projectId || null, language: lang, ...body,
       });
       onClose();
-      navigate(`/freelance/invoices/${inv.id}`);
+      navigate(`/business/invoices/${inv.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -316,7 +316,7 @@ export function InvoicesPage() {
               </thead>
               <tbody>
                 {sorted.map((inv) => (
-                  <tr key={inv.id} onClick={() => navigate(`/freelance/invoices/${inv.id}`)}>
+                  <tr key={inv.id} onClick={() => navigate(`/business/invoices/${inv.id}`)}>
                     <td className="tnum">{inv.number}</td>
                     <td>{inv.client_name ?? "—"}</td>
                     <td>{shortDate(inv.issue_date)}</td>

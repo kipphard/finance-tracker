@@ -171,8 +171,11 @@ class Transaction(Base):
     # transaction list, reports and CSV exports, but excluded from account balances, net worth
     # and the forecast.
     excluded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Free-text tags (lowercased), orthogonal to the single category — e.g. ["freelance"].
+    # Free-text tags (lowercased), orthogonal to the single category — e.g. ["software"].
     tags: Mapped[list] = mapped_column(JSONType, default=list, nullable=False)
+    # First-class business/private split (replaces the old freelance tag): True = the transaction
+    # counts as business income/expense in the EÜR. Private (False) is the default.
+    is_business: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Both legs of an account-to-account transfer are flagged so they drop out of the
     # income/expense, cashflow and category-breakdown reports (internal moves, not spending).
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -604,8 +607,6 @@ class TaxProfile(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    # The transaction tag that marks business income/expenses (lowercased), e.g. "freelance".
-    freelance_tag: Mapped[str] = mapped_column(String(50), default="freelance", nullable=False)
     # freiberufler (Anlage S) | gewerbe (Anlage G) — drives the ELSTER prompt.
     business_type: Mapped[str] = mapped_column(String(16), default="freiberufler", nullable=False)
     # Mixed-use expense categories → business-use percent, e.g. {"<category_id>": 50}.

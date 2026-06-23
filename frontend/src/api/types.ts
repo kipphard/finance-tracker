@@ -101,6 +101,7 @@ export interface TransactionOut {
   vat_rate: string | null;
   deductible_pct: string | null;
   excluded: boolean;
+  is_business: boolean;
   tags: string[];
   is_transfer: boolean;
   series_id: string | null;
@@ -451,7 +452,6 @@ export type BusinessType = "freiberufler" | "gewerbe";
 export type HomeOfficeMode = "none" | "flat" | "room";
 
 export interface TaxProfileOut {
-  freelance_tag: string;
   business_type: BusinessType;
   mixed_use_rates: Record<string, number>; // category_id -> percent
   km_rate: string;
@@ -492,7 +492,6 @@ export interface TaxLineItemOut {
 
 export interface EurReportOut {
   year: number;
-  tag: string;
   business_type: BusinessType;
   is_kleinunternehmer: boolean;
   income: string;

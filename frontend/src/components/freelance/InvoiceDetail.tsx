@@ -244,7 +244,7 @@ export function InvoiceDetail() {
   const remove = async (inv: InvoiceOut) => {
     if (!confirm(`Delete invoice ${inv.number}? Its time entries become unbilled again.`)) return;
     await apiDelete(`/invoices/${inv.id}`);
-    navigate("/freelance/invoices");
+    navigate("/business/invoices");
   };
 
   return (
@@ -252,7 +252,7 @@ export function InvoiceDetail() {
       {(inv) => (
         <>
           <button className="btn btn--ghost btn--sm" style={{ marginBottom: 12 }}
-            onClick={() => navigate("/freelance/invoices")}>← All invoices</button>
+            onClick={() => navigate("/business/invoices")}>← All invoices</button>
 
           <Card
             title={`Invoice ${inv.number}`}

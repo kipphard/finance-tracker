@@ -51,6 +51,7 @@ function TransactionForm({
   const [backfill, setBackfill] = useState(false);
   const [toDate, setToDate] = useState(today);
   const [excluded, setExcluded] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,6 +77,7 @@ function TransactionForm({
           vat_rate: vatRate || null,
           deductible_pct: deductiblePct || null,
           excluded,
+          is_business: isBusiness,
           tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
           backfill: backfill && repeat !== "none" ? { from: date, to: toDate } : null,
         },
@@ -184,9 +186,17 @@ function TransactionForm({
       </div>
       <div className="field">
         <label>Tags (optional)</label>
-        <input className="input" placeholder="e.g. freelance, software" value={tags}
+        <input className="input" placeholder="e.g. software, urlaub" value={tags}
           onChange={(e) => setTags(e.target.value)} />
       </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={isBusiness} onChange={(e) => setIsBusiness(e.target.checked)}
+          style={{ marginTop: 3 }} />
+        <span>
+          Business{" "}
+          <span className="muted">— counts as business income/expense in the Taxes/EÜR (vs. private).</span>
+        </span>
+      </label>
       {!backfill && (
         <div className="field">
           <label>Invoice / receipt (optional)</label>
@@ -241,6 +251,7 @@ function EditTransactionForm({
     txn.deductible_pct != null ? String(Number(txn.deductible_pct)) : "",
   );
   const [excluded, setExcluded] = useState(txn.excluded);
+  const [isBusiness, setIsBusiness] = useState(txn.is_business);
   const [tags, setTags] = useState((txn.tags ?? []).join(", "));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +272,7 @@ function EditTransactionForm({
         vat_rate: vatRate || null,
         deductible_pct: deductiblePct === "" ? null : deductiblePct,
         excluded,
+        is_business: isBusiness,
         tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
       });
       onClose();
@@ -335,9 +347,17 @@ function EditTransactionForm({
           value={deductiblePct} onChange={(e) => setDeductiblePct(e.target.value)} />
         <span className="muted" style={{ fontSize: 12, marginTop: 4 }}>
           Sets this one expense's business share in the EÜR, overriding the category's mixed-use
-          rate. Leave blank to fall back to the freelance tag / category rate.
+          rate. Leave blank to fall back to the business flag / category rate.
         </span>
       </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={isBusiness} onChange={(e) => setIsBusiness(e.target.checked)}
+          style={{ marginTop: 3 }} />
+        <span>
+          Business{" "}
+          <span className="muted">— counts as business income/expense in the Taxes/EÜR (vs. private).</span>
+        </span>
+      </label>
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)}
           style={{ marginTop: 3 }} />
@@ -385,6 +405,7 @@ export function TransactionsTable({ className }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [bizFilter, setBizFilter] = useState("all"); // all | business | private
   const [sort, setSort] = useState("date-desc");
   const [adding, setAdding] = useState(false);
   const [attachFor, setAttachFor] = useState<string | null>(null);
@@ -428,6 +449,7 @@ export function TransactionsTable({ className }: { className?: string }) {
         vat_rate: body.vat_rate,
         deductible_pct: body.deductible_pct,
         excluded: body.excluded,
+        is_business: body.is_business,
         tags: body.tags,
       });
       txns.reload();
@@ -471,6 +493,11 @@ export function TransactionsTable({ className }: { className?: string }) {
             {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
           </select>
         )}
+        <select className="select" value={bizFilter} onChange={(e) => setBizFilter(e.target.value)}>
+          <option value="all">Business + private</option>
+          <option value="business">Business only</option>
+          <option value="private">Private only</option>
+        </select>
         <select className="select" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="date-desc">Newest first</option>
           <option value="date-asc">Oldest first</option>
@@ -492,6 +519,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                 (t.description || "").toLowerCase().includes(q),
             );
           if (tagFilter !== "all") rows = rows.filter((t) => (t.tags ?? []).includes(tagFilter));
+          if (bizFilter !== "all") rows = rows.filter((t) => t.is_business === (bizFilter === "business"));
           const byId = Object.fromEntries(list.map((t) => [t.id, t]));
           const dateOf = (id: string) => (byId[id]?.ts ?? "").slice(0, 10);
           const eff = dnd.reconcile(list.map((t) => t.id));
@@ -558,6 +586,7 @@ export function TransactionsTable({ className }: { className?: string }) {
                       <td>
                         <div>
                           {t.raw_payee || "—"}{" "}
+                          {t.is_business && <span className="badge badge--tag" title="Business (counts in the EÜR)">business</span>}
                           {t.is_recurring && <span className="badge badge--recurring">recurring</span>}
                           {t.is_transfer && <span className="badge badge--off">transfer</span>}
                           {t.excluded && <span className="badge badge--off">off-balance</span>}

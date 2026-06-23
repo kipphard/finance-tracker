@@ -99,12 +99,13 @@ def run() -> dict:
         ledger: list[tuple[datetime, Decimal, bool]] = []  # (ts, amount, excluded) for snapshots
 
         def txn(acc, d: date, amount, payee, *, cat=None, tags=None, excluded=False,
-                is_transfer=False, series=None, desc=None, deductible_pct=None):
+                is_transfer=False, series=None, desc=None, deductible_pct=None, is_business=False):
             t = Transaction(
                 user_id=uid, account_id=acc.id, ts=_dt(d), amount=D(str(amount)), currency="EUR",
                 raw_payee=payee, description=desc, category_id=cat, tags=list(tags or []),
                 excluded=excluded, is_transfer=is_transfer, series_id=series, hash=uuid.uuid4().hex,
                 deductible_pct=None if deductible_pct is None else D(str(deductible_pct)),
+                is_business=is_business,
             )
             session.add(t)
             ledger.append((t.ts, t.amount, excluded))
@@ -131,7 +132,7 @@ def run() -> dict:
 
         # --- categories ---
         cat_defs = [
-            ("Salary", "income", True), ("Freelance income", "income", False),
+            ("Salary", "income", True), ("Business income", "income", False),
             ("Other Income", "income", False),
             ("Rent", "expense", True), ("Insurance", "expense", True), ("Internet", "expense", True),
             ("Mobile", "expense", True), ("Subscriptions", "expense", True),
@@ -184,22 +185,22 @@ def run() -> dict:
             # freelancing income (real, on-balance, tagged) every other month
             if mi % 2 == 0:
                 txn(giro, date(y, m, 20), 700 + (mi % 4) * 120, "GreatIdea UAB",
-                    cat=cats["Freelance income"].id, tags=["freelance"], desc="Invoice")
+                    cat=cats["Business income"].id, is_business=True, desc="Invoice")
             # off-balance freelancing software (tax record)
             txn(giro, date(y, m, 7), -19.99, "Adobe Creative Cloud",
-                cat=cats["Software"].id, tags=["freelance"], excluded=True, desc="Tax record")
+                cat=cats["Software"].id, is_business=True, excluded=True, desc="Tax record")
             # linked backfill-style retainer series for 2025 H2
             if (y == TODAY.year - 1) and 7 <= m <= 12:
                 txn(giro, date(y, m, 28), 1200, "Retainer Studio Nord",
-                    cat=cats["Freelance income"].id, tags=["freelance"], series=retainer_series)
+                    cat=cats["Business income"].id, is_business=True, series=retainer_series)
             y, m = _add_month(y, m, 1)
 
         # --- bigger one-off freelance expenses (Arbeitsmittel) for the Taxes/EÜR view ---
         for fy in (TODAY.year - 1, TODAY.year):
             txn(giro, date(fy, 3, 12), -1299, "MacBook Air (Arbeitsmittel)",
-                cat=cats["Shopping"].id, tags=["freelance"], desc="Tax record")
+                cat=cats["Shopping"].id, is_business=True, desc="Tax record")
             txn(giro, date(fy, 5, 8), -249, "Online-Kurs (Fortbildung)",
-                cat=cats["Other"].id, tags=["freelance"], desc="Tax record")
+                cat=cats["Other"].id, is_business=True, desc="Tax record")
             # Partly-business purchase: per-transaction 70% override (no category rate needed).
             txn(giro, date(fy, 6, 18), -880, "Bürostuhl (anteilig betrieblich)",
                 cat=cats["Shopping"].id, deductible_pct=70, desc="70% betrieblich genutzt")
@@ -210,8 +211,8 @@ def run() -> dict:
                                (4, 2800, "Projekt Branding Helios")]:
             d = date(TODAY.year, mm, 15)
             if d <= TODAY:
-                txn(giro, d, amt, label, cat=cats["Freelance income"].id,
-                    tags=["freelance"], desc="Invoice")
+                txn(giro, d, amt, label, cat=cats["Business income"].id,
+                    is_business=True, desc="Invoice")
 
         # --- Steuerrücklage: money set aside into the dedicated, earmarked reserve account ---
         for mm, amt in [(2, 700), (4, 700)]:
@@ -312,7 +313,6 @@ def run() -> dict:
         # === Taxes: EÜR profile + per-year inputs ===
         session.add(TaxProfile(
             user_id=uid,
-            freelance_tag="freelance",
             business_type="freiberufler",
             mixed_use_rates={str(cats["Internet"].id): 50, str(cats["Mobile"].id): 60},
             km_rate=D("0.30"),

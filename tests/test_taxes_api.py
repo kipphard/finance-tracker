@@ -24,26 +24,26 @@ def _seed_eur_data(db_session, user):
     acc = Account(user_id=user.id, connector="manual", type="checking", name="Giro", currency="EUR")
     db_session.add(acc)
     db_session.flush()
-    inc = Category(user_id=user.id, name="Freelance income", kind=CategoryKind.income)
+    inc = Category(user_id=user.id, name="Business income", kind=CategoryKind.income)
     soft = Category(user_id=user.id, name="Software", kind=CategoryKind.expense)
     net = Category(user_id=user.id, name="Internet", kind=CategoryKind.expense)
     db_session.add_all([inc, soft, net])
     db_session.flush()
 
-    def txn(month, day, amount, payee, cat, tags=None, excluded=False):
+    def txn(month, day, amount, payee, cat, is_business=False, excluded=False):
         db_session.add(Transaction(
             user_id=user.id, account_id=acc.id,
             ts=datetime(2025, month, day, tzinfo=timezone.utc), amount=Decimal(str(amount)),
-            raw_payee=payee, category_id=cat.id, tags=list(tags or []), excluded=excluded,
+            raw_payee=payee, category_id=cat.id, is_business=is_business, excluded=excluded,
             hash=f"{payee}{month}{day}{amount}",
         ))
 
-    txn(3, 20, 12000, "Client A", inc, tags=["freelance"])
-    txn(9, 20, 12500, "Client B", inc, tags=["freelance"])
-    txn(2, 7, -800, "Laptop", soft, tags=["freelance"])
-    txn(4, 7, -240, "Adobe", soft, tags=["freelance"], excluded=True)  # off-balance tax record
+    txn(3, 20, 12000, "Client A", inc, is_business=True)
+    txn(9, 20, 12500, "Client B", inc, is_business=True)
+    txn(2, 7, -800, "Laptop", soft, is_business=True)
+    txn(4, 7, -240, "Adobe", soft, is_business=True, excluded=True)  # off-balance tax record
     for mth in range(1, 13):
-        txn(mth, 3, -50, "Telekom", net)  # mixed-use, NOT tagged → 600 gross
+        txn(mth, 3, -50, "Telekom", net)  # mixed-use, NOT business-flagged → 600 gross
 
     tp = repository.get_tax_profile(db_session, user.id)
     tp.mixed_use_rates = {str(net.id): 50}
@@ -81,20 +81,20 @@ def test_compute_eur_per_transaction_override(db_session, user):
     db_session.add_all([shop, net])
     db_session.flush()
 
-    def txn(day, amount, payee, cat, tags=None, pct=None):
+    def txn(day, amount, payee, cat, is_business=False, pct=None):
         db_session.add(Transaction(
             user_id=user.id, account_id=acc.id,
             ts=datetime(2025, 6, day, tzinfo=timezone.utc), amount=Decimal(str(amount)),
-            raw_payee=payee, category_id=cat.id, tags=list(tags or []),
+            raw_payee=payee, category_id=cat.id, is_business=is_business,
             deductible_pct=None if pct is None else Decimal(str(pct)),
             hash=f"{payee}{day}{amount}",
         ))
 
-    txn(1, 6000, "Client", shop, tags=["freelance"])         # income (positive + tagged)
-    txn(5, -200, "Werkzeug", shop, pct=30)                    # override on a non-mixed category
-    txn(6, -100, "Buch", shop, tags=["freelance"], pct=50)   # override wins over the 100% tag
+    txn(1, 6000, "Client", shop, is_business=True)           # income (positive + business)
+    txn(5, -200, "Werkzeug", shop, pct=30)                   # override on a non-mixed category
+    txn(6, -100, "Buch", shop, is_business=True, pct=50)     # override wins over the 100% flag
     txn(7, -100, "Telekom", net)                             # category rate 50%
-    txn(8, -100, "Telekom privat", net, pct=0)               # explicit 0% → nothing deductible
+    txn(8, -100, "Telekom privat", net, pct=0)              # explicit 0% → nothing deductible
 
     tp = repository.get_tax_profile(db_session, user.id)
     tp.mixed_use_rates = {str(net.id): 50}
@@ -149,14 +149,12 @@ def test_per_transaction_override_via_api(client):
 def test_tax_profile_and_year_endpoints(client):
     # Default profile is created on first GET.
     prof = client.get("/api/tax/profile").json()
-    assert prof["freelance_tag"] == "freelance"
     assert prof["business_type"] == "freiberufler"
 
     upd = client.patch("/api/tax/profile", json={
-        "freelance_tag": "Freelance", "home_office_mode": "flat",
+        "home_office_mode": "flat",
         "mixed_use_rates": {"00000000-0000-0000-0000-000000000000": 50},
     }).json()
-    assert upd["freelance_tag"] == "freelance"  # normalized to lowercase
     assert upd["home_office_mode"] == "flat"
 
     year = client.patch("/api/tax/year/2025", json={
@@ -172,13 +170,13 @@ def test_eur_elster_and_csv_endpoints(client):
     cat = client.post("/api/categories", json={"name": "Software", "kind": "expense"}).json()["id"]
 
     inc = client.post(f"/api/accounts/{acc}/transactions", json={
-        "ts": "2025-05-10T00:00:00Z", "amount": "10000", "raw_payee": "Client", "tags": ["freelance"],
+        "ts": "2025-05-10T00:00:00Z", "amount": "10000", "raw_payee": "Client", "is_business": True,
     }).json()
     exp = client.post(f"/api/accounts/{acc}/transactions", json={
-        "ts": "2025-05-12T00:00:00Z", "amount": "-1000", "raw_payee": "Laptop", "tags": ["freelance"],
+        "ts": "2025-05-12T00:00:00Z", "amount": "-1000", "raw_payee": "Laptop", "is_business": True,
     }).json()
     client.patch(f"/api/transactions/{exp['id']}", json={"category_id": cat})
-    assert inc["tags"] == ["freelance"]
+    assert inc["is_business"] is True
 
     client.patch("/api/tax/year/2025", json={"other_taxable_income": "40000"})
 

@@ -42,9 +42,6 @@ def update_profile(
 ) -> TaxProfileOut:
     profile = repository.get_tax_profile(session, user.id)
     fields = payload.model_dump(exclude_unset=True)
-    # normalize the tag to match how transaction tags are stored (lowercased)
-    if "freelance_tag" in fields and fields["freelance_tag"]:
-        fields["freelance_tag"] = fields["freelance_tag"].strip().lower()
     repository.update_tax_profile(session, profile, **fields)
     session.commit()
     return TaxProfileOut.model_validate(profile)
@@ -69,7 +66,7 @@ def update_year(
 
 def _to_out(eur: EurResult) -> EurReportOut:
     return EurReportOut(
-        year=eur.year, tag=eur.tag, business_type=eur.business_type,
+        year=eur.year, business_type=eur.business_type,
         is_kleinunternehmer=eur.is_kleinunternehmer,
         income=eur.income, expense_total=eur.expense_total, profit=eur.profit,
         expense_lines=[

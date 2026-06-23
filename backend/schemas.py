@@ -261,6 +261,7 @@ class TransactionCreate(BaseModel):
     vat_rate: Decimal | None = None
     deductible_pct: Decimal | None = Field(default=None, ge=0, le=100)
     excluded: bool = False  # record-only: don't affect balances / net worth
+    is_business: bool = False  # counts as business income/expense in the EÜR
     tags: list[str] = []
 
 
@@ -281,6 +282,7 @@ class TransactionOut(BaseModel):
     vat_rate: Decimal | None = None
     deductible_pct: Decimal | None = None
     excluded: bool = False
+    is_business: bool = False
     tags: list[str] = []
     is_transfer: bool = False
     series_id: uuid.UUID | None = None
@@ -298,6 +300,7 @@ class TransactionUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     account_id: uuid.UUID | None = None  # move the transaction to another account
     excluded: bool | None = None
+    is_business: bool | None = None
     tags: list[str] | None = None
     # If true, remember this payee -> category as a high-priority rule.
     remember: bool = False
@@ -333,6 +336,7 @@ class TransactionSeriesCreate(BaseModel):
     vat_rate: Decimal | None = None
     deductible_pct: Decimal | None = Field(default=None, ge=0, le=100)
     excluded: bool = False
+    is_business: bool = False
     tags: list[str] = []
 
 
@@ -946,7 +950,6 @@ class FreelanceInsightsOut(BaseModel):
 
 
 class TaxProfileUpdate(BaseModel):
-    freelance_tag: str | None = Field(default=None, min_length=1, max_length=50)
     business_type: str | None = None          # freiberufler | gewerbe
     mixed_use_rates: dict[str, float] | None = None  # {category_id: percent}
     km_rate: Decimal | None = Field(default=None, ge=0)
@@ -960,7 +963,6 @@ class TaxProfileUpdate(BaseModel):
 class TaxProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    freelance_tag: str
     business_type: str
     mixed_use_rates: dict[str, float] = {}
     km_rate: Decimal
@@ -1010,7 +1012,6 @@ class TaxLineItemOut(BaseModel):
 
 class EurReportOut(BaseModel):
     year: int
-    tag: str
     business_type: str
     is_kleinunternehmer: bool
     income: Decimal

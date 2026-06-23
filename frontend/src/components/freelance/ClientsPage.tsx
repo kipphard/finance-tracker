@@ -64,7 +64,7 @@ export function ClientsPage() {
       const inv = await apiPost<InvoiceOut>("/invoices", {
         client_id: clientId, project_id: projectId ?? null,
       });
-      navigate(`/freelance/invoices/${inv.id}`);
+      navigate(`/business/invoices/${inv.id}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create invoice");
     } finally {

@@ -72,7 +72,7 @@ def test_owed_comes_from_the_freelance_profit_estimate(client):
                       json={"type": "checking", "name": "Giro"}).json()["id"]
     client.post(f"/api/accounts/{acc}/transactions",
                 json={"ts": f"{YEAR}-01-01T12:00:00Z", "amount": "20000",
-                      "raw_payee": "Freelance project", "tags": ["freelance"]})
+                      "raw_payee": "Freelance project", "is_business": True})
 
     r = client.get("/api/tax-reserve").json()
     assert Decimal(str(r["income_ytd"])) == Decimal("20000.00")

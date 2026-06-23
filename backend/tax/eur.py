@@ -2,9 +2,10 @@
 ledger and compute the profit plus a rough §32a income-tax estimate.
 
 Buckets, mirroring the sign + date-window conventions in ``backend/reporting.py``:
-  * income  — positive amounts of transactions tagged with the freelance tag
-  * direct  — |negative| of freelance-tagged transactions, 100% deductible, grouped by category
-  * mixed   — |negative| of configured mixed-use categories (NOT tagged freelance), × business %
+  * income  — positive amounts of transactions flagged as business
+  * direct  — |negative| of business-flagged transactions, 100% deductible, grouped by category
+  * mixed   — per-transaction deductible %, or |negative| of configured mixed-use categories
+              (for non-business transactions), × business %
   * allowances — Homeoffice-Pauschale / Arbeitszimmer and business-travel (km × rate)
 
 ``excluded`` (off-balance) records ARE counted — they're the bookkeeping rows kept for taxes.
@@ -54,7 +55,6 @@ class TaxLineItem:
 @dataclass
 class EurResult:
     year: int
-    tag: str
     business_type: str
     is_kleinunternehmer: bool
     income: Decimal
@@ -95,7 +95,6 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
     year_input = repository.get_tax_year_input(session, user_id, year)
     categories = {c.id: c for c in repository.list_categories(session, user_id)}
 
-    tag = (tax_profile.freelance_tag or "freelance").strip().lower()
     start = datetime(year, 1, 1, tzinfo=timezone.utc)
     end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
 
@@ -122,13 +121,13 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
         txn_tags = [str(t).lower() for t in (txn.tags or [])]
         cat = categories.get(txn.category_id)
         cat_name = cat.name if cat else None
-        is_freelance = tag in txn_tags
+        is_business = bool(txn.is_business)
         date_iso = txn.ts.date().isoformat()
         payee = txn.raw_payee or ""
 
-        # Income: positive amounts tagged with the freelance tag.
+        # Income: positive amounts flagged as business.
         if txn.amount >= 0:
-            if is_freelance:
+            if is_business:
                 income += txn.amount
                 line_items.append(TaxLineItem(
                     date=date_iso, payee=payee, category=cat_name, bucket="income",
@@ -136,7 +135,7 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
                 ))
             continue
 
-        # Expense. Precedence: an explicit per-transaction % wins, then the freelance tag (100%),
+        # Expense. Precedence: an explicit per-transaction % wins, then the business flag (100%),
         # then the category's mixed-use rate; anything else is not deductible.
         gross = -txn.amount
         if txn.deductible_pct is not None:
@@ -147,7 +146,7 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
                 date=date_iso, payee=payee, category=cat_name, bucket="mixed",
                 amount=txn.amount, deductible=deductible, percent=pct, tags=txn_tags,
             ))
-        elif is_freelance:
+        elif is_business:
             agg = direct.setdefault(txn.category_id, [Decimal(0), 0])
             agg[0] += gross
             agg[1] += 1
@@ -215,7 +214,7 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
     tax_without = income_tax(other, year)
 
     return EurResult(
-        year=year, tag=tag, business_type=tax_profile.business_type,
+        year=year, business_type=tax_profile.business_type,
         is_kleinunternehmer=business.is_kleinunternehmer,
         income=_q(income), expense_total=_q(expense_total), profit=_q(profit),
         expense_lines=expense_lines, line_items=line_items,

@@ -9,15 +9,15 @@ import { Taxes } from "./tax/Taxes";
 
 // The three top-level sections. `match` drives the active state from the path because
 // Finances owns "/" plus its own Analytics/Settings sub-routes (NavLink's exact matching
-// can't express "everything that isn't /freelance or /taxes").
+// can't express "everything that isn't /business or /taxes").
 const SECTIONS = [
   {
     to: "/",
     icon: "💰",
     label: "Finances",
-    match: (p: string) => !p.startsWith("/freelance") && !p.startsWith("/taxes"),
+    match: (p: string) => !p.startsWith("/business") && !p.startsWith("/taxes"),
   },
-  { to: "/freelance", icon: "🧑‍💻", label: "Freelance", match: (p: string) => p.startsWith("/freelance") },
+  { to: "/business", icon: "🧑‍💻", label: "Business", match: (p: string) => p.startsWith("/business") },
   { to: "/taxes", icon: "🧾", label: "Taxes", match: (p: string) => p.startsWith("/taxes") },
 ];
 
@@ -52,7 +52,7 @@ export function AppShell() {
 
       <main className="app-main">
         <Routes>
-          <Route path="/freelance/*" element={<Freelance />} />
+          <Route path="/business/*" element={<Freelance />} />
           <Route path="/taxes/*" element={<Taxes />} />
           <Route path="/*" element={<Finances />} />
         </Routes>

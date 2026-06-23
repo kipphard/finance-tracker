@@ -34,6 +34,17 @@ def test_edit_only_touches_provided_fields(client):
     assert t["category_id"] == cat  # category preserved
 
 
+def test_edit_business_flag(client):
+    tid = _txn(client)  # defaults to private
+    assert client.get(f"/api/transactions/{tid}").json()["is_business"] is False
+    client.patch(f"/api/transactions/{tid}", json={"is_business": True})
+    assert client.get(f"/api/transactions/{tid}").json()["is_business"] is True
+    client.patch(f"/api/transactions/{tid}", json={"raw_payee": "x"})  # untouched field
+    assert client.get(f"/api/transactions/{tid}").json()["is_business"] is True  # flag preserved
+    client.patch(f"/api/transactions/{tid}", json={"is_business": False})
+    assert client.get(f"/api/transactions/{tid}").json()["is_business"] is False
+
+
 def test_edit_can_move_transaction_to_another_account(client):
     a = client.post("/api/accounts", json={"type": "cash", "name": "A"}).json()["id"]
     b = client.post("/api/accounts", json={"type": "cash", "name": "B"}).json()["id"]
