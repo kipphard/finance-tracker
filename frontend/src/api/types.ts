@@ -465,6 +465,8 @@ export interface TaxProfileOut {
 export interface TaxYearInputOut {
   year: number;
   other_taxable_income: string;
+  withheld_lohnsteuer: string;
+  income_tax_prepaid: string;
   home_office_days: number;
   business_km: string;
   notes: string;
@@ -504,6 +506,9 @@ export interface EurReportOut {
   tax_with: string;
   tax_without: string;
   tax_estimate: string;
+  withheld_lohnsteuer: string;
+  income_tax_prepaid: string;
+  refund_or_owed: string;
   home_office_mode: HomeOfficeMode;
   home_office_days: number;
   business_km: string;

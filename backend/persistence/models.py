@@ -634,8 +634,12 @@ class TaxYearInput(Base):
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = _user_fk()
     year: Mapped[int] = mapped_column(Integer, nullable=False)
-    # Other taxable income (e.g. salary) used to stack the §32a tax estimate on top of.
+    # Other taxable income (e.g. salary / Bruttoarbeitslohn) the §32a tax estimate stacks on top of.
     other_taxable_income: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    # Income tax already paid toward this year, for the Erstattung/Nachzahlung estimate: the wage
+    # tax the employer withheld (Lohnsteuerbescheinigung) + any Einkommensteuer-Vorauszahlungen.
+    withheld_lohnsteuer: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    income_tax_prepaid: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
     # Days worked from home that year (for the Homeoffice-Pauschale, €6/day, capped €1.260).
     home_office_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Kilometres driven for the business that year (× km_rate → Reisekosten).

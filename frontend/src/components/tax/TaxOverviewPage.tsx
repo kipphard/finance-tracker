@@ -45,6 +45,7 @@ export function TaxOverviewPage() {
         {(r) => (
           <div className="card-stack">
             <EurSummary report={r} />
+            <RefundCard report={r} />
             <YearInputsCard year={year} />
             <ElsterCard year={year} />
             <LineItemsCard report={r} />
@@ -121,6 +122,51 @@ function EurSummary({ report: r }: { report: EurReportOut }) {
   );
 }
 
+function RefundCard({ report: r }: { report: EurReportOut }) {
+  const zve = num(r.other_income) + num(r.profit);
+  const balance = num(r.refund_or_owed); // > 0 = Nachzahlung (you owe), < 0 = Erstattung (refund)
+  const isRefund = balance < 0;
+  const settled = Math.abs(balance) < 0.005;
+  return (
+    <Card title={`Einkommensteuer gesamt — Erstattung / Nachzahlung ${r.year}`}>
+      <ul className="list">
+        <li>
+          <span className="li-main">Zu versteuerndes Einkommen (Gehalt + Gewinn)</span>
+          <span className="tnum">{money(zve)}</span>
+        </li>
+        <li>
+          <span className="li-main">Einkommensteuer (gesamt)</span>
+          <span className="tnum neg">{money(r.tax_with)}</span>
+        </li>
+        <li>
+          <span className="li-main">− Einbehaltene Lohnsteuer</span>
+          <span className="tnum pos">{money(r.withheld_lohnsteuer)}</span>
+        </li>
+        <li>
+          <span className="li-main">− Einkommensteuer-Vorauszahlungen</span>
+          <span className="tnum pos">{money(r.income_tax_prepaid)}</span>
+        </li>
+      </ul>
+      <div className="tax-estimate">
+        <div>
+          <div className="label">
+            {settled ? "Ausgeglichen" : isRefund ? "Voraussichtliche Erstattung" : "Voraussichtliche Nachzahlung"}
+          </div>
+          <div className={"value " + (settled ? "" : isRefund ? "pos" : "neg")}>
+            {money(Math.abs(balance))}
+          </div>
+        </div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          Gesamte Einkommensteuer auf Gehalt + Gewinn (§32a-Tarif {r.tariff_year}) minus bereits
+          gezahlter Lohnsteuer und Vorauszahlungen.{" "}
+          <strong>Nur eine grobe Schätzung — keine Steuerberatung.</strong> Soli und Kirchensteuer
+          sind nicht enthalten.
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function YearInputsCard({ year }: { year: number }) {
   const state = useApi<TaxYearInputOut>(`/tax/year/${year}`);
   return (
@@ -134,6 +180,8 @@ function YearInputsCard({ year }: { year: number }) {
 
 function YearInputsForm({ year, data }: { year: number; data: TaxYearInputOut }) {
   const [otherIncome, setOtherIncome] = useState(data.other_taxable_income);
+  const [lohnsteuer, setLohnsteuer] = useState(data.withheld_lohnsteuer);
+  const [prepaid, setPrepaid] = useState(data.income_tax_prepaid);
   const [homeDays, setHomeDays] = useState(String(data.home_office_days));
   const [km, setKm] = useState(data.business_km);
   const [busy, setBusy] = useState(false);
@@ -148,6 +196,8 @@ function YearInputsForm({ year, data }: { year: number; data: TaxYearInputOut })
     try {
       await apiPatch(`/tax/year/${year}`, {
         other_taxable_income: otherIncome || "0",
+        withheld_lohnsteuer: lohnsteuer || "0",
+        income_tax_prepaid: prepaid || "0",
         home_office_days: parseInt(homeDays || "0", 10) || 0,
         business_km: km || "0",
       });
@@ -163,10 +213,22 @@ function YearInputsForm({ year, data }: { year: number; data: TaxYearInputOut })
     <form className="form" onSubmit={submit}>
       <div className="field-row">
         <div className="field">
-          <label>Übrige zu versteuernde Einkünfte (z.B. Gehalt) (€)</label>
+          <label>Bruttoarbeitslohn / übrige Einkünfte (z.B. Gehalt) (€)</label>
           <input className="input" type="number" min="0" step="0.01" value={otherIncome}
             onChange={(e) => setOtherIncome(e.target.value)} />
         </div>
+        <div className="field">
+          <label>Einbehaltene Lohnsteuer (Lohnsteuerbescheinigung) (€)</label>
+          <input className="input" type="number" min="0" step="0.01" value={lohnsteuer}
+            onChange={(e) => setLohnsteuer(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Einkommensteuer-Vorauszahlungen (€)</label>
+          <input className="input" type="number" min="0" step="0.01" value={prepaid}
+            onChange={(e) => setPrepaid(e.target.value)} />
+        </div>
+      </div>
+      <div className="field-row">
         <div className="field" style={{ flex: "0 0 200px" }}>
           <label>Homeoffice-Tage</label>
           <input className="input" type="number" min="0" max="365" step="1" value={homeDays}
@@ -179,8 +241,9 @@ function YearInputsForm({ year, data }: { year: number; data: TaxYearInputOut })
         </div>
       </div>
       <div className="muted" style={{ fontSize: 12, marginTop: -4 }}>
-        Die „übrigen Einkünfte" werden nur für die Steuerschätzung genutzt. Homeoffice-Tage zählen
-        nur, wenn unter Settings „Homeoffice-Pauschale" gewählt ist (6 €/Tag, max. 1.260 €).
+        Bruttoarbeitslohn, einbehaltene Lohnsteuer und Vorauszahlungen ergeben die geschätzte
+        Erstattung/Nachzahlung. Homeoffice-Tage zählen nur, wenn unter Settings
+        „Homeoffice-Pauschale" gewählt ist (6 €/Tag, max. 1.260 €).
       </div>
       {error && <div className="error">{error}</div>}
       <div className="form__actions" style={{ alignItems: "center" }}>

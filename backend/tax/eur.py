@@ -68,6 +68,11 @@ class EurResult:
     tax_with: Decimal = Decimal(0)
     tax_without: Decimal = Decimal(0)
     tax_estimate: Decimal = Decimal(0)
+    # Full-year Erstattung/Nachzahlung: total income tax on (other income + profit) minus what's
+    # already been paid. refund_or_owed > 0 = Nachzahlung owed; < 0 = Erstattung (refund).
+    withheld_lohnsteuer: Decimal = Decimal(0)
+    income_tax_prepaid: Decimal = Decimal(0)
+    refund_or_owed: Decimal = Decimal(0)
     # questionnaire echo (for display + the ELSTER prompt)
     home_office_mode: str = "none"
     home_office_days: int = 0
@@ -213,6 +218,12 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
     tax_with = income_tax(other + profit, year)
     tax_without = income_tax(other, year)
 
+    # Full-year refund/owed vs. the Finanzamt: total income tax on (salary + profit) minus what's
+    # already been paid (withheld Lohnsteuer + Einkommensteuer-Vorauszahlungen).
+    withheld = Decimal(year_input.withheld_lohnsteuer)
+    prepaid = Decimal(year_input.income_tax_prepaid)
+    refund_or_owed = tax_with - withheld - prepaid
+
     return EurResult(
         year=year, business_type=tax_profile.business_type,
         is_kleinunternehmer=business.is_kleinunternehmer,
@@ -220,6 +231,8 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
         expense_lines=expense_lines, line_items=line_items,
         other_income=_q(other), tariff_year=t_year,
         tax_with=tax_with, tax_without=tax_without, tax_estimate=tax_with - tax_without,
+        withheld_lohnsteuer=_q(withheld), income_tax_prepaid=_q(prepaid),
+        refund_or_owed=_q(refund_or_owed),
         home_office_mode=tax_profile.home_office_mode,
         home_office_days=year_input.home_office_days,
         business_km=Decimal(year_input.business_km), km_rate=Decimal(tax_profile.km_rate),

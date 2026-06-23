@@ -975,6 +975,8 @@ class TaxProfileOut(BaseModel):
 
 class TaxYearInputUpdate(BaseModel):
     other_taxable_income: Decimal | None = Field(default=None, ge=0)
+    withheld_lohnsteuer: Decimal | None = Field(default=None, ge=0)
+    income_tax_prepaid: Decimal | None = Field(default=None, ge=0)
     home_office_days: int | None = Field(default=None, ge=0, le=365)
     business_km: Decimal | None = Field(default=None, ge=0)
     notes: str | None = None
@@ -985,6 +987,8 @@ class TaxYearInputOut(BaseModel):
 
     year: int
     other_taxable_income: Decimal
+    withheld_lohnsteuer: Decimal
+    income_tax_prepaid: Decimal
     home_office_days: int
     business_km: Decimal
     notes: str
@@ -1024,6 +1028,11 @@ class EurReportOut(BaseModel):
     tax_with: Decimal
     tax_without: Decimal
     tax_estimate: Decimal
+    # Full-year Erstattung/Nachzahlung: total income tax on (other income + profit) minus what's
+    # already been paid. refund_or_owed > 0 = Nachzahlung owed; < 0 = Erstattung (refund).
+    withheld_lohnsteuer: Decimal
+    income_tax_prepaid: Decimal
+    refund_or_owed: Decimal
     home_office_mode: str
     home_office_days: int
     business_km: Decimal

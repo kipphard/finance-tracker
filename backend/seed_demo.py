@@ -322,6 +322,7 @@ def run() -> dict:
             session.add(TaxYearInput(
                 user_id=uid, year=fy,
                 other_taxable_income=D("54000"),  # the seeded Salary (4.500 €/mo)
+                withheld_lohnsteuer=D("12100"),   # ≈ Lohnsteuer the employer withheld on it
                 home_office_days=120, business_km=D("1500"),
                 notes="Demo-Werte für die EÜR.",
             ))

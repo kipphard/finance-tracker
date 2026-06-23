@@ -195,3 +195,27 @@ def test_eur_elster_and_csv_endpoints(client):
     assert csv.status_code == 200
     assert "text/csv" in csv.headers["content-type"]
     assert "Laptop" in csv.text
+
+
+def test_refund_or_owed_full_year_picture(client):
+    acc = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    # freelance profit of 10000 (business income, no expenses)
+    client.post(f"/api/accounts/{acc}/transactions", json={
+        "ts": "2025-03-01T00:00:00Z", "amount": "10000", "raw_payee": "Client", "is_business": True,
+    })
+    client.patch("/api/tax/year/2025", json={
+        "other_taxable_income": "54000", "withheld_lohnsteuer": "12100", "income_tax_prepaid": "600",
+    })
+
+    eur = client.get("/api/tax/eur", params={"year": 2025}).json()
+    assert Decimal(str(eur["withheld_lohnsteuer"])) == Decimal("12100.00")
+    assert Decimal(str(eur["income_tax_prepaid"])) == Decimal("600.00")
+    # refund_or_owed = total tax on (54000 salary + 10000 profit) − 12100 withheld − 600 prepaid
+    total = Decimal(str(eur["tax_with"]))
+    assert Decimal(str(eur["refund_or_owed"])) == total - Decimal("12100") - Decimal("600")
+    assert Decimal(str(eur["refund_or_owed"])) > 0  # a Nachzahlung
+
+    # Clearing the freelance income (and a big prepayment) flips it to an Erstattung.
+    client.patch("/api/tax/year/2025", json={"income_tax_prepaid": "99999"})
+    eur = client.get("/api/tax/eur", params={"year": 2025}).json()
+    assert Decimal(str(eur["refund_or_owed"])) < 0  # an Erstattung (refund)

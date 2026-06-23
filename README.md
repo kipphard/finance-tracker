@@ -33,7 +33,9 @@ Betriebsausgaben = **Gewinn**, plus
 transaction), the **Homeoffice-Pauschale** or **häusliches Arbeitszimmer**, and business **travel**
 (km × rate). Adds a rough
 **income-tax estimate** on the profit (§32a tariff, stacked on your other income — an estimate,
-not tax advice), a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
+not tax advice) and a full-year **Erstattung/Nachzahlung** view (§32a on salary + profit minus the
+withheld Lohnsteuer from your Lohnsteuerbescheinigung and any Vorauszahlungen → refund or owed),
+a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
 Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER.
 
 *Works on any screen — the desktop sidebar collapses to a mobile **bottom-nav** layout on phones

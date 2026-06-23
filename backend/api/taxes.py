@@ -81,6 +81,8 @@ def _to_out(eur: EurResult) -> EurReportOut:
         ],
         other_income=eur.other_income, tariff_year=eur.tariff_year,
         tax_with=eur.tax_with, tax_without=eur.tax_without, tax_estimate=eur.tax_estimate,
+        withheld_lohnsteuer=eur.withheld_lohnsteuer, income_tax_prepaid=eur.income_tax_prepaid,
+        refund_or_owed=eur.refund_or_owed,
         home_office_mode=eur.home_office_mode, home_office_days=eur.home_office_days,
         business_km=eur.business_km, km_rate=eur.km_rate,
     )

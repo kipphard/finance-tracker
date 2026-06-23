@@ -210,8 +210,14 @@ of the Overview (defaults to the last completed year — the one you file).
 - **Income-tax estimate.** A rough §32a estimate of the extra income tax your freelance profit adds,
   stacked on top of the *übrige Einkünfte* (e.g. salary) you enter. **It's an estimate, not tax
   advice** — Soli and church tax are not included.
-- **Angaben für <year>.** Edit the year-specific numbers here — other taxable income, Homeoffice
-  days, business km — and the figures recompute.
+- **Erstattung / Nachzahlung (the full personal picture).** A separate card estimates your whole
+  income tax for the year — **§32a on salary + freelance profit** — then subtracts what's already
+  been paid: the **einbehaltene Lohnsteuer** from your *Lohnsteuerbescheinigung* and any
+  **Einkommensteuer-Vorauszahlungen**. The result is your likely **refund (Erstattung)** or
+  **amount owed (Nachzahlung)** vs. the Finanzamt. Same caveats — a rough estimate, no Soli/church tax.
+- **Angaben für <year>.** Edit the year-specific numbers here — gross salary / other income,
+  einbehaltene Lohnsteuer, Einkommensteuer-Vorauszahlungen, Homeoffice days, business km — and the
+  figures recompute.
 - **Erfasste Buchungen.** The underlying transactions (income / direct / mixed) with the amount
   counted toward the EÜR — mixed rows also show the **business %** applied — so you can check every
   euro. Export them as **CSV** (now including a `percent` column).
