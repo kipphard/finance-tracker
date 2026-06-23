@@ -119,15 +119,24 @@ def runway(session: SessionDep, user: CurrentUser) -> RunwayOut:
     """Liquid balance / monthly burn → how many months of runway you have."""
     forecast = build_forecast(session, user.id, months=1)
     monthly_net = Decimal(forecast.monthly_net)
+    # Accounts earmarked for a savings goal (e.g. the tax reserve) hold money that's already
+    # spoken for, so they don't count toward spendable runway.
+    earmarked_ids = repository.earmarked_account_ids(session, user.id)
     liquid = Decimal(0)
+    earmarked = Decimal(0)
     for acc in repository.list_accounts(session, user.id):
         if (acc.type or "").lower() in ILLIQUID_TYPES:
             continue
-        liquid += repository.account_balance(session, acc)
+        balance = repository.account_balance(session, acc)
+        if acc.id in earmarked_ids:
+            earmarked += balance
+            continue
+        liquid += balance
     runway_months = _q(liquid / (-monthly_net)) if (monthly_net < 0 and liquid > 0) else None
     return RunwayOut(
         currency=get_settings().app_base_currency,
         liquid=_q(liquid), monthly_net=_q(monthly_net), runway_months=runway_months,
+        earmarked=_q(earmarked),
     )
 
 

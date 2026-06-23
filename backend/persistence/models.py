@@ -345,6 +345,31 @@ class EmergencyFund(Base):
     )
 
 
+class TaxReserve(Base):
+    """Per-user "Steuerrücklage": how much income tax to keep aside for the freelance profit.
+    The amount *owed* is computed live from the §32a EÜR estimate; what's *set aside* is either
+    the balance of a designated reserve account (``reserve_account_id``) or a manually-entered
+    notional amount (``current_amount``) when no account is linked. One row per user.
+
+    A linked reserve account is treated as *earmarked* — excluded from the cash-runway liquid
+    pool — so the money owed to the Finanzamt isn't counted as spendable."""
+
+    __tablename__ = "tax_reserves"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    # Account whose balance counts as "set aside"; null = track notionally via current_amount.
+    reserve_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    current_amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class CashflowItem(Base):
     """A manually entered recurring (or one-off) inflow or outflow, e.g. salary or rent."""
 

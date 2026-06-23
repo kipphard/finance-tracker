@@ -39,6 +39,7 @@ from backend.persistence.models import (
     RecurringInvoice,
     Rule,
     TaxProfile,
+    TaxReserve,
     TaxYearInput,
     TimeEntry,
     Transaction,
@@ -994,6 +995,41 @@ def update_emergency_fund(session: Session, fund: EmergencyFund, **fields) -> Em
         setattr(fund, key, value)
     session.flush()
     return fund
+
+
+# --- tax reserve (Steuerrücklage) ----------------------------------------
+
+
+def get_tax_reserve(session: Session, user_id: uuid.UUID) -> TaxReserve:
+    """Return the user's tax-reserve row, creating an empty default on first use."""
+    reserve = session.execute(
+        select(TaxReserve).where(TaxReserve.user_id == user_id)
+    ).scalars().first()
+    if reserve is None:
+        reserve = TaxReserve(user_id=user_id)
+        session.add(reserve)
+        session.flush()
+    return reserve
+
+
+def update_tax_reserve(session: Session, reserve: TaxReserve, **fields) -> TaxReserve:
+    # Sets fields even when None so the reserve account can be unlinked (reserve_account_id=None)
+    # to fall back to the notional current_amount.
+    for key, value in fields.items():
+        setattr(reserve, key, value)
+    session.flush()
+    return reserve
+
+
+def earmarked_account_ids(session: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
+    """Account ids that are spoken-for by a savings goal (currently the tax reserve) and so
+    should be excluded from the spendable / cash-runway liquid pool."""
+    ids = session.execute(
+        select(TaxReserve.reserve_account_id).where(
+            TaxReserve.user_id == user_id, TaxReserve.reserve_account_id.is_not(None)
+        )
+    ).scalars().all()
+    return {i for i in ids if i is not None}
 
 
 # --- debts (things to pay off) -------------------------------------------

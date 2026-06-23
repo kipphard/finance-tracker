@@ -458,6 +458,31 @@ class EmergencyFundOut(BaseModel):
     funded_pct: Decimal
 
 
+class TaxReserveUpdate(BaseModel):
+    # null clears the link → fall back to the notional current_amount
+    reserve_account_id: uuid.UUID | None = None
+    current_amount: Decimal | None = Field(default=None, ge=0)
+
+
+class TaxReserveOut(BaseModel):
+    year: int
+    tariff_year: int
+    income_ytd: Decimal
+    profit_ytd: Decimal
+    owed_ytd: Decimal
+    reserve: Decimal
+    gap: Decimal
+    surplus: Decimal
+    funded_pct: Decimal
+    effective_rate: Decimal
+    projected_annual_owed: Decimal
+    recommended_monthly: Decimal
+    reserve_account_id: uuid.UUID | None
+    reserve_account_name: str | None
+    current_amount: Decimal
+    has_account: bool
+
+
 class AlertOut(BaseModel):
     level: str
     kind: str
@@ -883,6 +908,7 @@ class RunwayOut(BaseModel):
     liquid: Decimal           # sum of liquid (non-investment) account balances
     monthly_net: Decimal      # average monthly net (negative = burning)
     runway_months: Decimal | None = None  # None when net-positive (no burn)
+    earmarked: Decimal = Decimal(0)  # balance of earmarked accounts (e.g. tax reserve), excluded
 
 
 class ClientProfitOut(BaseModel):

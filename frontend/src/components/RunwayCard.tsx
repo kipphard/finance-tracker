@@ -36,6 +36,9 @@ export function RunwayCard({ className }: { className?: string }) {
                 {m == null
                   ? "You're net-positive — no burn, so runway is effectively unlimited."
                   : "Months your liquid (non-investment) balance covers the current monthly burn."}
+                {num(r.earmarked) > 0 && (
+                  <> · {money(r.earmarked)} tax reserve earmarked &amp; excluded.</>
+                )}
               </div>
             </>
           );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
-import type { AllocationPlanOut, DebtOut, EmergencyFundOut, PlannedPurchasesOut } from "../api/types";
+import type { AllocationPlanOut, DebtOut, EmergencyFundOut, PlannedPurchasesOut, TaxReserveOut } from "../api/types";
 import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
@@ -10,6 +10,7 @@ const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#06b6d4", "#a855f7", "#ec4899"
 const DEBT_COLOR = "#ef4444";
 const EF_COLOR = "#14b8a6";
 const PP_COLOR = "#f97316";
+const TAX_COLOR = "#eab308";
 const TICK_KEY = "ft_debt_payoff_ids";
 const PAY_KEY = "ft_debt_pay_amounts";
 const EF_KEY = "ft_ef_contribution";
@@ -39,6 +40,7 @@ export function AllocationCard({ className }: { className?: string }) {
   const debtsApi = useApi<DebtOut[]>("/debts");
   const efApi = useApi<EmergencyFundOut>("/emergency-fund");
   const ppApi = useApi<PlannedPurchasesOut>("/planned-purchases");
+  const trApi = useApi<TaxReserveOut>("/tax-reserve");
   const [name, setName] = useState("");
   const [percent, setPercent] = useState("");
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -197,7 +199,9 @@ export function AllocationCard({ className }: { className?: string }) {
 
           const plannedFund = num(ppApi.data?.planned_fund ?? 0);
           const plannedCount = ppApi.data?.items.length ?? 0;
-          const distributable = Math.max(0, gross - debtPay - efContribution - plannedFund);
+          // Tax reserve (Steuerrücklage) — the recommended monthly set-aside, also off the top.
+          const taxReserve = num(trApi.data?.recommended_monthly ?? 0);
+          const distributable = Math.max(0, gross - debtPay - efContribution - plannedFund - taxReserve);
           const allocatedPct = otherBuckets.reduce((s, b) => s + num(b.percent), 0);
           const over = allocatedPct > 100;
           const denom = Math.max(100, allocatedPct);
@@ -212,6 +216,7 @@ export function AllocationCard({ className }: { className?: string }) {
                 {debtPay > 0 ? ` − ${money(debtPay, plan.currency)} debt` : ""}
                 {efContribution > 0 ? ` − ${money(efContribution, plan.currency)} emergency fund` : ""}
                 {plannedFund > 0 ? ` − ${money(plannedFund, plan.currency)} planned purchases` : ""}
+                {taxReserve > 0 ? ` − ${money(taxReserve, plan.currency)} Steuerrücklage` : ""}
               </div>
               <div className="alloc__leftover">
                 {money(distributable, plan.currency)}{" "}
@@ -366,6 +371,27 @@ export function AllocationCard({ className }: { className?: string }) {
                     <div className="li-sub" style={{ marginTop: 6 }}>
                       Saving for {plannedCount} {plannedCount === 1 ? "item" : "items"} — set amounts in
                       the <b>Planned purchases</b> card.
+                    </div>
+                  </li>
+                )}
+
+                {/* Tax reserve — the §32a-derived monthly set-aside, also off the top */}
+                {taxReserve > 0 && (
+                  <li style={{ display: "block" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="li-main">
+                        <span className="alloc__dot" style={{ background: TAX_COLOR }} />
+                        🧾 Steuerrücklage{" "}
+                        <span className="muted" style={{ fontWeight: 400 }}>· off the top</span>
+                      </span>
+                      <strong style={{ minWidth: 78, textAlign: "right" }}>
+                        {money(taxReserve, plan.currency)}
+                      </strong>
+                    </div>
+                    <div className="li-sub" style={{ marginTop: 6 }}>
+                      {trApi.data
+                        ? `${money(trApi.data.gap, plan.currency)} noch offen für ${trApi.data.year} — passt sich im Steuerrücklage-Card an.`
+                        : "Recommended income-tax set-aside — adjust in the Steuerrücklage card."}
                     </div>
                   </li>
                 )}

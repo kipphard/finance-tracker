@@ -50,10 +50,12 @@ toggle lives in the sidebar.
 
 ### Planning & action cards
 - **Cash runway** — how many months your **liquid** (non-investment) balance lasts at the current
-  monthly net ("∞" when you're net-positive). The freelancer's most important number.
+  monthly net ("∞" when you're net-positive). The freelancer's most important number. Money in a
+  **tax-reserve account** (see *Steuerrücklage* below) is **earmarked and excluded** from this
+  liquid pool — so the Finanzamt's share never inflates your runway.
 - **Distribute leftover (Allocation)** — split the monthly leftover (income − fixed) into buckets
-  (Savings/Invest/Fun). **Debt** and **Emergency fund** are taken *off the top*; everything else
-  splits what remains.
+  (Savings/Invest/Fun). **Debt**, **Emergency fund**, **Planned purchases** and the
+  **Steuerrücklage** are taken *off the top*; everything else splits what remains.
 - **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
   item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
   2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in
@@ -61,6 +63,16 @@ toggle lives in the sidebar.
   save for something visibly shrinks what's left to split between Savings / Invest / Fun, instead of
   pretending the money appears from nowhere. Just add an item + price, then set a monthly amount.
 - **Emergency fund** — a target of N× monthly fixed costs and how funded you are.
+- **Steuerrücklage (tax reserve)** — the freelancer's safety net against an end-of-year tax
+  shock. It reuses the **§32a EÜR engine** to estimate the income tax your freelance profit has
+  added *so far this year* (**Zurückzulegen / owed YTD**) and compares it to what you've actually
+  set aside (**Bereits zurückgelegt**). What's "set aside" is either the balance of a **designated
+  reserve account** you pick (best practice — keep tax money in a separate Tagesgeld) or a
+  manually-entered amount if you don't link one. You get a funded-% bar, your effective **reserve
+  rate** (≈ % of freelance income), and a **recommended monthly set-aside** to be fully covered by
+  December — which feeds the **Distribute leftover** card *off the top*. A linked account is
+  **earmarked out of cash runway** so you don't count the Finanzamt's money as spendable. *Rough
+  estimate — Soli, church tax and (for §19) VAT aren't included; not tax advice.*
 - **Debts / "to pay off"** — one-off obligations; overdue ones surface in Alerts.
 - **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
 - **Alerts** — over-budget categories, bills due soon, etc.

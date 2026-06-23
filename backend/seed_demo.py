@@ -37,6 +37,7 @@ from backend.persistence.models import (
     RecurringInvoice,
     Rule,
     TaxProfile,
+    TaxReserve,
     TaxYearInput,
     TimeEntry,
     Transaction,
@@ -121,6 +122,7 @@ def run() -> dict:
 
         giro = account("Girokonto", "checking", 0)
         savings = account("Tagesgeld", "savings", 2.5)
+        steuer = account("Steuerrücklage", "savings", 1.5)
         broker = account("Trade Republic", "brokerage", 7)
         crypto = account("Bitpanda", "brokerage", 18)
         cash = account("Bargeld", "cash", 0)
@@ -198,6 +200,21 @@ def run() -> dict:
             txn(giro, date(fy, 5, 8), -249, "Online-Kurs (Fortbildung)",
                 cat=cats["Other"].id, tags=["freelance"], desc="Tax record")
 
+        # --- bigger current-year freelance projects so the EÜR + Steuerrücklage show a real
+        #     profit this year (only book those dated on/before today) ---
+        for mm, amt, label in [(2, 3200, "Projekt Website Relaunch Brandwerk"),
+                               (4, 2800, "Projekt Branding Helios")]:
+            d = date(TODAY.year, mm, 15)
+            if d <= TODAY:
+                txn(giro, d, amt, label, cat=cats["Freelance income"].id,
+                    tags=["freelance"], desc="Invoice")
+
+        # --- Steuerrücklage: money set aside into the dedicated, earmarked reserve account ---
+        for mm, amt in [(2, 700), (4, 700)]:
+            d = date(TODAY.year, mm, 25)
+            if d <= TODAY:
+                transfer(giro, steuer, amt, d)
+
         # --- recurring cashflow items (drive Distribute leftover + Scheduled) ---
         def cf(direction, name, amount, acc, next_due, cat=None):
             session.add(CashflowItem(
@@ -232,6 +249,10 @@ def run() -> dict:
         # --- emergency fund (target 3x fixed, ~58% funded) ---
         session.add(EmergencyFund(user_id=uid, target_months=3, target_amount=None,
                                   current_amount=D("2600")))
+
+        # --- tax reserve (Steuerrücklage): set-aside lives in the dedicated reserve account,
+        #     which is earmarked out of the cash-runway liquid pool ---
+        session.add(TaxReserve(user_id=uid, reserve_account_id=steuer.id))
 
         # --- allocation buckets (+ Debt and Emergency fund off-the-top markers) ---
         for name, pct in [("Debt", 1), ("Emergency fund", 1), ("Savings", 40),

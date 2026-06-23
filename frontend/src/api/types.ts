@@ -218,6 +218,30 @@ export interface EmergencyFundOut {
   funded_pct: string;
 }
 
+export interface TaxReserveOut {
+  year: number;
+  tariff_year: number;
+  income_ytd: string;
+  profit_ytd: string;
+  owed_ytd: string;
+  reserve: string;
+  gap: string;
+  surplus: string;
+  funded_pct: string;
+  effective_rate: string;
+  projected_annual_owed: string;
+  recommended_monthly: string;
+  reserve_account_id: string | null;
+  reserve_account_name: string | null;
+  current_amount: string;
+  has_account: boolean;
+}
+
+export interface TaxReserveUpdate {
+  reserve_account_id?: string | null;
+  current_amount?: string;
+}
+
 export interface AllocationBucketOut {
   id: string;
   name: string;
@@ -390,6 +414,7 @@ export interface RunwayOut {
   liquid: string;
   monthly_net: string;
   runway_months: string | null;
+  earmarked: string;
 }
 
 export interface ClientProfitOut {

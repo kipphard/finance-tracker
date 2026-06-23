@@ -28,6 +28,7 @@ from backend.api import (
     recurring_invoices,
     reports,
     rules,
+    tax_reserve,
     taxes,
     time_entries,
     transactions,
@@ -67,6 +68,7 @@ app.include_router(debts.router, prefix=API)
 app.include_router(allocations.router, prefix=API)
 app.include_router(planned_purchases.router, prefix=API)
 app.include_router(emergency_fund.router, prefix=API)
+app.include_router(tax_reserve.router, prefix=API)
 app.include_router(attachments.router, prefix=API)
 # Freelance: time tracking + invoicing
 app.include_router(business_profile.router, prefix=API)
