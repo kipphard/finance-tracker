@@ -43,12 +43,12 @@ export function TaxOverviewPage() {
 
       <Async state={state}>
         {(r) => (
-          <>
+          <div className="card-stack">
             <EurSummary report={r} />
             <YearInputsCard year={year} />
             <ElsterCard year={year} />
             <LineItemsCard report={r} />
-          </>
+          </div>
         )}
       </Async>
     </>

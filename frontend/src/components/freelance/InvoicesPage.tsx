@@ -293,7 +293,7 @@ export function InvoicesPage() {
   );
 
   return (
-    <>
+    <div className="card-stack">
       <RecurringInvoicesCard />
       <Card title="Invoices" action={action} className="invoices-card">
       <Async state={state}>
@@ -347,6 +347,6 @@ export function InvoicesPage() {
         </Modal>
       )}
       </Card>
-    </>
+    </div>
   );
 }

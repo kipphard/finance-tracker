@@ -438,6 +438,14 @@ a {
   padding: 24px 28px 64px;
 }
 
+// Vertical stack of full-width cards on pages that don't use the masonry grid
+// (Taxes overview, Invoices, Insights). Matches the grid's 20px rhythm.
+.card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);

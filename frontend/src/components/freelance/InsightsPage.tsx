@@ -9,7 +9,7 @@ export function InsightsPage() {
   const state = useApi<FreelanceInsightsOut>("/reports/freelance-insights");
 
   return (
-    <>
+    <div className="card-stack">
       <Card title="Client profitability" className="recurring-card">
         <Async state={state}>
           {(ins) => ins.clients.length === 0 ? (
@@ -87,6 +87,6 @@ export function InsightsPage() {
           )}
         </Async>
       </Card>
-    </>
+    </div>
   );
 }
