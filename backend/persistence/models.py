@@ -328,6 +328,11 @@ class Allocation(Base):
     user_id: Mapped[uuid.UUID] = _user_fk()
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     percent: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    # Optional destination account for the "Apply this month" action (transfer the bucket's share
+    # into it). Null = the bucket is informational only.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
@@ -346,6 +351,11 @@ class EmergencyFund(Base):
     target_months: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     target_amount: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # custom override
     current_amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    # Optional account holding the fund: when set, "saved so far" is its live balance and the
+    # "Apply this month" action transfers the contribution into it.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )

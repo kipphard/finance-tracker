@@ -49,3 +49,55 @@ def test_no_leftover_means_zero_amounts(client):
 def test_percent_must_be_in_range(client):
     assert client.post("/api/allocations", json={"name": "X", "percent": "0"}).status_code == 422
     assert client.post("/api/allocations", json={"name": "X", "percent": "150"}).status_code == 422
+
+
+def test_allocation_account_link_set_and_clear(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    aid = client.post("/api/allocations",
+                      json={"name": "Invest", "percent": "20", "account_id": acc}).json()["id"]
+    assert client.get("/api/allocations").json()[0]["account_id"] == acc
+    # the plan echoes the linked account on each bucket
+    bucket = client.get("/api/allocations/plan").json()["buckets"][0]
+    assert bucket["account_id"] == acc
+    # clearing the link (null) actually unlinks it
+    client.patch(f"/api/allocations/{aid}", json={"account_id": None})
+    assert client.get("/api/allocations").json()[0]["account_id"] is None
+
+
+def test_apply_books_transfers_and_debt_payments(client):
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    savings = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{src}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "2000", "raw_payee": "Opening"})
+    debt = client.post("/api/debts", json={"name": "Auto", "amount": "500"}).json()["id"]
+
+    res = client.post("/api/allocations/apply", json={
+        "source_account_id": src,
+        "transfers": [{"to_account_id": savings, "amount": "300", "label": "Emergency fund"}],
+        "debt_payments": [{"debt_id": debt, "amount": "200"}],
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["transfers_made"] == 1 and body["debts_paid"] == 1
+    assert Decimal(str(body["total_moved"])) == Decimal("500.00")
+
+    # Giro: 2000 − 300 (transfer out) − 200 (debt expense) = 1500 ; Tagesgeld: +300
+    bal = {a["name"]: a["latest_balance"] for a in client.get("/api/accounts").json()}
+    assert Decimal(str(bal["Giro"])) == Decimal("1500")
+    assert Decimal(str(bal["Tagesgeld"])) == Decimal("300")
+
+    # partial payment reduced the outstanding amount, debt still unpaid
+    d = client.get("/api/debts").json()[0]
+    assert d["paid"] is False
+    assert Decimal(str(d["amount"])) == Decimal("300")  # 500 − 200
+
+    # paying the rest clears it
+    client.post("/api/allocations/apply", json={
+        "source_account_id": src, "debt_payments": [{"debt_id": debt, "amount": "300"}]})
+    assert client.get("/api/debts").json()[0]["paid"] is True
+
+
+def test_apply_rejects_unknown_source(client):
+    import uuid
+    assert client.post("/api/allocations/apply", json={
+        "source_account_id": str(uuid.uuid4()), "transfers": [], "debt_payments": []}).status_code == 404

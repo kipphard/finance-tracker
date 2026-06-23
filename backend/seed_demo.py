@@ -259,10 +259,13 @@ def run() -> dict:
         #     which is earmarked out of the cash-runway liquid pool ---
         session.add(TaxReserve(user_id=uid, reserve_account_id=steuer.id))
 
-        # --- allocation buckets (+ Debt and Emergency fund off-the-top markers) ---
+        # --- allocation buckets (+ Debt and Emergency fund off-the-top markers); Savings/Invest
+        #     are linked to real accounts so "Apply this month" can transfer into them ---
+        bucket_accounts = {"Savings": savings.id, "Invest": broker.id}
         for name, pct in [("Debt", 1), ("Emergency fund", 1), ("Savings", 40),
                           ("Invest", 35), ("Fun", 15)]:
-            session.add(Allocation(user_id=uid, name=name, percent=D(str(pct))))
+            session.add(Allocation(user_id=uid, name=name, percent=D(str(pct)),
+                                   account_id=bucket_accounts.get(name)))
 
         # --- planned purchases (wishlist; a monthly_save feeds the "Planned purchases fund") ---
         for pname, price, save in [("Nintendo Switch 2", "499", "100"),

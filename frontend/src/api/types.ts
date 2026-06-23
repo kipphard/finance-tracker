@@ -218,6 +218,8 @@ export interface EmergencyFundOut {
   target: string;
   gap: string;
   funded_pct: string;
+  account_id: string | null;
+  account_name: string | null;
 }
 
 export interface TaxReserveOut {
@@ -249,6 +251,7 @@ export interface AllocationBucketOut {
   name: string;
   percent: string;
   amount: string;
+  account_id: string | null;
 }
 
 export interface AllocationPlanOut {

@@ -44,6 +44,23 @@ def test_custom_target_overrides_and_clears(client):
     assert Decimal(str(f["target"])) == Decimal("3000.00")
 
 
+def test_balance_from_linked_account(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "8400", "raw_payee": "Savings"})
+
+    # linking the fund to the account → "saved so far" follows the account balance
+    r = client.patch("/api/emergency-fund", json={"account_id": acc}).json()
+    assert r["account_id"] == acc
+    assert r["account_name"] == "Tagesgeld"
+    assert Decimal(str(r["current_amount"])) == Decimal("8400.00")
+
+    # unlinking falls back to the notional amount (default 0)
+    r = client.patch("/api/emergency-fund", json={"account_id": None}).json()
+    assert r["account_id"] is None
+    assert Decimal(str(r["current_amount"])) == Decimal("0.00")
+
+
 def test_overfunded_caps_at_100(client):
     client.post("/api/cashflow",
                 json={"direction": "outflow", "name": "Rent", "amount": "100", "cadence": "monthly"})

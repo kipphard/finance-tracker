@@ -416,11 +416,13 @@ class BudgetStatusOut(BaseModel):
 class AllocationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     percent: Decimal = Field(gt=0, le=100)
+    account_id: uuid.UUID | None = None  # optional destination account for "Apply this month"
 
 
 class AllocationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     percent: Decimal | None = Field(default=None, gt=0, le=100)
+    account_id: uuid.UUID | None = None  # null clears the link
 
 
 class AllocationOut(BaseModel):
@@ -429,6 +431,7 @@ class AllocationOut(BaseModel):
     id: uuid.UUID
     name: str
     percent: Decimal
+    account_id: uuid.UUID | None = None
     created_at: datetime
 
 
@@ -437,6 +440,7 @@ class AllocationBucketOut(BaseModel):
     name: str
     percent: Decimal
     amount: Decimal
+    account_id: uuid.UUID | None = None
 
 
 class AllocationPlanOut(BaseModel):
@@ -450,10 +454,37 @@ class AllocationPlanOut(BaseModel):
     buckets: list[AllocationBucketOut]
 
 
+class ApplyTransferItem(BaseModel):
+    to_account_id: uuid.UUID
+    amount: Decimal = Field(gt=0)
+    label: str = Field(min_length=1, max_length=200)
+
+
+class ApplyDebtPayment(BaseModel):
+    debt_id: uuid.UUID
+    amount: Decimal = Field(gt=0)
+
+
+class ApplyAllocationRequest(BaseModel):
+    """Book this month's distribution: transfers from a source account into the linked buckets,
+    plus debt payments (expenses) out of the source. Amounts are computed client-side from the plan."""
+    source_account_id: uuid.UUID
+    ts: datetime | None = None
+    transfers: list[ApplyTransferItem] = []
+    debt_payments: list[ApplyDebtPayment] = []
+
+
+class ApplyAllocationResult(BaseModel):
+    transfers_made: int
+    debts_paid: int
+    total_moved: Decimal
+
+
 class EmergencyFundUpdate(BaseModel):
     target_months: int | None = Field(default=None, ge=0, le=120)
     target_amount: Decimal | None = Field(default=None, ge=0)  # custom override; null = N× fixed
     current_amount: Decimal | None = Field(default=None, ge=0)
+    account_id: uuid.UUID | None = None  # account holding the fund; null tracks notionally
 
 
 class EmergencyFundOut(BaseModel):
@@ -464,6 +495,8 @@ class EmergencyFundOut(BaseModel):
     target: Decimal
     gap: Decimal
     funded_pct: Decimal
+    account_id: uuid.UUID | None = None
+    account_name: str | None = None
 
 
 class TaxReserveUpdate(BaseModel):

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiDelete, apiPatch, apiPost } from "../api/client";
-import type { AllocationPlanOut, DebtOut, EmergencyFundOut, PlannedPurchasesOut, TaxReserveOut } from "../api/types";
+import type { AccountOut, AllocationPlanOut, DebtOut, EmergencyFundOut, PlannedPurchasesOut, TaxReserveOut } from "../api/types";
 import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
+import { Modal } from "./Modal";
 
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#06b6d4", "#a855f7", "#ec4899", "#84cc16"];
 const DEBT_COLOR = "#ef4444";
@@ -41,6 +42,10 @@ export function AllocationCard({ className }: { className?: string }) {
   const efApi = useApi<EmergencyFundOut>("/emergency-fund");
   const ppApi = useApi<PlannedPurchasesOut>("/planned-purchases");
   const trApi = useApi<TaxReserveOut>("/tax-reserve");
+  const accountsApi = useApi<AccountOut[]>("/accounts");
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applySource, setApplySource] = useState("");
+  const [applyBusy, setApplyBusy] = useState(false);
   const [name, setName] = useState("");
   const [percent, setPercent] = useState("");
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -148,6 +153,11 @@ export function AllocationCard({ className }: { className?: string }) {
     state.reload();
   };
 
+  const linkBucket = async (id: string, accountId: string) => {
+    await apiPatch(`/allocations/${id}`, { account_id: accountId || null });
+    state.reload();
+  };
+
   const remove = async (id: string) => {
     await apiDelete(`/allocations/${id}`);
     state.reload();
@@ -211,6 +221,44 @@ export function AllocationCard({ className }: { className?: string }) {
           const denom = Math.max(100, allocatedPct);
           const unallocPct = Math.max(0, 100 - allocatedPct);
           const bucketAmt = (b: { percent: string }) => (num(b.percent) / 100) * distributable;
+
+          // --- "Apply this month": map linked buckets + ticked debts to real money moves ---
+          const accById = new Map((accountsApi.data ?? []).map((a) => [a.id, a.name]));
+          const efAccount = efBucket && ef?.account_id ? ef.account_id : null;
+          const transferMoves: { to: string; amount: number; label: string; account: string }[] = [
+            ...(efAccount && efContribution > 0
+              ? [{ to: efAccount, amount: efContribution, label: "Emergency fund", account: accById.get(efAccount) ?? "?" }]
+              : []),
+            ...otherBuckets
+              .filter((b) => b.account_id && bucketAmt(b) > 0)
+              .map((b) => ({ to: b.account_id as string, amount: bucketAmt(b), label: b.name, account: accById.get(b.account_id as string) ?? "?" })),
+          ];
+          const debtMoves = debtBucket
+            ? unpaidDebts
+                .filter((d) => tickedSet.has(d.id) && num(amountFor(d)) > 0)
+                .map((d) => ({ debt_id: d.id, amount: num(amountFor(d)), name: d.name }))
+            : [];
+          const applyTotal = transferMoves.reduce((s, m) => s + m.amount, 0)
+            + debtMoves.reduce((s, m) => s + m.amount, 0);
+          const canApply = transferMoves.length > 0 || debtMoves.length > 0;
+          const source = applySource || (accountsApi.data?.[0]?.id ?? "");
+          const doApply = async () => {
+            if (!source) return;
+            setApplyBusy(true);
+            try {
+              await apiPost("/allocations/apply", {
+                source_account_id: source,
+                transfers: transferMoves.map((m) => ({ to_account_id: m.to, amount: String(m.amount), label: m.label })),
+                debt_payments: debtMoves.map((m) => ({ debt_id: m.debt_id, amount: String(m.amount) })),
+              });
+              setApplyOpen(false);
+              debtsApi.reload();
+              efApi.reload();
+              state.reload();
+            } finally {
+              setApplyBusy(false);
+            }
+          };
 
           return (
             <>
@@ -408,6 +456,15 @@ export function AllocationCard({ className }: { className?: string }) {
                       {b.name}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <select className="select" style={{ maxWidth: 130, fontSize: 12 }}
+                        value={b.account_id ?? ""}
+                        onChange={(e) => linkBucket(b.id, e.target.value)}
+                        title="Destination account for 'Apply this month'">
+                        <option value="">no account</option>
+                        {(accountsApi.data ?? []).map((a) => (
+                          <option key={a.id} value={a.id}>→ {a.name}</option>
+                        ))}
+                      </select>
                       <input
                         className="input alloc__pct"
                         type="number"
@@ -461,6 +518,13 @@ export function AllocationCard({ className }: { className?: string }) {
                 </button>
               )}
 
+              {canApply && (
+                <button className="btn btn--sm" style={{ marginTop: 12 }}
+                  onClick={() => setApplyOpen(true)} disabled={busy}>
+                  ✅ Apply this month → {money(applyTotal, plan.currency)}
+                </button>
+              )}
+
               <div className="toolbar" style={{ marginTop: 12 }}>
                 <input className="input" placeholder="Bucket (e.g. Savings)" value={name}
                   onChange={(e) => setName(e.target.value)} />
@@ -468,6 +532,49 @@ export function AllocationCard({ className }: { className?: string }) {
                   value={percent} onChange={(e) => setPercent(e.target.value)} style={{ width: 80 }} />
                 <button className="btn" onClick={add} disabled={busy || !name.trim() || !percent}>Add</button>
               </div>
+
+              {applyOpen && (
+                <Modal title="Apply this month's distribution" onClose={() => setApplyOpen(false)}>
+                  <div className="form">
+                    <div className="field">
+                      <label>From account (source)</label>
+                      <select className="select" value={source}
+                        onChange={(e) => setApplySource(e.target.value)}>
+                        {(accountsApi.data ?? []).map((a) => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <ul className="list">
+                      {transferMoves.map((m, i) => (
+                        <li key={"t" + i}>
+                          <span className="li-main">→ {m.label}</span>
+                          <span>{money(m.amount, plan.currency)}{" "}
+                            <span className="muted">to {m.account}</span></span>
+                        </li>
+                      ))}
+                      {debtMoves.map((m, i) => (
+                        <li key={"d" + i}>
+                          <span className="li-main">→ Pay {m.name}</span>
+                          <span>{money(m.amount, plan.currency)}{" "}
+                            <span className="muted">from source</span></span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Books real transfers between your accounts and debt payments as expenses
+                      (cleared debts are marked paid). Total moved:{" "}
+                      <strong>{money(applyTotal, plan.currency)}</strong>.
+                    </div>
+                    <div className="form__actions">
+                      <button type="button" className="btn btn--ghost"
+                        onClick={() => setApplyOpen(false)}>Cancel</button>
+                      <button type="button" className="btn" onClick={doApply}
+                        disabled={applyBusy || !source}>{applyBusy ? "…" : "Apply"}</button>
+                    </div>
+                  </div>
+                </Modal>
+              )}
             </>
           );
         }}

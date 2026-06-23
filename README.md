@@ -13,7 +13,8 @@ Original product plan: [`docs/plan.md`](docs/plan.md).
 **💰 Finances** — manual accounts + net worth (with a snapshot trend chart); transactions
 (manual entry, German-tolerant CSV import, categories + a payee→category rules engine, tags,
 receipt attachments, transfers, recurring/series with auto-posting, off-balance flag); planning
-(monthly cashflow, per-category budgets, net-worth forecast, allocation buckets, emergency fund,
+(monthly cashflow, per-category budgets, net-worth forecast, allocation buckets — linkable to real
+accounts with a one-click **Apply this month** that books the transfers + debt payments, emergency fund,
 a **Steuerrücklage** tax-reserve jar (§32a-estimated income tax owed YTD vs. what you've set aside
 in an earmarked reserve account, with a recommended monthly set-aside that feeds the leftover split),
 debts, a planned-purchases wishlist (save €X/mo per item → a "Planned purchases fund" pot in the

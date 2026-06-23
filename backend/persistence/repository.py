@@ -930,9 +930,10 @@ def delete_planned_purchase(session: Session, item_id: uuid.UUID, user_id: uuid.
 
 
 def create_allocation(
-    session: Session, *, user_id: uuid.UUID, name: str, percent: Decimal
+    session: Session, *, user_id: uuid.UUID, name: str, percent: Decimal,
+    account_id: uuid.UUID | None = None,
 ) -> Allocation:
-    allocation = Allocation(user_id=user_id, name=name, percent=percent)
+    allocation = Allocation(user_id=user_id, name=name, percent=percent, account_id=account_id)
     session.add(allocation)
     session.flush()
     return allocation

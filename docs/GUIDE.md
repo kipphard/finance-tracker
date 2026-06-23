@@ -57,13 +57,19 @@ toggle lives in the sidebar.
   (Savings/Invest/Fun). These are taken *off the top* in order: **Debt** first, then the
   **Emergency fund** cut from what's left after debt (its % applies to *leftover − debt*), then
   **Planned purchases** and the **Steuerrücklage**; everything else splits what remains.
+  **Link a real account** to any %-bucket (and to the emergency fund), then hit **Apply this month**:
+  it books the moves — a **transfer** from your chosen source account into each linked bucket, and an
+  **expense** out of the source for each ticked debt (cleared debts are marked paid). You preview and
+  confirm the list first.
 - **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
   item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
   2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in
   the **Distribute leftover** card *off the top* (alongside Debt and Emergency fund) — so deciding to
   save for something visibly shrinks what's left to split between Savings / Invest / Fun, instead of
   pretending the money appears from nowhere. Just add an item + price, then set a monthly amount.
-- **Emergency fund** — a target of N× monthly fixed costs and how funded you are.
+- **Emergency fund** — a target of N× monthly fixed costs and how funded you are. **Link an account**
+  and "saved so far" follows its live balance (like the Steuerrücklage); *Apply this month* then pays
+  the contribution into it.
 - **Steuerrücklage (tax reserve)** — the freelancer's safety net against an end-of-year tax
   shock. It reuses the **§32a EÜR engine** to estimate the income tax your freelance profit has
   added *so far this year* (**Zurückzulegen / owed YTD**) and compares it to what you've actually

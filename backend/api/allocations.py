@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, HTTPException, Response
@@ -15,6 +16,8 @@ from backend.schemas import (
     AllocationOut,
     AllocationPlanOut,
     AllocationUpdate,
+    ApplyAllocationRequest,
+    ApplyAllocationResult,
 )
 
 router = APIRouter(prefix="/allocations", tags=["allocations"])
@@ -39,6 +42,7 @@ def _plan(session, user_id: uuid.UUID) -> AllocationPlanOut:
                 name=a.name,
                 percent=a.percent,
                 amount=_q(base * a.percent / Decimal(100)),
+                account_id=a.account_id,
             )
         )
 
@@ -72,8 +76,12 @@ def list_allocations(session: SessionDep, user: CurrentUser) -> list[AllocationO
 def create_allocation(
     payload: AllocationCreate, session: SessionDep, user: CurrentUser
 ) -> AllocationOut:
+    if payload.account_id is not None and \
+            repository.get_account(session, payload.account_id, user.id) is None:
+        raise HTTPException(status_code=404, detail="account not found")
     allocation = repository.create_allocation(
-        session, user_id=user.id, name=payload.name, percent=payload.percent
+        session, user_id=user.id, name=payload.name, percent=payload.percent,
+        account_id=payload.account_id,
     )
     session.commit()
     return AllocationOut.model_validate(allocation)
@@ -86,9 +94,74 @@ def update_allocation(
     allocation = repository.get_allocation(session, allocation_id, user.id)
     if allocation is None:
         raise HTTPException(status_code=404, detail="allocation not found")
-    repository.update_allocation(session, allocation, **payload.model_dump(exclude_unset=True))
+    data = payload.model_dump(exclude_unset=True)
+    # account_id is handled explicitly so it can be cleared (set to null), which the generic
+    # updater skips; validate it when given.
+    if "account_id" in data:
+        account_id = data.pop("account_id")
+        if account_id is not None and repository.get_account(session, account_id, user.id) is None:
+            raise HTTPException(status_code=404, detail="account not found")
+        allocation.account_id = account_id
+    repository.update_allocation(session, allocation, **data)
     session.commit()
     return AllocationOut.model_validate(allocation)
+
+
+@router.post("/apply", response_model=ApplyAllocationResult)
+def apply_allocation(
+    payload: ApplyAllocationRequest, session: SessionDep, user: CurrentUser
+) -> ApplyAllocationResult:
+    """Book this month's distribution in one atomic step: transfer each linked bucket's share from
+    the source account into it, and pay each ticked debt as an expense out of the source (reducing
+    or clearing the debt). Amounts are computed client-side from the plan."""
+    source = repository.get_account(session, payload.source_account_id, user.id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="source account not found")
+
+    ts = payload.ts or datetime.now(timezone.utc)
+    total = Decimal(0)
+
+    # Savings-type moves → transfers (out of source, into the bucket account).
+    for t in payload.transfers:
+        if t.to_account_id == source.id:
+            raise HTTPException(status_code=400, detail="bucket account equals the source account")
+        dst = repository.get_account(session, t.to_account_id, user.id)
+        if dst is None:
+            raise HTTPException(status_code=404, detail="bucket account not found")
+        repository.upsert_transaction(
+            session, user_id=user.id, account_id=source.id, ts=ts, amount=-t.amount,
+            currency=source.currency, hash=uuid.uuid4().hex,
+            raw_payee=f"Transfer to {dst.name}", description=t.label, is_transfer=True,
+        )
+        repository.upsert_transaction(
+            session, user_id=user.id, account_id=dst.id, ts=ts, amount=t.amount,
+            currency=dst.currency, hash=uuid.uuid4().hex,
+            raw_payee=f"Transfer from {source.name}", description=t.label, is_transfer=True,
+        )
+        total += t.amount
+
+    # Debt payments → real expenses out of the source; reduce or clear the debt.
+    debts_paid = 0
+    for p in payload.debt_payments:
+        debt = repository.get_debt(session, p.debt_id, user.id)
+        if debt is None:
+            raise HTTPException(status_code=404, detail="debt not found")
+        repository.upsert_transaction(
+            session, user_id=user.id, account_id=source.id, ts=ts, amount=-p.amount,
+            currency=source.currency, hash=uuid.uuid4().hex,
+            raw_payee=f"Schuld: {debt.name}", description="Debt payment",
+        )
+        if p.amount >= Decimal(debt.amount):
+            debt.paid = True
+        else:
+            debt.amount = Decimal(debt.amount) - p.amount
+        debts_paid += 1
+        total += p.amount
+
+    session.commit()
+    return ApplyAllocationResult(
+        transfers_made=len(payload.transfers), debts_paid=debts_paid, total_moved=_q(total),
+    )
 
 
 @router.delete("/{allocation_id}", status_code=204)

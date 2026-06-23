@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { apiPatch } from "../api/client";
-import type { EmergencyFundOut } from "../api/types";
+import type { AccountOut, EmergencyFundOut } from "../api/types";
 import { money, num } from "../lib/format";
 import { Card } from "./Card";
 import { Async } from "./Async";
 
 export function EmergencyFundCard({ className }: { className?: string }) {
   const state = useApi<EmergencyFundOut>("/emergency-fund");
+  const accounts = useApi<AccountOut[]>("/accounts");
   const [busy, setBusy] = useState(false);
 
   const patch = async (body: Record<string, unknown>) => {
@@ -67,17 +68,37 @@ export function EmergencyFundCard({ className }: { className?: string }) {
               <div className="ef__row">
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="muted" style={{ fontSize: 12 }}>Saved</span>
-                  <input className="input alloc__amt" type="number" min="0" step="50" disabled={busy}
-                    defaultValue={String(num(f.current_amount))}
-                    onBlur={(e) => patch({ current_amount: e.target.value || "0" })} />
-                  <span className="muted">€</span>
+                  {f.account_id ? (
+                    <span style={{ fontWeight: 600 }}>{money(f.current_amount)}</span>
+                  ) : (
+                    <>
+                      <input className="input alloc__amt" type="number" min="0" step="50" disabled={busy}
+                        defaultValue={String(num(f.current_amount))}
+                        onBlur={(e) => patch({ current_amount: e.target.value || "0" })} />
+                      <span className="muted">€</span>
+                    </>
+                  )}
                 </span>
                 <span className={gap > 0 ? "neg" : "pos"} style={{ fontWeight: 600 }}>
                   {gap > 0 ? `${money(f.gap)} to go` : "Fully funded 🎉"}
                 </span>
               </div>
+
+              <div className="ef__row" style={{ marginTop: 8 }}>
+                <span className="muted" style={{ fontSize: 12 }}>Held in</span>
+                <select className="select" disabled={busy} value={f.account_id ?? ""}
+                  onChange={(e) => patch({ account_id: e.target.value || null })}
+                  title="Link an account — its balance becomes 'saved', and 'Apply this month' pays into it">
+                  <option value="">— not linked (track manually) —</option>
+                  {(accounts.data ?? []).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
                 {pct.toFixed(0)}% funded · {f.target_months}× your monthly fixed costs is a common buffer.
+                {f.account_id && " Saved follows the linked account's balance."}
               </div>
             </>
           );
