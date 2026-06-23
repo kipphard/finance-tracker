@@ -356,6 +356,8 @@ class EmergencyFund(Base):
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )
+    # Fill order when this account also backs another goal (lower = filled first). Default 100.
+    account_priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
@@ -381,6 +383,8 @@ class TaxReserve(Base):
         GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )
     current_amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    # Fill order when this account also backs another goal (lower = filled first). Default 100.
+    account_priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )

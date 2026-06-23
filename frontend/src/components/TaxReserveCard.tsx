@@ -88,6 +88,21 @@ export function TaxReserveCard({ className }: { className?: string }) {
                 </select>
               </div>
 
+              {r.shared_with && (
+                <div className="ef__row" style={{ marginTop: 8 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    ⚖ Teilt dieses Konto mit <b>{r.shared_with}</b> — Reihenfolge
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input className="input alloc__pct" type="number" min="0" step="1" disabled={busy}
+                      defaultValue={String(r.account_priority)} key={r.account_priority}
+                      onBlur={(e) => patch({ account_priority: parseInt(e.target.value || "100", 10) })}
+                      title="Niedriger = zuerst gefüllt; das erste Ziel bis zum Bedarf, das andere bekommt den Rest" />
+                    <span className="muted" style={{ fontSize: 11 }}>niedriger = zuerst</span>
+                  </span>
+                </div>
+              )}
+
               {!r.has_account && (
                 <div className="ef__row" style={{ marginTop: 8 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 6 }}>

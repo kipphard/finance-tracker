@@ -220,6 +220,8 @@ export interface EmergencyFundOut {
   funded_pct: string;
   account_id: string | null;
   account_name: string | null;
+  account_priority: number;
+  shared_with: string | null;
 }
 
 export interface TaxReserveOut {
@@ -239,6 +241,8 @@ export interface TaxReserveOut {
   reserve_account_name: string | null;
   current_amount: string;
   has_account: boolean;
+  account_priority: number;
+  shared_with: string | null;
 }
 
 export interface TaxReserveUpdate {

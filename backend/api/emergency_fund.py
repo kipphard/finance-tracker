@@ -7,6 +7,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from fastapi import APIRouter, HTTPException
 
 from backend.api.deps import CurrentUser, SessionDep
+from backend.buckets import EMERGENCY_FUND, attributed_savings, shared_with_label
 from backend.cashflow.service import compute_summary
 from backend.persistence import repository
 from backend.persistence.models import EmergencyFund
@@ -21,14 +22,16 @@ def _q(value: Decimal) -> Decimal:
 
 def _fund_out(session, user_id: uuid.UUID, fund: EmergencyFund) -> EmergencyFundOut:
     monthly_fixed = compute_summary(session, user_id).monthly_outflow
-    # When an account is linked, "saved so far" is its live balance (like the Steuerrücklage);
-    # otherwise it's the manually-tracked notional amount.
+    # When an account is linked, "saved so far" is its (priority-attributed) live balance — like
+    # the Steuerrücklage; otherwise it's the manually-tracked notional amount.
     account = (
         repository.get_account(session, fund.account_id, user_id)
         if fund.account_id is not None else None
     )
-    current = Decimal(repository.account_balance(session, account)) if account is not None \
-        else Decimal(fund.current_amount)
+    if account is not None:
+        current = attributed_savings(session, user_id, fund.account_id).get(EMERGENCY_FUND, Decimal(0))
+    else:
+        current = Decimal(fund.current_amount)
     target = (
         fund.target_amount
         if fund.target_amount is not None
@@ -50,6 +53,9 @@ def _fund_out(session, user_id: uuid.UUID, fund: EmergencyFund) -> EmergencyFund
         funded_pct=_q(funded),
         account_id=fund.account_id if account is not None else None,
         account_name=account.name if account is not None else None,
+        account_priority=fund.account_priority,
+        shared_with=shared_with_label(session, user_id, fund.account_id, EMERGENCY_FUND)
+        if account is not None else None,
     )
 
 

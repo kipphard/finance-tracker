@@ -18,6 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.orm import Session
 
+from backend.buckets import TAX_RESERVE, attributed_savings, shared_with_label
 from backend.persistence import repository
 from backend.tax.eur import compute_eur
 
@@ -44,6 +45,8 @@ class ReserveResult:
     reserve_account_name: str | None
     current_amount: Decimal      # the notional fallback (used when no account is linked)
     has_account: bool
+    account_priority: int        # fill order when the account also backs another goal
+    shared_with: str | None      # the other goal sharing the linked account, if any
 
 
 def compute_reserve(
@@ -60,12 +63,14 @@ def compute_reserve(
     income = Decimal(eur.income)
     profit = Decimal(eur.profit)
 
-    # What's actually set aside: a linked account's balance, else the notional amount.
+    # What's actually set aside: a linked account's (priority-attributed) balance, else notional.
     account = None
     if reserve_row.reserve_account_id is not None:
         account = repository.get_account(session, reserve_row.reserve_account_id, user_id)
     if account is not None:
-        reserve = Decimal(repository.account_balance(session, account))
+        reserve = attributed_savings(
+            session, user_id, reserve_row.reserve_account_id, now
+        ).get(TAX_RESERVE, Decimal(0))
     else:
         reserve = Decimal(reserve_row.current_amount)
 
@@ -106,4 +111,9 @@ def compute_reserve(
         reserve_account_name=account.name if account is not None else None,
         current_amount=_q(Decimal(reserve_row.current_amount)),
         has_account=account is not None,
+        account_priority=reserve_row.account_priority,
+        shared_with=shared_with_label(
+            session, user_id,
+            reserve_row.reserve_account_id if account is not None else None, TAX_RESERVE,
+        ),
     )

@@ -69,7 +69,9 @@ toggle lives in the sidebar.
   pretending the money appears from nowhere. Just add an item + price, then set a monthly amount.
 - **Emergency fund** — a target of N× monthly fixed costs and how funded you are. **Link an account**
   and "saved so far" follows its live balance (like the Steuerrücklage); *Apply this month* then pays
-  the contribution into it.
+  the contribution into it. If **one account backs two goals** (e.g. the same Tagesgeld is both your
+  emergency fund *and* your Steuerrücklage), set a **fill order** on each — the lower number fills
+  first up to its target, the other gets the remainder, so the same euros aren't counted twice.
 - **Steuerrücklage (tax reserve)** — the freelancer's safety net against an end-of-year tax
   shock. It reuses the **§32a EÜR engine** to estimate the income tax your freelance profit has
   added *so far this year* (**Zurückzulegen / owed YTD**) and compares it to what you've actually

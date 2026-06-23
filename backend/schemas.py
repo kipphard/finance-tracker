@@ -485,6 +485,7 @@ class EmergencyFundUpdate(BaseModel):
     target_amount: Decimal | None = Field(default=None, ge=0)  # custom override; null = N× fixed
     current_amount: Decimal | None = Field(default=None, ge=0)
     account_id: uuid.UUID | None = None  # account holding the fund; null tracks notionally
+    account_priority: int | None = Field(default=None, ge=0)  # fill order on a shared account
 
 
 class EmergencyFundOut(BaseModel):
@@ -497,12 +498,15 @@ class EmergencyFundOut(BaseModel):
     funded_pct: Decimal
     account_id: uuid.UUID | None = None
     account_name: str | None = None
+    account_priority: int = 100
+    shared_with: str | None = None  # the other goal sharing the linked account, if any
 
 
 class TaxReserveUpdate(BaseModel):
     # null clears the link → fall back to the notional current_amount
     reserve_account_id: uuid.UUID | None = None
     current_amount: Decimal | None = Field(default=None, ge=0)
+    account_priority: int | None = Field(default=None, ge=0)  # fill order on a shared account
 
 
 class TaxReserveOut(BaseModel):
@@ -522,6 +526,8 @@ class TaxReserveOut(BaseModel):
     reserve_account_name: str | None
     current_amount: Decimal
     has_account: bool
+    account_priority: int
+    shared_with: str | None = None  # the other goal sharing the linked account, if any
 
 
 class AlertOut(BaseModel):

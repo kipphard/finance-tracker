@@ -96,6 +96,21 @@ export function EmergencyFundCard({ className }: { className?: string }) {
                 </select>
               </div>
 
+              {f.shared_with && (
+                <div className="ef__row" style={{ marginTop: 8 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    ⚖ Shares this account with <b>{f.shared_with}</b> — fill order
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input className="input alloc__pct" type="number" min="0" step="1" disabled={busy}
+                      defaultValue={String(f.account_priority)} key={f.account_priority}
+                      onBlur={(e) => patch({ account_priority: parseInt(e.target.value || "100", 10) })}
+                      title="Lower fills first; the first goal is capped at its target, the other gets the remainder" />
+                    <span className="muted" style={{ fontSize: 11 }}>lower = first</span>
+                  </span>
+                </div>
+              )}
+
               <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
                 {pct.toFixed(0)}% funded · {f.target_months}× your monthly fixed costs is a common buffer.
                 {f.account_id && " Saved follows the linked account's balance."}

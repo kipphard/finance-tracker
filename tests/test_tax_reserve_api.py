@@ -81,3 +81,28 @@ def test_owed_comes_from_the_freelance_profit_estimate(client):
     # nothing set aside yet → the full owed amount is the gap
     assert Decimal(str(r["gap"])) == Decimal(str(r["owed_ytd"]))
     assert Decimal(str(r["recommended_monthly"])) >= Decimal("0")
+
+
+def test_shared_account_waterfall_fills_by_priority(client):
+    # One savings account holds 5000; back BOTH the emergency fund and the tax reserve with it.
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": f"{YEAR}-06-01T00:00:00Z", "amount": "5000", "raw_payee": "Savings"})
+
+    # Emergency fund fills first (priority 1), capped at its 3000 target; reserve gets the rest.
+    client.patch("/api/emergency-fund",
+                 json={"target_amount": "3000", "account_id": acc, "account_priority": 1})
+    client.patch("/api/tax-reserve", json={"reserve_account_id": acc, "account_priority": 2})
+
+    ef = client.get("/api/emergency-fund").json()
+    assert Decimal(str(ef["current_amount"])) == Decimal("3000.00")  # capped at target
+    assert ef["shared_with"] == "Steuerrücklage"
+    tr = client.get("/api/tax-reserve").json()
+    assert Decimal(str(tr["reserve"])) == Decimal("2000.00")  # 5000 − 3000 remainder
+    assert tr["shared_with"] == "Notgroschen"
+
+    # Flip the order → reserve fills first; with no freelance profit owed=0, so EF absorbs all 5000.
+    client.patch("/api/emergency-fund", json={"account_priority": 2})
+    client.patch("/api/tax-reserve", json={"account_priority": 1})
+    assert Decimal(str(client.get("/api/tax-reserve").json()["reserve"])) == Decimal("0.00")
+    assert Decimal(str(client.get("/api/emergency-fund").json()["current_amount"])) == Decimal("5000.00")
