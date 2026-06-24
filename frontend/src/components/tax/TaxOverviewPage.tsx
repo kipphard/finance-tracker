@@ -135,12 +135,8 @@ function RefundCard({ report: r }: { report: EurReportOut }) {
           <span className="tnum">{money(zve)}</span>
         </li>
         <li>
-          <span className="li-main">Einkommensteuer (gesamt)</span>
-          <span className="tnum neg">{money(r.tax_with)}</span>
-        </li>
-        <li>
-          <span className="li-main">− Einbehaltene Lohnsteuer</span>
-          <span className="tnum pos">{money(r.withheld_lohnsteuer)}</span>
+          <span className="li-main">Einkommensteuer auf den Gewinn (§32a)</span>
+          <span className="tnum neg">{money(r.tax_estimate)}</span>
         </li>
         <li>
           <span className="li-main">− Einkommensteuer-Vorauszahlungen</span>
@@ -157,10 +153,11 @@ function RefundCard({ report: r }: { report: EurReportOut }) {
           </div>
         </div>
         <div className="muted" style={{ fontSize: 12 }}>
-          Gesamte Einkommensteuer auf Gehalt + Gewinn (§32a-Tarif {r.tariff_year}) minus bereits
-          gezahlter Lohnsteuer und Vorauszahlungen.{" "}
-          <strong>Nur eine grobe Schätzung — keine Steuerberatung.</strong> Soli und Kirchensteuer
-          sind nicht enthalten.
+          Deine Lohnsteuer ({money(r.withheld_lohnsteuer)}) gilt über den Lohnsteuerabzug als
+          Steuer auf dein Gehalt abgegolten — zusätzlich fällt nur die §32a-Steuer auf deinen
+          Gewinn an (Tarif {r.tariff_year}), abzüglich geleisteter Vorauszahlungen.{" "}
+          <strong>Nur eine grobe Schätzung — keine Steuerberatung.</strong> Soli, Kirchensteuer und
+          Ehegatten-Splitting sind nicht enthalten.
         </div>
       </div>
     </Card>

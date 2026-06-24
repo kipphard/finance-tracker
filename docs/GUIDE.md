@@ -228,11 +228,14 @@ of the Overview (defaults to the last completed year — the one you file).
 - **Income-tax estimate.** A rough §32a estimate of the extra income tax your freelance profit adds,
   stacked on top of the *übrige Einkünfte* (e.g. salary) you enter. **It's an estimate, not tax
   advice** — Soli and church tax are not included.
-- **Erstattung / Nachzahlung (the full personal picture).** A separate card estimates your whole
-  income tax for the year — **§32a on salary + freelance profit** — then subtracts what's already
-  been paid: the **einbehaltene Lohnsteuer** from your *Lohnsteuerbescheinigung* and any
-  **Einkommensteuer-Vorauszahlungen**. The result is your likely **refund (Erstattung)** or
-  **amount owed (Nachzahlung)** vs. the Finanzamt. Same caveats — a rough estimate, no Soli/church tax.
+- **Erstattung / Nachzahlung (the full personal picture).** A separate card estimates what you'll
+  still settle with the Finanzamt. Your **einbehaltene Lohnsteuer** is treated as having already
+  covered the income tax on your **salary** (that's what payroll withholding does), so the balance
+  is just the **marginal §32a tax your freelance profit adds**, minus any **Einkommensteuer-
+  Vorauszahlungen** — giving your likely **refund (Erstattung)** or **amount owed (Nachzahlung)**.
+  Enter the **einbehaltene Lohnsteuer** (line 4 of your *Lohnsteuerbescheinigung* — not Soli or
+  church tax) and any prepayments under *Angaben*. A rough estimate only: it uses the single
+  Grundtarif (no Ehegatten-Splitting) and excludes Soli/church tax.
 - **Angaben für <year>.** Edit the year-specific numbers here — gross salary / other income,
   einbehaltene Lohnsteuer, Einkommensteuer-Vorauszahlungen, Homeoffice days, business km — and the
   figures recompute.

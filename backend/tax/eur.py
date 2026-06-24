@@ -68,8 +68,9 @@ class EurResult:
     tax_with: Decimal = Decimal(0)
     tax_without: Decimal = Decimal(0)
     tax_estimate: Decimal = Decimal(0)
-    # Full-year Erstattung/Nachzahlung: total income tax on (other income + profit) minus what's
-    # already been paid. refund_or_owed > 0 = Nachzahlung owed; < 0 = Erstattung (refund).
+    # Full-year Erstattung/Nachzahlung: the marginal §32a tax the profit adds, minus business
+    # Einkommensteuer-Vorauszahlungen (the withheld Lohnsteuer is assumed to settle the salary's
+    # tax). refund_or_owed > 0 = Nachzahlung owed; < 0 = Erstattung (refund).
     withheld_lohnsteuer: Decimal = Decimal(0)
     income_tax_prepaid: Decimal = Decimal(0)
     refund_or_owed: Decimal = Decimal(0)
@@ -217,12 +218,21 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
     t_year = tariff_year_used(year)
     tax_with = income_tax(other + profit, year)
     tax_without = income_tax(other, year)
+    tax_estimate = tax_with - tax_without  # marginal §32a tax the freelance profit adds
 
-    # Full-year refund/owed vs. the Finanzamt: total income tax on (salary + profit) minus what's
-    # already been paid (withheld Lohnsteuer + Einkommensteuer-Vorauszahlungen).
+    # Full-year Erstattung/Nachzahlung. The withheld Lohnsteuer is treated as having already
+    # settled the income tax on the salary (other income) — that is precisely what the monthly
+    # Lohnsteuerabzug does — so the only amount still open at assessment is the marginal §32a tax
+    # on the freelance profit, less any business Einkommensteuer-Vorauszahlungen.
+    #
+    # We deliberately do NOT compute `income_tax(gross_salary) − withheld`: the "Bruttoarbeitslohn"
+    # input is gross, not the zu versteuerndes Einkommen (Werbungskosten/Arbeitnehmer-Pauschbetrag
+    # and especially Vorsorgeaufwendungen are not modelled), and only the Grundtarif is used (no
+    # Ehegatten-Splitting). Running §32a on gross overstated the salary's tax and produced a large
+    # phantom Nachzahlung for employees whose salary is already correctly withheld.
     withheld = Decimal(year_input.withheld_lohnsteuer)
     prepaid = Decimal(year_input.income_tax_prepaid)
-    refund_or_owed = tax_with - withheld - prepaid
+    refund_or_owed = tax_estimate - prepaid
 
     return EurResult(
         year=year, business_type=tax_profile.business_type,
@@ -230,7 +240,7 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
         income=_q(income), expense_total=_q(expense_total), profit=_q(profit),
         expense_lines=expense_lines, line_items=line_items,
         other_income=_q(other), tariff_year=t_year,
-        tax_with=tax_with, tax_without=tax_without, tax_estimate=tax_with - tax_without,
+        tax_with=tax_with, tax_without=tax_without, tax_estimate=tax_estimate,
         withheld_lohnsteuer=_q(withheld), income_tax_prepaid=_q(prepaid),
         refund_or_owed=_q(refund_or_owed),
         home_office_mode=tax_profile.home_office_mode,

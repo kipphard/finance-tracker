@@ -210,12 +210,20 @@ def test_refund_or_owed_full_year_picture(client):
     eur = client.get("/api/tax/eur", params={"year": 2025}).json()
     assert Decimal(str(eur["withheld_lohnsteuer"])) == Decimal("12100.00")
     assert Decimal(str(eur["income_tax_prepaid"])) == Decimal("600.00")
-    # refund_or_owed = total tax on (54000 salary + 10000 profit) − 12100 withheld − 600 prepaid
-    total = Decimal(str(eur["tax_with"]))
-    assert Decimal(str(eur["refund_or_owed"])) == total - Decimal("12100") - Decimal("600")
-    assert Decimal(str(eur["refund_or_owed"])) > 0  # a Nachzahlung
+    # The withheld Lohnsteuer is assumed to settle the salary's tax, so the full-year balance is
+    # the marginal §32a tax the 10000 profit adds, minus the 600 business prepayment.
+    marginal = Decimal(str(eur["tax_estimate"]))
+    assert marginal > 0
+    assert Decimal(str(eur["refund_or_owed"])) == marginal - Decimal("600")
+    assert Decimal(str(eur["refund_or_owed"])) > 0  # a Nachzahlung (profit tax > prepayment)
 
-    # Clearing the freelance income (and a big prepayment) flips it to an Erstattung.
+    # Regression guard: a *lower* withheld Lohnsteuer must NOT inflate the balance. Previously
+    # §32a was run on gross salary and `− withheld` produced a huge phantom Nachzahlung.
+    client.patch("/api/tax/year/2025", json={"withheld_lohnsteuer": "8000"})
+    eur = client.get("/api/tax/eur", params={"year": 2025}).json()
+    assert Decimal(str(eur["refund_or_owed"])) == marginal - Decimal("600")  # unchanged by withheld
+
+    # A big business prepayment flips it to an Erstattung.
     client.patch("/api/tax/year/2025", json={"income_tax_prepaid": "99999"})
     eur = client.get("/api/tax/eur", params={"year": 2025}).json()
     assert Decimal(str(eur["refund_or_owed"])) < 0  # an Erstattung (refund)
