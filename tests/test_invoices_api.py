@@ -77,6 +77,59 @@ def test_invoice_line_descriptions_are_flattened(client):
     assert inv["items"][0]["description"] == "Kurse erstellen, Rebranding"
 
 
+def test_group_by_project_bundles_into_one_line_per_project(client):
+    client.patch("/api/business-profile", json={"next_invoice_number": 200})
+    cid = client.post("/api/clients", json={"name": "Bundle GmbH", "hourly_rate": "45"}).json()["id"]
+    pa = client.post("/api/projects", json={"client_id": cid, "name": "Alpha", "hourly_rate": "60"}).json()["id"]
+    pb = client.post("/api/projects", json={"client_id": cid, "name": "Beta"}).json()["id"]  # inherits 45
+    for pid, mins, desc in [(pa, 60, "Design"), (pa, 30, "Layout"), (pb, 120, "Code")]:
+        client.post("/api/time-entries", json={
+            "client_id": cid, "project_id": pid, "started_at": "2026-06-01T09:00:00Z",
+            "minutes": mins, "description": desc})
+
+    inv = client.post("/api/invoices", json={"client_id": cid, "group_by": "project"}).json()
+    assert len(inv["items"]) == 2  # one line per project
+    by_rate = {Decimal(str(it["rate"])): it for it in inv["items"]}
+    alpha = by_rate[Decimal("60")]
+    beta = by_rate[Decimal("45")]
+    assert Decimal(str(alpha["hours"])) == Decimal("1.5") and Decimal(str(alpha["amount"])) == Decimal("90.00")
+    assert Decimal(str(beta["hours"])) == Decimal("2") and Decimal(str(beta["amount"])) == Decimal("90.00")
+    # theme header + bulleted tasks
+    assert alpha["description"].startswith("Alpha")
+    assert "\n• Design" in alpha["description"] and "\n• Layout" in alpha["description"]
+    assert beta["description"].startswith("Beta") and "\n• Code" in beta["description"]
+    assert Decimal(str(inv["total"])) == Decimal("180.00")
+    # the multi-line descriptions render fine in the PDF
+    assert client.get(f"/api/invoices/{inv['id']}/pdf").status_code == 200
+
+
+def test_group_by_week_merges_same_week_splits_others(client):
+    cid = client.post("/api/clients", json={"name": "Weekly GmbH", "hourly_rate": "45"}).json()["id"]
+    # 2026-06-01 (Mon) and 2026-06-03 (Wed) are the same ISO week; 2026-06-10 is a later week
+    for day, mins, desc in [("01", 60, "Mon work"), ("03", 30, "Wed work"), ("10", 120, "Next week")]:
+        client.post("/api/time-entries", json={
+            "client_id": cid, "started_at": f"2026-06-{day}T09:00:00Z", "minutes": mins, "description": desc})
+    inv = client.post("/api/invoices", json={"client_id": cid, "group_by": "week"}).json()
+    assert len(inv["items"]) == 2  # week 23 (merged) + the following week
+    hours = sorted(Decimal(str(it["hours"])) for it in inv["items"])
+    assert hours == [Decimal("1.5"), Decimal("2")]  # (60+30)/60 and 120/60
+    assert all(it["description"].startswith("KW ") for it in inv["items"])  # German week label
+
+
+def test_group_by_week_splits_mixed_rates(client):
+    cid = client.post("/api/clients", json={"name": "Mixed GmbH", "hourly_rate": "45"}).json()["id"]
+    pa = client.post("/api/projects", json={"client_id": cid, "name": "Premium", "hourly_rate": "90"}).json()["id"]
+    # both entries fall in the same ISO week but bill at different rates
+    client.post("/api/time-entries", json={
+        "client_id": cid, "project_id": pa, "started_at": "2026-06-01T09:00:00Z", "minutes": 60, "description": "A"})
+    client.post("/api/time-entries", json={
+        "client_id": cid, "started_at": "2026-06-02T09:00:00Z", "minutes": 60, "description": "B"})
+    inv = client.post("/api/invoices", json={"client_id": cid, "group_by": "week"}).json()
+    assert len(inv["items"]) == 2  # same week, two rates → two lines
+    assert {Decimal(str(it["rate"])) for it in inv["items"]} == {Decimal("45"), Decimal("90")}
+    assert Decimal(str(inv["total"])) == Decimal("135.00")  # 45 + 90
+
+
 def test_email_requires_smtp_config(client):
     cid = client.post("/api/clients", json={"name": "Mail GmbH", "hourly_rate": "45"}).json()["id"]
     client.post("/api/time-entries", json={

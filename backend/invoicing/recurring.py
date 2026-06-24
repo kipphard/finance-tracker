@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from backend.cashflow.service import _advance
+from backend.invoicing.grouping import build_items
 from backend.invoicing.i18n import texts
 from backend.invoicing.text import flatten
 from backend.persistence import repository
@@ -37,26 +38,28 @@ def _build_items(session, user_id, client, rec):
             session, user_id, client_id=client.id, project_id=rec.project_id, unbilled=True)
         if not entries:
             return None, Decimal(0), []  # nothing to bill this period → skip
-        entries.sort(key=lambda e: e.started_at)
         rate_cache: dict = {}
+        name_cache: dict = {}
+
+        def project_name(pid):
+            if pid is None:
+                return None
+            if pid not in name_cache:
+                proj = repository.get_project(session, pid, user_id)
+                name_cache[pid] = proj.name if proj else None
+                rate_cache[pid] = (
+                    proj.hourly_rate if proj and proj.hourly_rate is not None else client.hourly_rate)
+            return name_cache[pid]
 
         def rate_for(e):
             if e.project_id is None:
                 return client.hourly_rate
-            if e.project_id not in rate_cache:
-                proj = repository.get_project(session, e.project_id, user_id)
-                rate_cache[e.project_id] = (
-                    proj.hourly_rate if proj and proj.hourly_rate is not None else client.hourly_rate)
+            project_name(e.project_id)  # populates rate_cache
             return rate_cache[e.project_id]
 
-        items, net = [], Decimal(0)
-        for i, e in enumerate(entries):
-            hrs = _q(Decimal(e.minutes) / Decimal(60))
-            rate = rate_for(e)
-            amount = _q(hrs * rate)
-            net += amount
-            items.append(InvoiceItem(description=flatten(e.description) or "Service",
-                                     hours=hrs, rate=rate, amount=amount, position=i))
+        lang = rec.language if rec.language in ("de", "en") else "de"
+        # retainers bill one line per entry (group_by="none"); shares the create-invoice builder
+        items, net = build_items(entries, rate_for, project_name, group_by="none", lang=lang)
         return items, net, entries
 
     # flat fee

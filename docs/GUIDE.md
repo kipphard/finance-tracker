@@ -145,6 +145,10 @@ Four tabs: **Time · Clients · Invoices · Settings**.
 ### Invoices
 - **Create from tracked time**: pick a client (+ optional project), tick exactly which
   **unbilled entries** to bill (or narrow by date range) — with a running total.
+- **Group lines** (optional, no AI): instead of one line per entry, bundle them **by project,
+  week, or month** into a single combined line each — a heading (project name / "KW 23 (…)" /
+  "Juni 2026") plus the distinct tasks as bullets, with hours summed. Entries at different rates
+  stay on separate lines. Turns ~25 raw entries into a handful of tidy lines you can still edit.
 - **Blank invoice**: start empty to bill a **flat project/service fee** with no tracked time.
 - **Recurring / retainers**: a "Recurring invoices" panel where you set a client (+ project) on
   a schedule (weekly … yearly) that **auto-drafts an invoice each period** — either a **flat fee

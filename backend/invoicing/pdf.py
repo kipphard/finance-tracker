@@ -19,7 +19,6 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from backend.invoicing.i18n import texts
-from backend.invoicing.text import flatten
 
 
 def _girocode(profile, invoice):
@@ -124,7 +123,8 @@ def render_invoice(profile, client, invoice, project=None) -> bytes:
     for item in invoice.items:
         dur = _hours(item.hours) if Decimal(item.hours) > 0 else ""  # flat lines show no hours
         rows.append([
-            Paragraph(_esc(flatten(item.description)), base),
+            # multi-line: grouped lines render a theme header + bulleted tasks (\n → <br/>)
+            Paragraph(_multiline(item.description), base),
             Paragraph(dur, right),
             Paragraph(_money(item.amount), right),
         ])

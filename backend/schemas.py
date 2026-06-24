@@ -842,6 +842,8 @@ class InvoiceCreate(BaseModel):
     from_date: date | None = None
     to_date: date | None = None
     entry_ids: list[uuid.UUID] | None = None  # explicit selection; else all unbilled (in range)
+    # bundle entries into combined lines: "none" (one line per entry) | "project" | "week" | "month"
+    group_by: str = "none"
 
 
 class InvoiceItemIn(BaseModel):

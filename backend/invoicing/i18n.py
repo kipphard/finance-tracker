@@ -7,6 +7,13 @@ DEFAULT_LANGUAGE = "de"
 INVOICE_TEXT = {
     "de": {
         "date_format": "%d.%m.%Y",
+        "date_short": "%d.%m.",
+        "week": "KW",
+        "general": "Allgemein",
+        "months": (
+            "Januar", "Februar", "März", "April", "Mai", "Juni",
+            "Juli", "August", "September", "Oktober", "November", "Dezember",
+        ),
         "invoice_no": "Rechnung Nr.",
         "project": "Projekt",
         "service": "Leistung",
@@ -30,6 +37,13 @@ INVOICE_TEXT = {
     },
     "en": {
         "date_format": "%B %d, %Y",
+        "date_short": "%b %d",
+        "week": "Week",
+        "general": "General",
+        "months": (
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ),
         "invoice_no": "Invoice No.",
         "project": "Project",
         "service": "Service",
@@ -56,5 +70,5 @@ INVOICE_TEXT = {
 }
 
 
-def texts(language: str | None) -> dict[str, str]:
+def texts(language: str | None) -> dict:
     return INVOICE_TEXT.get(language or DEFAULT_LANGUAGE, INVOICE_TEXT[DEFAULT_LANGUAGE])

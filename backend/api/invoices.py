@@ -11,9 +11,9 @@ from fastapi import APIRouter, HTTPException, Response
 from backend.api.deps import CurrentUser, DemoBlockedUser, SessionDep
 from backend.config import get_settings
 from backend.invoicing.email import send_invoice_email
+from backend.invoicing.grouping import build_items
 from backend.invoicing.i18n import texts
 from backend.invoicing.pdf import render_invoice
-from backend.invoicing.text import flatten
 from backend.persistence import repository
 from backend.persistence.models import InvoiceItem
 from backend.schemas import (
@@ -30,10 +30,6 @@ router = APIRouter(prefix="/invoices", tags=["freelance"])
 
 def _q(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def _hours(minutes: int) -> Decimal:
-    return _q(Decimal(minutes) / Decimal(60))
 
 
 def _gross(net: Decimal, vat_rate: Decimal) -> Decimal:
@@ -128,29 +124,28 @@ def create_invoice(payload: InvoiceCreate, session: SessionDep, user: CurrentUse
 
     # each entry bills at its project's rate override, falling back to the client's rate
     rate_cache: dict[uuid.UUID, Decimal] = {}
+    name_cache: dict[uuid.UUID, str | None] = {}
+
+    def _project(entry_project_id: uuid.UUID | None):
+        if entry_project_id is None:
+            return None
+        if entry_project_id not in name_cache:
+            proj = repository.get_project(session, entry_project_id, user.id)
+            name_cache[entry_project_id] = proj.name if proj else None
+            rate_cache[entry_project_id] = (
+                proj.hourly_rate if proj and proj.hourly_rate is not None else client.hourly_rate
+            )
+        return name_cache[entry_project_id]
 
     def _rate_for(entry) -> Decimal:
         if entry.project_id is None:
             return client.hourly_rate
-        if entry.project_id not in rate_cache:
-            proj = repository.get_project(session, entry.project_id, user.id)
-            rate_cache[entry.project_id] = (
-                proj.hourly_rate if proj and proj.hourly_rate is not None else client.hourly_rate
-            )
+        _project(entry.project_id)  # populates rate_cache
         return rate_cache[entry.project_id]
 
-    entries.sort(key=lambda e: e.started_at)
-    items: list[InvoiceItem] = []
-    net = Decimal(0)
-    for i, e in enumerate(entries):
-        hrs = _hours(e.minutes)
-        rate = _rate_for(e)
-        amount = _q(hrs * rate)
-        net += amount
-        items.append(InvoiceItem(
-            description=flatten(e.description) or "Service", hours=hrs,
-            rate=rate, amount=amount, position=i,
-        ))
+    items, net = build_items(
+        entries, _rate_for, _project, group_by=payload.group_by, lang=language
+    )
 
     number = str(profile.next_invoice_number)
     profile.next_invoice_number += 1
@@ -213,7 +208,8 @@ def replace_items(
         amount = _q(item.amount if item.amount is not None else item.hours * item.rate)
         net += amount
         invoice.items.append(InvoiceItem(
-            description=flatten(item.description), hours=item.hours, rate=item.rate,
+            # keep newlines so grouped "theme + bullet" lines survive an edit/save round-trip
+            description=(item.description or "").strip(), hours=item.hours, rate=item.rate,
             amount=amount, position=i,
         ))
     invoice.total = _gross(net, invoice.vat_rate)  # gross = net + VAT (0 for Kleinunternehmer)

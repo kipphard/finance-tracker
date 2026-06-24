@@ -99,6 +99,7 @@ function NewInvoiceForm({ onClose }: { onClose: () => void }) {
   const [language, setLanguage] = useState<string>("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [groupBy, setGroupBy] = useState("none");  // none | project | week | month
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +175,7 @@ function NewInvoiceForm({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     if (!clientId) return setError("Pick a client");
     if (chosen.length === 0) return setError("Select at least one entry to bill");
-    await create({ entry_ids: chosen.map((en) => en.id) });
+    await create({ entry_ids: chosen.map((en) => en.id), group_by: groupBy });
   };
 
   const createBlank = async () => {
@@ -226,7 +227,21 @@ function NewInvoiceForm({ onClose }: { onClose: () => void }) {
               <label>To (optional)</label>
               <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
+            <div className="field">
+              <label>Group lines by</label>
+              <select className="select" value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                <option value="none">One line per entry</option>
+                <option value="project">Project</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+              </select>
+            </div>
           </div>
+          {groupBy !== "none" && (
+            <div className="muted" style={{ fontSize: 12, marginTop: -4 }}>
+              Similar entries are bundled into one line each (a heading + the tasks as bullets); hours are summed. You can still edit every line afterwards.
+            </div>
+          )}
 
           <Async state={entriesState}>
             {() => (entries.length === 0 ? (

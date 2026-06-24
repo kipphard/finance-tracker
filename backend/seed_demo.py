@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from sqlalchemy import delete, select
 
+from backend.invoicing.grouping import build_items
 from backend.persistence.database import SessionLocal
 from backend.persistence.models import (
     Account,
@@ -430,6 +431,41 @@ def seed_demo_for_user(session, user_id) -> dict:
     overdue_inv.items = hel_items
     overdue_inv.total = _q(hel_total)
 
+    # A third Brandwerk invoice that demonstrates "group by project": many varied entries across
+    # two projects bundled into one line each (theme header + tasks as bullets, hours summed).
+    grouped_inv = Invoice(
+        user_id=uid, client_id=brandwerk.id, number="100003",
+        issue_date=(now - timedelta(days=2)).date(),
+        due_date=(now + timedelta(days=12)).date(), place="Köln", language="de",
+        intro_text=(
+            "Sehr geehrte Damen und Herren,\n\nvielen Dank für die gute Zusammenarbeit. "
+            "Hiermit stelle ich Ihnen die folgenden Leistungen in Rechnung:"
+        ),
+        status="draft", vat_rate=D("0"), total=D("0"),
+    )
+    session.add(grouped_inv)
+    session.flush()
+    grouped_billed = [
+        tentry(brandwerk, 14, 9, 120, "Newsletter-Template gebaut", grouped_inv, relaunch),
+        tentry(brandwerk, 13, 11, 75, "Produktbilder optimiert & eingepflegt", grouped_inv, relaunch),
+        tentry(brandwerk, 12, 14, 45, "SEO-Meta-Tags ergänzt", grouped_inv, relaunch),
+        tentry(brandwerk, 9, 10, 60, "Sicherheitsupdates eingespielt", grouped_inv, care),
+        tentry(brandwerk, 8, 16, 30, "Monatliches Backup geprüft", grouped_inv, care),
+    ]
+    _proj_by_id = {relaunch.id: relaunch, care.id: care}
+
+    def _grp_rate(e):
+        p = _proj_by_id.get(e.project_id)
+        return p.hourly_rate if p and p.hourly_rate is not None else brandwerk.hourly_rate
+
+    def _grp_name(pid):
+        p = _proj_by_id.get(pid)
+        return p.name if p else None
+
+    g_items, g_net = build_items(grouped_billed, _grp_rate, _grp_name, group_by="project", lang="de")
+    grouped_inv.items = g_items
+    grouped_inv.total = _q(g_net)
+
     tentry(mondia, 8, 9, 240, "Speisekarte für Web & Print gestaltet")
     tentry(mondia, 4, 14, 180, "Instagram-Grafiken (5 Posts)")
     tentry(mondia, 4, 17, 90, "Logo-Varianten")
@@ -444,7 +480,7 @@ def seed_demo_for_user(session, user_id) -> dict:
     session.flush()
     return {
         "transactions": len(ledger), "accounts": 5, "categories": len(cats),
-        "clients": 3, "projects": 2, "time_entries": 11, "invoices": 2, "retainers": 1,
+        "clients": 3, "projects": 2, "time_entries": 16, "invoices": 3, "retainers": 1,
     }
 
 

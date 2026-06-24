@@ -102,7 +102,9 @@ function ItemsEditor({ invoice, onSaved }: { invoice: InvoiceOut; onSaved: () =>
           {lines.map((l, i) => (
             <tr key={i}>
               <td>
-                <input className="input" value={l.description} placeholder="Service / Pauschale"
+                <textarea className="input" value={l.description} placeholder="Service / Pauschale"
+                  rows={Math.max(1, l.description.split("\n").length)}
+                  style={{ resize: "vertical", minHeight: "2.2em", lineHeight: 1.35 }}
                   onChange={(e) => setField(i, { description: e.target.value })} />
               </td>
               <td className="ftable__num">

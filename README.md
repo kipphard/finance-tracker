@@ -34,7 +34,8 @@ leftover split), alerts); reports + a tax-advisor CSV export.
 
 **🧑‍💻 Business** — start/stop timer (survives reloads) + manual entries; clients with hour
 budgets and projects with per-project rate/budget overrides; invoices built from tracked time
-or as a blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** language,
+(optionally **grouping similar entries by project/week/month** into combined lines) or as a
+blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** language,
 **Kleinunternehmer §19 / 19% VAT**, due dates + overdue tracking, a scan-to-pay **GiroCode**,
 **PDF** download, in-app **email** (Gmail SMTP), and **auto-reconciliation** that marks an
 invoice paid from the matching bank transaction (and lists the Zahlungseingang).
