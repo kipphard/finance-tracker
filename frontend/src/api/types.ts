@@ -432,6 +432,92 @@ export interface RunwayOut {
   earmarked: string;
 }
 
+export interface CashEventOut {
+  date: string;
+  amount: string;
+  direction: string;
+  kind: string;
+  label: string;
+  source_id: string | null;
+}
+
+export interface CashflowDayOut {
+  date: string;
+  inflow: string;
+  outflow: string;
+  net: string;
+  balance: string;
+  events: CashEventOut[];
+}
+
+export interface CashflowCalendarOut {
+  currency: string;
+  start_balance: string;
+  days: CashflowDayOut[];
+  min_balance: string;
+  min_balance_date: string | null;
+  first_negative_date: string | null;
+  total_inflow: string;
+  total_outflow: string;
+}
+
+export interface PaycheckLineOut {
+  label: string;
+  amount: string;
+}
+
+export interface PaycheckOut {
+  currency: string;
+  sustainable_pay: string;
+  trailing_net: string;
+  trailing_income: string;
+  monthly_fixed: string;
+  tax_setaside: string;
+  goal_setaside: string;
+  liquid: string;
+  capped_by_liquid: boolean;
+  breakdown: PaycheckLineOut[];
+}
+
+export interface TaxDeadlineOut {
+  date: string;
+  kind: string;
+  label: string;
+  amount: string | null;
+  note: string | null;
+}
+
+export interface TaxCalendarOut {
+  year: number;
+  is_kleinunternehmer: boolean;
+  deadlines: TaxDeadlineOut[];
+}
+
+export interface ReconcilePreviewOut {
+  account_id: string;
+  as_of: string;
+  computed_balance: string;
+  asserted_balance: string;
+  delta: string;
+  currency: string;
+}
+
+export interface ReconcileOut extends ReconcilePreviewOut {
+  adjusted: boolean;
+  transaction_id: string | null;
+}
+
+export interface ReconciliationOut {
+  id: string;
+  account_id: string;
+  as_of: string;
+  asserted_balance: string;
+  computed_balance: string;
+  delta: string;
+  transaction_id: string | null;
+  created_at: string;
+}
+
 export interface ClientProfitOut {
   client_id: string;
   name: string;

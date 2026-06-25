@@ -31,6 +31,13 @@ toggle lives in the sidebar.
 - A **net-worth hero** with the headline total + a **trend chart** from daily snapshots
   (auto-snapshotted nightly; you can also "Take snapshot" manually).
 - Brokerage accounts can carry an **expected return** that feeds the forecast.
+- **Reconcile** (⚖ on an account row) — because a manual account's balance is the *sum of its
+  transactions*, it can drift from the real bank balance over time (a forgotten cash spend, an
+  import miss). Assert the **real balance on a date**; the app shows the discrepancy vs the
+  computed balance and books **one labelled "Balance reconciliation" entry** for the difference so
+  the balance matches reality going forward. That entry is an internal `is_transfer` adjustment —
+  **excluded from income/expense and the EÜR**, but counted in the balance — and each reconcile is
+  kept as a per-account history. (Editing an account no longer has a balance field; use Reconcile.)
 
 ### Transactions
 - **Add transactions** by hand (account · date · amount · payee), or **import a bank CSV**
@@ -56,6 +63,11 @@ toggle lives in the sidebar.
   earmarked too via an **"exclude from runway"** toggle: a linked **emergency fund** is excluded by
   default (it's money you've set aside — flip it off if you'd rather count it as survival runway),
   and any linked **%-bucket** (e.g. a Savings → Tagesgeld) can be opted in.
+- **Sustainable monthly pay** — the freelancer's "how much can I pay myself this month?" number.
+  Takes your trailing **average monthly net** (the same figure runway/forecast use, so fixed costs
+  are already baked in), subtracts the recommended **tax-reserve** set-aside and any **planned
+  savings**, and then **caps the result at your liquid balance** so it never suggests paying out
+  cash you don't have. Turns lumpy freelance income into one steady figure. A guide, not advice.
 - **Distribute leftover (Allocation)** — split the monthly leftover (income − fixed) into buckets
   (Savings/Invest/Fun). These are taken *off the top* in order: **Debt** first, then the
   **Emergency fund** cut from what's left after debt (its % applies to *leftover − debt*), then
@@ -90,13 +102,19 @@ toggle lives in the sidebar.
   estimate — Soli, church tax and (for §19) VAT aren't included; not tax advice.*
 - **Debts / "to pay off"** — one-off obligations; overdue ones surface in Alerts.
 - **Budgets** — per-category monthly limits with spend-vs-limit progress bars.
-- **Alerts** — over-budget categories, bills due soon, etc.
+- **Alerts** — over-budget categories, bills due soon, debts due, and **upcoming tax deadlines**
+  (the next Einkommensteuer-Vorauszahlung / USt-Voranmeldung — see *Taxes → Steuertermine*).
 
 ### 📈 Analytics (sub-tab)
 
 Charts and breakdowns — read-only, for spotting trends. Its own drag-to-reorder masonry grid.
 
 - **Net-worth forecast** — net worth projected from your average monthly net + account returns.
+- **Cashflow calendar** — a **day-by-day liquidity timeline** for the next 60–90 days, built only
+  from *dated* events: recurring items + cashflow items, expected invoice payments (by due date),
+  planned-purchase saves, debts, and tax-payment dates. It runs your liquid balance forward and
+  **flags the tightest day** (and any day it would go negative). The dated counterpart to the
+  smooth net-worth forecast.
 - **Income & expense** — actual monthly in/out over a date range you pick.
 - **Cashflow — last 12 months** — a per-month inflow/outflow bar chart from real transactions.
 - **Spending by category** — a donut of where the money went, with a **CSV export** for your tax
@@ -236,6 +254,12 @@ of the Overview (defaults to the last completed year — the one you file).
   Enter the **einbehaltene Lohnsteuer** (line 4 of your *Lohnsteuerbescheinigung* — not Soli or
   church tax) and any prepayments under *Angaben*. A rough estimate only: it uses the single
   Grundtarif (no Ehegatten-Splitting) and excludes Soli/church tax.
+- **Steuertermine <year>.** The year's deadlines: the four **Einkommensteuer-Vorauszahlung** dates
+  (10 Mar/Jun/Sep/Dec, each with an estimated quarter amount from your prepayment or the §32a
+  projection), the quarterly **Umsatzsteuer-Voranmeldung** (only shown when you're *not*
+  Kleinunternehmer), and the **EÜR/Steuererklärung filing date**. The next ones also pop up in the
+  **Alerts** card and on the **Cashflow calendar**. Statutory dates (no weekend/holiday shift);
+  estimate only, not tax advice.
 - **Angaben für <year>.** Edit the year-specific numbers here — gross salary / other income,
   einbehaltene Lohnsteuer, Einkommensteuer-Vorauszahlungen, Homeoffice days, business km — and the
   figures recompute.

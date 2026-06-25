@@ -13,12 +13,15 @@ from backend.schemas import (
     ElsterPromptOut,
     EurReportOut,
     ExpenseLineOut,
+    TaxCalendarOut,
+    TaxDeadlineOut,
     TaxLineItemOut,
     TaxProfileOut,
     TaxProfileUpdate,
     TaxYearInputOut,
     TaxYearInputUpdate,
 )
+from backend.tax.deadlines import tax_calendar
 from backend.tax.elster import build_elster_prompt
 from backend.tax.eur import EurResult, compute_eur
 
@@ -95,6 +98,21 @@ def eur_report(
     eur = compute_eur(session, user.id, year or _default_year())
     session.commit()  # persists any default profile/year rows created during computation
     return _to_out(eur)
+
+
+@router.get("/calendar", response_model=TaxCalendarOut)
+def tax_calendar_view(
+    session: SessionDep, user: CurrentUser, year: int = Query(default=None)
+) -> TaxCalendarOut:
+    """German freelancer tax deadlines for a year (ESt-Vorauszahlung, USt-Voranmeldung, EÜR filing)."""
+    y = year or _default_year()
+    is_klein, deadlines = tax_calendar(session, user.id, y)
+    session.commit()  # persists any default profile/year rows created during the computation
+    return TaxCalendarOut(
+        year=y,
+        is_kleinunternehmer=is_klein,
+        deadlines=[TaxDeadlineOut.model_validate(d) for d in deadlines],
+    )
 
 
 @router.get("/elster-prompt", response_model=ElsterPromptOut)

@@ -11,6 +11,7 @@ from backend.config import get_settings
 from backend.networth.aggregator import compute_net_worth
 from backend.persistence import repository
 from backend.persistence.models import ConnectionStatus
+from backend.tax.deadlines import build_tax_deadlines
 
 _BILL_DUE_WINDOW_DAYS = 7
 _CONSENT_WARN_DAYS = 14
@@ -93,7 +94,7 @@ def budget_status(
 @dataclass
 class Alert:
     level: str  # "danger" | "warning" | "info"
-    kind: str  # "budget" | "bill" | "consent"
+    kind: str  # "budget" | "bill" | "consent" | "debt" | "tax"
     message: str
 
 
@@ -158,6 +159,13 @@ def build_alerts(session: Session, user_id, as_of: datetime | None = None) -> li
             alerts.append(
                 Alert("warning", "debt", f"{debt.name} ({debt.amount}) due {when}")
             )
+
+    for deadline in build_tax_deadlines(session, user_id, as_of):
+        days = (deadline.date - today).days
+        if 0 <= days <= _BILL_DUE_WINDOW_DAYS:
+            when = "today" if days == 0 else f"in {days}d"
+            amount = f" ({deadline.amount})" if deadline.amount is not None else ""
+            alerts.append(Alert("warning", "tax", f"{deadline.label} due {when}{amount}"))
 
     return alerts
 

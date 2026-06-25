@@ -89,6 +89,41 @@ class BalanceOut(BaseModel):
     ts: datetime
 
 
+# --- reconciliation (assert the real balance, fix computed drift) --------
+
+
+class ReconcileIn(BaseModel):
+    asserted_balance: Decimal
+    as_of: date
+
+
+class ReconcilePreviewOut(BaseModel):
+    account_id: uuid.UUID
+    as_of: date
+    computed_balance: Decimal     # sum of transactions up to as_of
+    asserted_balance: Decimal     # the real balance the user entered
+    delta: Decimal                # asserted − computed (the adjusting entry amount)
+    currency: str
+
+
+class ReconcileOut(ReconcilePreviewOut):
+    adjusted: bool                # False when |delta| was ~0 (no entry booked)
+    transaction_id: uuid.UUID | None = None
+
+
+class ReconciliationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    account_id: uuid.UUID
+    as_of: date
+    asserted_balance: Decimal
+    computed_balance: Decimal
+    delta: Decimal
+    transaction_id: uuid.UUID | None = None
+    created_at: datetime
+
+
 class BreakdownItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -972,6 +1007,88 @@ class RunwayOut(BaseModel):
     monthly_net: Decimal      # average monthly net (negative = burning)
     runway_months: Decimal | None = None  # None when net-positive (no burn)
     earmarked: Decimal = Decimal(0)  # balance of earmarked accounts (e.g. tax reserve), excluded
+
+
+# --- cashflow calendar (dated liquidity timeline) ------------------------
+
+
+class CashEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: date
+    amount: Decimal           # signed: inflow > 0, outflow < 0
+    direction: str            # "inflow" | "outflow"
+    kind: str                 # cashflow_item | recurring_txn | invoice | planned_save | debt | tax
+    label: str
+    source_id: str | None = None
+
+
+class CashflowDayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: date
+    inflow: Decimal
+    outflow: Decimal
+    net: Decimal
+    balance: Decimal          # projected running liquid balance at end of day
+    events: list[CashEventOut] = []
+
+
+class CashflowCalendarOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    currency: str
+    start_balance: Decimal
+    days: list[CashflowDayOut]
+    min_balance: Decimal              # the tightest projected balance in the window
+    min_balance_date: date | None = None
+    first_negative_date: date | None = None
+    total_inflow: Decimal
+    total_outflow: Decimal
+
+
+# --- freelancer paycheck (safe-to-spend) ---------------------------------
+
+
+class PaycheckLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    amount: Decimal
+
+
+class PaycheckOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    currency: str
+    sustainable_pay: Decimal
+    trailing_net: Decimal
+    trailing_income: Decimal
+    monthly_fixed: Decimal
+    tax_setaside: Decimal
+    goal_setaside: Decimal
+    liquid: Decimal
+    capped_by_liquid: bool
+    breakdown: list[PaycheckLineOut] = []
+
+
+# --- tax deadline calendar -----------------------------------------------
+
+
+class TaxDeadlineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: date
+    kind: str                 # est_vorauszahlung | ust_voranmeldung | est_erklaerung
+    label: str
+    amount: Decimal | None = None
+    note: str | None = None
+
+
+class TaxCalendarOut(BaseModel):
+    year: int
+    is_kleinunternehmer: bool
+    deadlines: list[TaxDeadlineOut]
 
 
 class ClientProfitOut(BaseModel):

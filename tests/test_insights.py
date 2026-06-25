@@ -113,3 +113,23 @@ def test_forecast_from_transaction_history(db_session, user):
     assert len(forecast.points) == 4
     assert forecast.points[0].projected == Decimal("1500.00")
     assert forecast.points[3].projected == Decimal("3000.00")  # 1500 + 500*3
+
+
+def test_tax_deadline_alert_fires_in_window(db_session, user):
+    # 5 days before the 10 Jun Einkommensteuer-Vorauszahlung.
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
+    tax = [a for a in build_alerts(db_session, user.id, as_of) if a.kind == "tax"]
+    assert any("Vorauszahlung" in a.message for a in tax)
+
+
+def test_ust_voranmeldung_only_for_non_kleinunternehmer(db_session, user):
+    # 4 days before the 10 Apr USt-Voranmeldung; default profile is Kleinunternehmer → hidden.
+    as_of = datetime(2026, 4, 6, tzinfo=timezone.utc)
+    klein = [a for a in build_alerts(db_session, user.id, as_of) if a.kind == "tax"]
+    assert not any("Umsatzsteuer" in a.message for a in klein)
+
+    profile = repository.get_business_profile(db_session, user.id)
+    profile.is_kleinunternehmer = False
+    db_session.flush()
+    after = [a for a in build_alerts(db_session, user.id, as_of) if a.kind == "tax"]
+    assert any("Umsatzsteuer" in a.message for a in after)

@@ -5,6 +5,7 @@ import { CardGrid } from "./CardGrid";
 import { NetWorthHero } from "./NetWorthHero";
 import { AccountsCard } from "./AccountsCard";
 import { RunwayCard } from "./RunwayCard";
+import { PaycheckCard } from "./PaycheckCard";
 import { AllocationCard } from "./AllocationCard";
 import { PlannedPurchasesCard } from "./PlannedPurchasesCard";
 import { EmergencyFundCard } from "./EmergencyFundCard";
@@ -21,6 +22,7 @@ const DEFAULT_ORDER = [
   "networth",
   "accounts",
   "runway",
+  "paycheck",
   "allocation",
   "planned",
   "emergency",
@@ -46,6 +48,7 @@ export function Dashboard() {
     networth: <NetWorthHero />,
     accounts: <AccountsCard />,
     runway: <RunwayCard />,
+    paycheck: <PaycheckCard />,
     allocation: <AllocationCard />,
     planned: <PlannedPurchasesCard />,
     emergency: <EmergencyFundCard />,

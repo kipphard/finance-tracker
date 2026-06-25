@@ -227,3 +227,14 @@ def test_refund_or_owed_full_year_picture(client):
     client.patch("/api/tax/year/2025", json={"income_tax_prepaid": "99999"})
     eur = client.get("/api/tax/eur", params={"year": 2025}).json()
     assert Decimal(str(eur["refund_or_owed"])) < 0  # an Erstattung (refund)
+
+
+def test_tax_calendar_endpoint(client):
+    body = client.get("/api/tax/calendar", params={"year": 2026}).json()
+    assert body["year"] == 2026
+    kinds = {d["kind"] for d in body["deadlines"]}
+    assert "est_vorauszahlung" in kinds
+    assert "est_erklaerung" in kinds
+    # Default profile is Kleinunternehmer → no USt-Voranmeldung rows.
+    assert body["is_kleinunternehmer"] is True
+    assert "ust_voranmeldung" not in kinds

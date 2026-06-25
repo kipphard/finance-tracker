@@ -8,24 +8,29 @@ from fastapi import APIRouter, Query, Response
 
 from backend.api.deps import CurrentUser, SessionDep
 from backend.config import get_settings
+from backend.cashflow.calendar import build_cashflow_calendar
+from backend.insights.liquidity import ILLIQUID_TYPES, liquid_balance
+from backend.insights.paycheck import compute_paycheck
 from backend.insights.service import build_forecast
 from backend.persistence import repository
 from backend.reporting import income_expense, monthly_cashflow, transactions_csv
 from backend.schemas import (
+    CashflowCalendarOut,
     CategoryBreakdownItem,
     CategoryTotalOut,
     ClientProfitOut,
     FreelanceInsightsOut,
     IncomeExpenseOut,
     MonthlyCashflowPoint,
+    PaycheckOut,
     ProjectBurnOut,
     RunwayOut,
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
-# account types treated as not-liquid for the cash-runway calculation
-ILLIQUID_TYPES = {"brokerage", "investment", "property", "crypto", "retirement", "pension"}
+# ILLIQUID_TYPES is re-exported from backend.insights.liquidity for backward compatibility.
+__all__ = ["router", "ILLIQUID_TYPES"]
 
 
 def _q(v: Decimal) -> Decimal:
@@ -121,23 +126,32 @@ def runway(session: SessionDep, user: CurrentUser) -> RunwayOut:
     monthly_net = Decimal(forecast.monthly_net)
     # Accounts earmarked for a savings goal (e.g. the tax reserve) hold money that's already
     # spoken for, so they don't count toward spendable runway.
-    earmarked_ids = repository.earmarked_account_ids(session, user.id)
-    liquid = Decimal(0)
-    earmarked = Decimal(0)
-    for acc in repository.list_accounts(session, user.id):
-        if (acc.type or "").lower() in ILLIQUID_TYPES:
-            continue
-        balance = repository.account_balance(session, acc)
-        if acc.id in earmarked_ids:
-            earmarked += balance
-            continue
-        liquid += balance
+    liquid, earmarked = liquid_balance(session, user.id)
     runway_months = _q(liquid / (-monthly_net)) if (monthly_net < 0 and liquid > 0) else None
     return RunwayOut(
         currency=get_settings().app_base_currency,
         liquid=_q(liquid), monthly_net=_q(monthly_net), runway_months=runway_months,
         earmarked=_q(earmarked),
     )
+
+
+@router.get("/cashflow-calendar", response_model=CashflowCalendarOut)
+def cashflow_calendar(
+    session: SessionDep, user: CurrentUser, days: int = Query(default=90, ge=14, le=120)
+) -> CashflowCalendarOut:
+    """Day-by-day projection of dated cash events + running liquid balance for the next N days."""
+    calendar = build_cashflow_calendar(session, user.id, days)
+    session.commit()  # persists any default tax profile/year rows touched by the tax-deadline pass
+    return CashflowCalendarOut.model_validate(calendar)
+
+
+@router.get("/paycheck", response_model=PaycheckOut)
+def paycheck(session: SessionDep, user: CurrentUser) -> PaycheckOut:
+    """A sustainable 'pay yourself' figure: trailing net minus tax reserve and planned savings,
+    capped by the liquid balance."""
+    result = compute_paycheck(session, user.id)
+    session.commit()  # persists any default tax reserve/profile rows created during the compute
+    return PaycheckOut.model_validate(result)
 
 
 @router.get("/freelance-insights", response_model=FreelanceInsightsOut)

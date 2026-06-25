@@ -12,4 +12,6 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 @router.get("", response_model=list[AlertOut])
 def list_alerts(session: SessionDep, user: CurrentUser) -> list[AlertOut]:
-    return [AlertOut(**vars(a)) for a in build_alerts(session, user.id)]
+    alerts = [AlertOut(**vars(a)) for a in build_alerts(session, user.id)]
+    session.commit()  # the tax-deadline pass lazily creates default tax profile/year rows
+    return alerts

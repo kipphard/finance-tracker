@@ -36,6 +36,7 @@ from backend.persistence.models import (
     NetWorthSnapshot,
     PlannedPurchase,
     Project,
+    Reconciliation,
     Recurring,
     RecurringInvoice,
     Rule,
@@ -87,7 +88,7 @@ def delete_user(session: Session, user_id: uuid.UUID) -> bool:
     session.execute(delete(Balance).where(Balance.account_id.in_(acct_ids)))
     for model in (
         TimeEntry, Invoice, RecurringInvoice, Project, Client, BusinessProfile,
-        Attachment, Transaction, CashflowItem, Recurring, Budget, Debt,
+        Reconciliation, Attachment, Transaction, CashflowItem, Recurring, Budget, Debt,
         Allocation, AllocationApply, PlannedPurchase, EmergencyFund, TaxReserve,
         NetWorthSnapshot, Rule, TaxYearInput, TaxProfile, Connection, Category, Account,
     ):
@@ -189,21 +190,66 @@ def latest_balance(session: Session, account_id: uuid.UUID) -> Balance | None:
     return session.execute(stmt).scalars().first()
 
 
-def account_balance(session: Session, account: Account) -> Decimal:
-    """Bank-linked accounts use their latest synced balance; manual accounts are the sum of
-    their transactions up to *now* (transaction-first). Future-dated transactions are planned,
-    not yet realized, so they don't count toward the current balance until their date arrives."""
+def account_balance_as_of(session: Session, account: Account, as_of: datetime) -> Decimal:
+    """The manual-account balance as of a point in time: the sum of its (non-excluded)
+    transactions dated ``<= as_of``. Bank-linked accounts use their latest synced balance
+    (the bank is authoritative; an as-of point isn't reconstructable from a single figure)."""
     if account.connection_id is not None:
         latest = latest_balance(session, account.id)
         return Decimal(latest.amount) if latest is not None else Decimal("0")
     total = session.execute(
         select(func.coalesce(func.sum(Transaction.amount), 0)).where(
             Transaction.account_id == account.id,
-            Transaction.ts <= datetime.now(timezone.utc),
+            Transaction.ts <= as_of,
             Transaction.excluded.is_(False),
         )
     ).scalar_one()
     return Decimal(str(total))
+
+
+def account_balance(session: Session, account: Account) -> Decimal:
+    """Bank-linked accounts use their latest synced balance; manual accounts are the sum of
+    their transactions up to *now* (transaction-first). Future-dated transactions are planned,
+    not yet realized, so they don't count toward the current balance until their date arrives."""
+    return account_balance_as_of(session, account, datetime.now(timezone.utc))
+
+
+def create_reconciliation(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    account_id: uuid.UUID,
+    as_of,
+    asserted_balance: Decimal,
+    computed_balance: Decimal,
+    delta: Decimal,
+    transaction_id: uuid.UUID | None = None,
+) -> Reconciliation:
+    row = Reconciliation(
+        user_id=user_id,
+        account_id=account_id,
+        as_of=as_of,
+        asserted_balance=asserted_balance,
+        computed_balance=computed_balance,
+        delta=delta,
+        transaction_id=transaction_id,
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def list_reconciliations(
+    session: Session, user_id: uuid.UUID, account_id: uuid.UUID | None = None
+) -> list[Reconciliation]:
+    stmt = select(Reconciliation).where(Reconciliation.user_id == user_id)
+    if account_id is not None:
+        stmt = stmt.where(Reconciliation.account_id == account_id)
+    return list(
+        session.execute(stmt.order_by(Reconciliation.as_of.desc(), Reconciliation.created_at.desc()))
+        .scalars()
+        .all()
+    )
 
 
 def update_account(session: Session, account: Account, **fields) -> Account:
@@ -223,6 +269,7 @@ def delete_account(session: Session, account_id: uuid.UUID, user_id: uuid.UUID) 
     ]
     if txn_ids:
         session.execute(delete(Attachment).where(Attachment.transaction_id.in_(txn_ids)))
+    session.execute(delete(Reconciliation).where(Reconciliation.account_id == account_id))
     session.execute(delete(Transaction).where(Transaction.account_id == account_id))
     session.execute(delete(Balance).where(Balance.account_id == account_id))
     session.execute(delete(Recurring).where(Recurring.account_id == account_id))

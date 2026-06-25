@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 # Day 01 of the current month: always <= today, so it falls inside the default
@@ -92,3 +92,35 @@ def test_freelance_insights(client):
     pb = next(p for p in ins["projects"] if p["project_id"] == proj)
     assert Decimal(str(pb["tracked_hours"])) == Decimal("2.00")
     assert pb["over_budget"] is True
+
+
+def test_paycheck_zero_when_nothing_earned(client):
+    client.post("/api/accounts", json={"type": "checking", "name": "Giro"})
+    p = client.get("/api/reports/paycheck").json()
+    assert Decimal(str(p["sustainable_pay"])) == Decimal("0.00")
+
+
+def test_paycheck_liquid_matches_runway(client):
+    acc = _account(client)
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": TS, "amount": "4000", "raw_payee": "Client"})
+    p = client.get("/api/reports/paycheck").json()
+    r = client.get("/api/reports/runway").json()
+    # Shared _liquid_balance helper → the two endpoints must report the same liquid figure.
+    assert Decimal(str(p["liquid"])) == Decimal(str(r["liquid"]))
+
+
+def test_paycheck_capped_by_liquid(client):
+    # Income last month → high trailing net; move most of it to a brokerage (illiquid) so the
+    # spendable liquid balance is low and binds the recommendation.
+    giro = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    depot = client.post("/api/accounts", json={"type": "brokerage", "name": "Depot"}).json()["id"]
+    last_month = (datetime.now(timezone.utc).replace(day=1) - timedelta(days=1)).strftime("%Y-%m-15")
+    client.post(f"/api/accounts/{giro}/transactions",
+                json={"ts": f"{last_month}T00:00:00Z", "amount": "6000", "raw_payee": "Client"})
+    client.post("/api/transfers",
+                json={"from_account_id": giro, "to_account_id": depot, "amount": "5000"})
+    p = client.get("/api/reports/paycheck").json()
+    assert p["capped_by_liquid"] is True
+    assert Decimal(str(p["sustainable_pay"])) == Decimal(str(p["liquid"]))
+    assert Decimal(str(p["sustainable_pay"])) <= Decimal(str(p["trailing_net"]))

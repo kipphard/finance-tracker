@@ -22,15 +22,20 @@ Original product plan: [`docs/plan.md`](docs/plan.md).
 
 ## Features at a glance
 
-**💰 Finances** — manual accounts + net worth (with a snapshot trend chart); transactions
+**💰 Finances** — manual accounts + net worth (with a snapshot trend chart) and a **Reconcile**
+action (assert the real balance on a date → one labelled adjusting entry fixes the drift, excluded
+from income/expense + the EÜR); transactions
 (manual entry, German-tolerant CSV import, categories + a payee→category rules engine, tags,
 receipt attachments, transfers, recurring/series with auto-posting, off-balance flag); planning
-(monthly cashflow, per-category budgets, net-worth forecast, allocation buckets — linkable to real
+(monthly cashflow, per-category budgets, net-worth forecast, a **cashflow calendar** that projects
+your liquid balance day-by-day from dated events and flags the tightest day, a **sustainable
+monthly pay** figure (trailing net − tax reserve − planned savings, capped by liquid),
+allocation buckets — linkable to real
 accounts with a one-click **Apply this month** that books the transfers + debt payments, emergency fund,
 a **Steuerrücklage** tax-reserve jar (§32a-estimated income tax owed YTD vs. what you've set aside
 in an earmarked reserve account, with a recommended monthly set-aside that feeds the leftover split),
 debts, a planned-purchases wishlist (save €X/mo per item → a "Planned purchases fund" pot in the
-leftover split), alerts); reports + a tax-advisor CSV export.
+leftover split), alerts (incl. upcoming tax deadlines)); reports + a tax-advisor CSV export.
 
 **🧑‍💻 Business** — start/stop timer (survives reloads) + manual entries; clients with hour
 budgets and projects with per-project rate/budget overrides; invoices built from tracked time
@@ -50,7 +55,9 @@ transaction), the **Homeoffice-Pauschale** or **häusliches Arbeitszimmer**, and
 not tax advice) and a full-year **Erstattung/Nachzahlung** view (§32a on salary + profit minus the
 withheld Lohnsteuer from your Lohnsteuerbescheinigung and any Vorauszahlungen → refund or owed),
 a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
-Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER.
+Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER. A **Steuertermine**
+calendar surfaces the quarterly Einkommensteuer-Vorauszahlung, the (non-Kleinunternehmer)
+Umsatzsteuer-Voranmeldung, and the EÜR filing deadline — also fed into the alerts + cashflow calendar.
 
 *Works on any screen — the desktop sidebar collapses to a mobile **bottom-nav** layout on phones
 (touch-friendly forms, horizontally scrollable sub-tabs & tables, bottom-sheet modals), and it's

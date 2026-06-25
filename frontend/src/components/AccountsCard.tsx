@@ -7,6 +7,7 @@ import { useManualOrder } from "../hooks/useManualOrder";
 import { Card } from "./Card";
 import { Async } from "./Async";
 import { Modal } from "./Modal";
+import { ReconcileModal } from "./ReconcileModal";
 
 const TYPES = ["checking", "savings", "cash", "brokerage", "other"];
 
@@ -25,7 +26,6 @@ function AccountForm({
   const [type, setType] = useState(initial?.type ?? "checking");
   const [currency, setCurrency] = useState(initial?.currency ?? "EUR");
   const [opening, setOpening] = useState("");
-  const [balance, setBalance] = useState(initial ? String(num(initial.latest_balance ?? 0)) : "");
   const [expectedReturn, setExpectedReturn] = useState(
     initial ? String(num(initial.expected_return)) : "",
   );
@@ -38,7 +38,7 @@ function AccountForm({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ name, type, currency, opening, balance, expectedReturn });
+      await onSubmit({ name, type, currency, opening, expectedReturn });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -96,13 +96,9 @@ function AccountForm({
         </div>
       )}
       {editing && (
-        <div className="field">
-          <label>Balance</label>
-          <input className="input" type="number" step="0.01" value={balance}
-            onChange={(e) => setBalance(e.target.value)} />
-          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-            Changing this books a balance-adjustment transaction so your history stays correct.
-          </div>
+        <div className="muted" style={{ fontSize: 11 }}>
+          To correct the balance, use <b>⚖ Reconcile</b> on the account row — it books a single
+          labelled adjusting entry as of the date you assert.
         </div>
       )}
       {error && <div className="error">{error}</div>}
@@ -216,6 +212,7 @@ function TransferForm({
 export function AccountsCard({ className }: { className?: string }) {
   const state = useApi<AccountOut[]>("/accounts");
   const [modal, setModal] = useState<{ edit?: AccountOut } | null>(null);
+  const [reconcileFor, setReconcileFor] = useState<AccountOut | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const dnd = useManualOrder("ft_order_accounts");
   const accountList = state.data ?? [];
@@ -243,18 +240,6 @@ export function AccountsCard({ className }: { className?: string }) {
       currency: v.currency,
       expected_return: v.expectedReturn || "0",
     });
-    const target = parseFloat(v.balance);
-    if (v.balance !== "" && !Number.isNaN(target)) {
-      const current = num(account.latest_balance ?? 0);
-      const delta = Math.round((target - current) * 100) / 100;
-      if (Math.abs(delta) >= 0.005) {
-        await apiPost(`/accounts/${account.id}/transactions`, {
-          ts: new Date().toISOString().slice(0, 10) + "T00:00:00Z",
-          amount: delta.toFixed(2),
-          raw_payee: "Balance adjustment",
-        });
-      }
-    }
     state.reload();
   };
   const remove = async (id: string) => {
@@ -339,10 +324,16 @@ export function AccountsCard({ className }: { className?: string }) {
                           {a.latest_balance != null ? money(a.latest_balance, a.currency) : money(0, a.currency)}
                         </td>
                         <td className="amount">
-                          <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
-                            onClick={() => setModal({ edit: a })} title="Edit account">
-                            ✎
-                          </button>
+                          <span style={{ display: "inline-flex", gap: 4 }}>
+                            <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                              onClick={() => setReconcileFor(a)} title="Reconcile balance">
+                              ⚖
+                            </button>
+                            <button className="btn btn--ghost btn--sm" style={{ padding: "2px 8px" }}
+                              onClick={() => setModal({ edit: a })} title="Edit account">
+                              ✎
+                            </button>
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -374,6 +365,14 @@ export function AccountsCard({ className }: { className?: string }) {
             onSubmit={transfer}
           />
         </Modal>
+      )}
+
+      {reconcileFor && (
+        <ReconcileModal
+          account={reconcileFor}
+          onClose={() => setReconcileFor(null)}
+          onDone={() => state.reload()}
+        />
       )}
     </Card>
   );

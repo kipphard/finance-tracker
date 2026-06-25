@@ -34,6 +34,7 @@ from backend.persistence.models import (
     NetWorthSnapshot,
     PlannedPurchase,
     Project,
+    Reconciliation,
     Recurring,
     RecurringInvoice,
     Rule,
@@ -70,6 +71,7 @@ def wipe(session, uid):
     session.execute(delete(Client).where(Client.user_id == uid))
     session.execute(delete(BusinessProfile).where(BusinessProfile.user_id == uid))
     session.execute(delete(Attachment).where(Attachment.user_id == uid))
+    session.execute(delete(Reconciliation).where(Reconciliation.user_id == uid))
     session.execute(delete(Transaction).where(Transaction.user_id == uid))
     session.execute(delete(Balance).where(Balance.account_id.in_(acct_ids)))
     session.execute(delete(CashflowItem).where(CashflowItem.user_id == uid))

@@ -447,6 +447,35 @@ class CashflowItem(Base):
     )
 
 
+class Reconciliation(Base):
+    """A record that the user asserted an account's real balance on a date. The app books a
+    single adjusting transaction (the delta vs the computed balance) so the transaction-first
+    balance matches reality going forward; this row keeps the assertion (date + asserted amount)
+    that the delta-only transaction can't recover — a per-account reconcile history."""
+
+    __tablename__ = "reconciliations"
+    __table_args__ = (
+        Index("ix_reconciliations_user_account", "user_id", "account_id", "as_of"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    as_of: Mapped[date] = mapped_column(Date, nullable=False)
+    asserted_balance: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    computed_balance: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    delta: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    # The adjusting transaction this reconciliation booked (null when |delta| was ~0).
+    transaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 # ===== Freelance: time tracking + invoicing ==============================
 
 
