@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { useTheme } from "../theme";
 import { CommandPalette } from "./CommandPalette";
 import { Finances } from "./Finances";
+import { FeaturesScreen } from "./FeaturesScreen";
 import { Freelance } from "./freelance/Freelance";
 import { Taxes } from "./tax/Taxes";
 
@@ -15,11 +16,15 @@ const SECTIONS = [
     to: "/",
     icon: "💰",
     label: "Finances",
-    match: (p: string) => !p.startsWith("/business") && !p.startsWith("/taxes"),
+    match: (p: string) =>
+      !p.startsWith("/business") && !p.startsWith("/taxes") && !p.startsWith("/features"),
   },
   { to: "/business", icon: "🧑‍💻", label: "Business", match: (p: string) => p.startsWith("/business") },
   { to: "/taxes", icon: "🧾", label: "Taxes", match: (p: string) => p.startsWith("/taxes") },
 ];
+
+// Secondary nav — lives below the primary sections on desktop and in the mobile "More" sheet.
+const SECONDARY = [{ to: "/features", icon: "⭐", label: "Features" }];
 
 export function AppShell() {
   const { user, logout } = useAuth();
@@ -37,6 +42,12 @@ export function AppShell() {
         <nav className="sidebar__nav">
           {SECTIONS.map((s) => (
             <NavLink key={s.to} to={s.to} className={() => cls(s.match(path))}>
+              <span className="sidebar__icon">{s.icon}</span> {s.label}
+            </NavLink>
+          ))}
+          <div className="sidebar__spacer" />
+          {SECONDARY.map((s) => (
+            <NavLink key={s.to} to={s.to} className={({ isActive }) => cls(isActive)}>
               <span className="sidebar__icon">{s.icon}</span> {s.label}
             </NavLink>
           ))}
@@ -65,6 +76,7 @@ export function AppShell() {
         <Routes>
           <Route path="/business/*" element={<Freelance />} />
           <Route path="/taxes/*" element={<Taxes />} />
+          <Route path="/features" element={<FeaturesScreen />} />
           <Route path="/*" element={<Finances />} />
         </Routes>
       </main>
@@ -100,6 +112,19 @@ export function AppShell() {
                 ✕
               </button>
             </div>
+            <nav className="more-sheet__nav">
+              {SECONDARY.map((s) => (
+                <NavLink
+                  key={s.to}
+                  to={s.to}
+                  className="btn btn--ghost"
+                  style={{ width: "100%" }}
+                  onClick={() => setMoreOpen(false)}
+                >
+                  <span aria-hidden>{s.icon}</span> {s.label}
+                </NavLink>
+              ))}
+            </nav>
             <div className="more-sheet__row">
               <span className="muted sidebar__email" title={user?.email} style={{ flex: 1 }}>
                 {user?.email}
