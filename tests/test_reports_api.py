@@ -124,3 +124,28 @@ def test_paycheck_capped_by_liquid(client):
     assert p["capped_by_liquid"] is True
     assert Decimal(str(p["sustainable_pay"])) == Decimal(str(p["liquid"]))
     assert Decimal(str(p["sustainable_pay"])) <= Decimal(str(p["trailing_net"]))
+
+
+def test_advisor_baseline(client):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    year = datetime.now(timezone.utc).year
+    acc = _account(client)
+    # Business income this year → freelance profit.
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": TS, "amount": "6000", "raw_payee": "Client", "is_business": True})
+    # Other (salary) income so the freelance profit is taxed at a real marginal rate.
+    client.patch(f"/api/tax/year/{year}", json={"other_taxable_income": "50000"})
+    client.patch("/api/business-profile", json={"default_hourly_rate": "80"})
+    # A client with tracked time + an invoice → billable hours + per-client monthly income.
+    cid = client.post("/api/clients", json={"name": "Acme", "hourly_rate": "80"}).json()["id"]
+    client.post("/api/time-entries",
+                json={"client_id": cid, "started_at": f"{today}T09:00:00Z", "minutes": 600})
+    client.post("/api/invoices", json={"client_id": cid})  # bills 10h @ 80
+
+    a = client.get("/api/reports/advisor").json()
+    assert Decimal(str(a["default_hourly_rate"])) == Decimal("80.00")
+    assert 0 < float(a["marginal_tax_rate"]) <= 1          # taxed in a progressive zone
+    assert float(a["billable_hours_month"]) > 0            # 10h tracked this month
+    assert float(a["annual_profit"]) > 0
+    acme = next(c for c in a["clients"] if c["name"] == "Acme")
+    assert float(acme["monthly_income"]) > 0

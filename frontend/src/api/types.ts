@@ -479,6 +479,28 @@ export interface PaycheckOut {
   breakdown: PaycheckLineOut[];
 }
 
+export interface AdvisorClientOut {
+  id: string;
+  name: string;
+  monthly_income: string;
+}
+
+export interface AdvisorOut {
+  currency: string;
+  liquid: string;
+  monthly_net: string;
+  monthly_income: string;
+  monthly_fixed: string;
+  tax_setaside: string;
+  sustainable_pay: string;
+  default_hourly_rate: string;
+  billable_hours_month: string;
+  marginal_tax_rate: string;
+  annual_profit: string;
+  annual_tax: string;
+  clients: AdvisorClientOut[];
+}
+
 export interface TaxDeadlineOut {
   date: string;
   kind: string;

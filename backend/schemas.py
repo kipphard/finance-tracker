@@ -1072,6 +1072,35 @@ class PaycheckOut(BaseModel):
     breakdown: list[PaycheckLineOut] = []
 
 
+# --- rate advisor + what-if baseline --------------------------------------
+
+
+class AdvisorClientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    monthly_income: Decimal
+
+
+class AdvisorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    currency: str
+    liquid: Decimal
+    monthly_net: Decimal
+    monthly_income: Decimal
+    monthly_fixed: Decimal
+    tax_setaside: Decimal
+    sustainable_pay: Decimal
+    default_hourly_rate: Decimal
+    billable_hours_month: Decimal
+    marginal_tax_rate: Decimal
+    annual_profit: Decimal
+    annual_tax: Decimal
+    clients: list[AdvisorClientOut] = []
+
+
 # --- tax deadline calendar -----------------------------------------------
 
 

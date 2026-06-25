@@ -206,6 +206,12 @@ Four tabs: **Time · Clients · Invoices · Settings**.
 
 ### Insights
 A dedicated tab with:
+- **Rate advisor & what-if** — *what should I charge?* Enter a desired monthly take-home (defaults
+  to your Sustainable Pay), billable hours/week and weeks/year, and it suggests the **hourly rate**
+  that nets that after fixed costs and tax, vs. your current rate. Below it, **what-if sliders** —
+  raise rates ±%, lose a client, or add a one-off purchase — show the live impact on your **monthly
+  net, cash runway, annual profit and estimated tax** (a rough flat-marginal-rate planning aid, not
+  tax advice).
 - **Client profitability** — per client: **effective €/h** (total invoiced ÷ tracked hours,
   flat fees included), tracked/billed/unbilled hours, and invoiced vs. paid totals — sorted by
   the best effective rate, so you can see which clients are actually worth it.

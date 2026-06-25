@@ -9,12 +9,14 @@ from fastapi import APIRouter, Query, Response
 from backend.api.deps import CurrentUser, SessionDep
 from backend.config import get_settings
 from backend.cashflow.calendar import build_cashflow_calendar
+from backend.insights.advisor import compute_advisor
 from backend.insights.liquidity import ILLIQUID_TYPES, liquid_balance
 from backend.insights.paycheck import compute_paycheck
 from backend.insights.service import build_forecast
 from backend.persistence import repository
 from backend.reporting import income_expense, monthly_cashflow, transactions_csv
 from backend.schemas import (
+    AdvisorOut,
     CashflowCalendarOut,
     CategoryBreakdownItem,
     CategoryTotalOut,
@@ -152,6 +154,14 @@ def paycheck(session: SessionDep, user: CurrentUser) -> PaycheckOut:
     result = compute_paycheck(session, user.id)
     session.commit()  # persists any default tax reserve/profile rows created during the compute
     return PaycheckOut.model_validate(result)
+
+
+@router.get("/advisor", response_model=AdvisorOut)
+def advisor(session: SessionDep, user: CurrentUser) -> AdvisorOut:
+    """Baseline bundle for the rate advisor + what-if scenarios (rate, runway, profit, tax)."""
+    result = compute_advisor(session, user.id)
+    session.commit()  # persists any default tax/business-profile rows created during the compute
+    return AdvisorOut.model_validate(result)
 
 
 @router.get("/freelance-insights", response_model=FreelanceInsightsOut)

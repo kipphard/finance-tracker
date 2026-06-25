@@ -155,6 +155,9 @@ const GROUPS: Group[] = [
       { id: "bizinsights", icon: "📈", name: "Business insights", to: "/business/insights",
         desc: "Client profitability (effective €/h) and project budget burn-down.",
         how: "Business → Insights." },
+      { id: "rateadvisor", icon: "🧮", name: "Rate advisor & what-if", to: "/business/insights",
+        desc: "Suggests an hourly rate to hit a take-home target, plus what-if sliders for rate, clients and purchases.",
+        how: "Business → Insights → Rate advisor & what-if." },
     ],
   },
   {

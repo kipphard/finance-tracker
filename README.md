@@ -43,7 +43,10 @@ budgets and projects with per-project rate/budget overrides; invoices built from
 blank flat-fee, with hourly **and** flat (Pauschal) lines, **DE/EN** language,
 **Kleinunternehmer §19 / 19% VAT**, due dates + overdue tracking, a scan-to-pay **GiroCode**,
 **PDF** download, in-app **email** (Gmail SMTP), and **auto-reconciliation** that marks an
-invoice paid from the matching bank transaction (and lists the Zahlungseingang).
+invoice paid from the matching bank transaction (and lists the Zahlungseingang); an **Insights**
+tab with per-client profitability + project burn-down and a **rate advisor & what-if** (suggests an
+hourly rate for a target take-home, plus sliders showing rate/client/purchase impact on runway,
+profit and tax).
 
 **🧾 Taxes** — a German freelance **EÜR** (Einnahmenüberschussrechnung) for a chosen tax year:
 pulls every transaction marked **Business** (a per-transaction toggle) into Betriebseinnahmen −

@@ -3,6 +3,7 @@ import type { FreelanceInsightsOut } from "../../api/types";
 import { money, num } from "../../lib/format";
 import { Card } from "../Card";
 import { Async } from "../Async";
+import { RateAdvisorCard } from "./RateAdvisorCard";
 import { fmtHours } from "./helpers";
 
 export function InsightsPage() {
@@ -10,6 +11,8 @@ export function InsightsPage() {
 
   return (
     <div className="card-stack">
+      <RateAdvisorCard />
+
       <Card title="Client profitability" className="recurring-card">
         <Async state={state}>
           {(ins) => ins.clients.length === 0 ? (
