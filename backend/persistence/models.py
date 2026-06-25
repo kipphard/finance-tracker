@@ -716,3 +716,27 @@ class TaxYearInput(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
     )
+
+
+class Trip(Base):
+    """A single business trip (Fahrtenbuch entry): date, route, distance and purpose. The business
+    kilometres for a tax year are summed from these and flow into the EÜR's Reisekosten — overriding
+    the single manual ``TaxYearInput.business_km`` figure whenever any trips are logged for the year."""
+
+    __tablename__ = "trips"
+    __table_args__ = (Index("ix_trips_user_date", "user_id", "date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    from_place: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    to_place: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    km: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    # Optional client the trip was for (lets you see/bill travel per client).
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )

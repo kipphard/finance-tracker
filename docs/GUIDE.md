@@ -273,6 +273,10 @@ of the Overview (defaults to the last completed year — the one you file).
 - **Angaben für <year>.** Edit the year-specific numbers here — gross salary / other income,
   einbehaltene Lohnsteuer, Einkommensteuer-Vorauszahlungen, Homeoffice days, business km — and the
   figures recompute.
+- **🚗 Fahrtenbuch.** A proper **per-trip mileage log** (date · route · km · purpose · optional
+  client) for the year. The summed kilometres **flow into the EÜR's Reisekosten** (km × your rate),
+  *overriding* the single manual "business km" figure whenever any trips are logged — so adding a
+  trip updates the EÜR above. Tag a client to keep travel attributable.
 - **Erfasste Buchungen.** The underlying transactions (income / direct / mixed) with the amount
   counted toward the EÜR — mixed rows also show the **business %** applied — so you can check every
   euro. Export them as **CSV** (now including a `percent` column).

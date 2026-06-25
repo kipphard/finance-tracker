@@ -62,6 +62,7 @@ a **CSV** export, and a one-click **ELSTER prompt** you can paste into the
 Claude browser extension (or any AI) to help fill the Anlage EÜR in Mein ELSTER. A **Steuertermine**
 calendar surfaces the quarterly Einkommensteuer-Vorauszahlung, the (non-Kleinunternehmer)
 Umsatzsteuer-Voranmeldung, and the EÜR filing deadline — also fed into the alerts + cashflow calendar.
+A **Fahrtenbuch** (per-trip mileage log) feeds its summed km into the EÜR's Reisekosten.
 
 *Works on any screen — the desktop sidebar collapses to a mobile **bottom-nav** layout on phones
 (touch-friendly forms, horizontally scrollable sub-tabs & tables, bottom-sheet modals), and it's

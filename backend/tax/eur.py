@@ -202,12 +202,15 @@ def compute_eur(session: Session, user_id: uuid.UUID, year: int) -> EurResult:
         expense_lines.append(ExpenseLine(key="home_office", label=label, amount=_q(home_office)))
         expense_total += home_office
 
-    travel = Decimal(year_input.business_km) * Decimal(tax_profile.km_rate)
+    # Business km: the summed Fahrtenbuch trips for the year take precedence; the single manual
+    # business_km figure is the fallback when no trips are logged.
+    trips_km = repository.trips_km_for_year(session, user_id, year)
+    business_km = trips_km if trips_km > 0 else Decimal(year_input.business_km)
+    travel = business_km * Decimal(tax_profile.km_rate)
     if travel > 0:
         expense_lines.append(ExpenseLine(
             key="travel",
-            label=f"Reisekosten ({_pct(Decimal(year_input.business_km))} km × "
-                  f"{_pct(Decimal(tax_profile.km_rate))} €)",
+            label=f"Reisekosten ({_pct(business_km)} km × {_pct(Decimal(tax_profile.km_rate))} €)",
             amount=_q(travel),
         ))
         expense_total += travel

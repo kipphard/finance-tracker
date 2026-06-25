@@ -43,6 +43,7 @@ from backend.persistence.models import (
     TaxYearInput,
     TimeEntry,
     Transaction,
+    Trip,
     User,
 )
 
@@ -64,6 +65,7 @@ def wipe(session, uid):
     acct_ids = select(Account.id).where(Account.user_id == uid)
     inv_ids = select(Invoice.id).where(Invoice.user_id == uid)
     session.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(inv_ids)))
+    session.execute(delete(Trip).where(Trip.user_id == uid))
     session.execute(delete(TimeEntry).where(TimeEntry.user_id == uid))
     session.execute(delete(Invoice).where(Invoice.user_id == uid))
     session.execute(delete(RecurringInvoice).where(RecurringInvoice.user_id == uid))
@@ -479,10 +481,20 @@ def seed_demo_for_user(session, user_id) -> dict:
         language="de", next_run=TODAY + timedelta(days=30), active=True,
     ))
 
+    # === Fahrtenbuch: a few business trips (their km feed the EÜR Reisekosten) ===
+    session.add_all([
+        Trip(user_id=uid, date=TODAY - timedelta(days=40), from_place="Köln", to_place="Düsseldorf",
+             km=D("84"), purpose="Kick-off Studio Brandwerk", client_id=brandwerk.id),
+        Trip(user_id=uid, date=TODAY - timedelta(days=21), from_place="Köln", to_place="Brühl",
+             km=D("32"), purpose="Vor-Ort-Termin Helios", client_id=helios.id),
+        Trip(user_id=uid, date=TODAY - timedelta(days=7), from_place="Köln", to_place="Bonn",
+             km=D("56"), purpose="Fotoshooting Café Mondia", client_id=mondia.id),
+    ])
+
     session.flush()
     return {
         "transactions": len(ledger), "accounts": 5, "categories": len(cats),
-        "clients": 3, "projects": 2, "time_entries": 16, "invoices": 3, "retainers": 1,
+        "clients": 3, "projects": 2, "time_entries": 16, "invoices": 3, "retainers": 1, "trips": 3,
     }
 
 

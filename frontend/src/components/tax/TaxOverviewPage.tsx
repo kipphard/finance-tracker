@@ -6,6 +6,7 @@ import { money, num } from "../../lib/format";
 import { Card } from "../Card";
 import { Async } from "../Async";
 import { TaxDeadlinesCard } from "./TaxDeadlinesCard";
+import { FahrtenbuchCard } from "./FahrtenbuchCard";
 
 const NOW = new Date().getFullYear();
 const YEARS = [NOW, NOW - 1, NOW - 2, NOW - 3, NOW - 4];
@@ -49,6 +50,7 @@ export function TaxOverviewPage() {
             <RefundCard report={r} />
             <TaxDeadlinesCard year={year} />
             <YearInputsCard year={year} />
+            <FahrtenbuchCard year={year} />
             <ElsterCard year={year} />
             <LineItemsCard report={r} />
           </div>

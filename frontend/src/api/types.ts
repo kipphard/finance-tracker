@@ -526,6 +526,17 @@ export interface WrappedOut {
   net_worth_delta: string | null;
 }
 
+export interface TripOut {
+  id: string;
+  date: string;
+  km: string;
+  from_place: string;
+  to_place: string;
+  purpose: string;
+  client_id: string | null;
+  created_at: string;
+}
+
 export interface TaxDeadlineOut {
   date: string;
   kind: string;

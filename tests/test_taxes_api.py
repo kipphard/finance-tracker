@@ -238,3 +238,25 @@ def test_tax_calendar_endpoint(client):
     # Default profile is Kleinunternehmer → no USt-Voranmeldung rows.
     assert body["is_kleinunternehmer"] is True
     assert "ust_voranmeldung" not in kinds
+
+
+def test_trips_feed_eur_business_km(client):
+    year = datetime.now(timezone.utc).year
+    client.patch("/api/tax/profile", json={"km_rate": "0.30"})
+    # A manual business_km is present, but logged trips must take precedence.
+    client.patch(f"/api/tax/year/{year}", json={"business_km": "999"})
+    t1 = client.post("/api/trips", json={"date": f"{year}-03-10", "km": "100",
+                                         "from_place": "Köln", "to_place": "Bonn"}).json()["id"]
+    client.post("/api/trips", json={"date": f"{year}-04-10", "km": "50"})
+    assert len(client.get(f"/api/trips?year={year}").json()) == 2
+
+    def travel():
+        eur = client.get(f"/api/tax/eur?year={year}").json()
+        return Decimal(str(next(l for l in eur["expense_lines"] if l["key"] == "travel")["amount"]))
+
+    assert travel() == Decimal("45.00")           # 150 km × 0.30 (trips override the manual 999)
+    client.delete(f"/api/trips/{t1}")
+    assert travel() == Decimal("15.00")           # now 50 km × 0.30
+    remaining = client.get(f"/api/trips?year={year}").json()[0]["id"]
+    client.patch(f"/api/trips/{remaining}", json={"km": "80"})
+    assert travel() == Decimal("24.00")           # 80 km × 0.30

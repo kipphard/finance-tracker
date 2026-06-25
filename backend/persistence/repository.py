@@ -7,7 +7,7 @@ first), so it has no direct user_id.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import case, delete, func, select, update
@@ -45,6 +45,7 @@ from backend.persistence.models import (
     TaxYearInput,
     TimeEntry,
     Transaction,
+    Trip,
     User,
 )
 
@@ -87,7 +88,7 @@ def delete_user(session: Session, user_id: uuid.UUID) -> bool:
     session.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(inv_ids)))
     session.execute(delete(Balance).where(Balance.account_id.in_(acct_ids)))
     for model in (
-        TimeEntry, Invoice, RecurringInvoice, Project, Client, BusinessProfile,
+        Trip, TimeEntry, Invoice, RecurringInvoice, Project, Client, BusinessProfile,
         Reconciliation, Attachment, Transaction, CashflowItem, Recurring, Budget, Debt,
         Allocation, AllocationApply, PlannedPurchase, EmergencyFund, TaxReserve,
         NetWorthSnapshot, Rule, TaxYearInput, TaxProfile, Connection, Category, Account,
@@ -1119,6 +1120,59 @@ def last_allocation_apply(session: Session, user_id: uuid.UUID) -> datetime | No
     return session.execute(
         select(func.max(AllocationApply.applied_at)).where(AllocationApply.user_id == user_id)
     ).scalar_one_or_none()
+
+
+# --- trips (Fahrtenbuch) -------------------------------------------------
+
+
+def create_trip(session: Session, *, user_id: uuid.UUID, **fields) -> Trip:
+    trip = Trip(user_id=user_id, **fields)
+    session.add(trip)
+    session.flush()
+    return trip
+
+
+def get_trip(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID) -> Trip | None:
+    return session.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
+    ).scalars().first()
+
+
+def list_trips(
+    session: Session, user_id: uuid.UUID, *, year: int | None = None
+) -> list[Trip]:
+    stmt = select(Trip).where(Trip.user_id == user_id)
+    if year is not None:
+        stmt = stmt.where(Trip.date >= date(year, 1, 1), Trip.date < date(year + 1, 1, 1))
+    return list(session.execute(stmt.order_by(Trip.date.desc(), Trip.created_at.desc())).scalars().all())
+
+
+def update_trip(session: Session, trip: Trip, **fields) -> Trip:
+    for key, value in fields.items():
+        setattr(trip, key, value)
+    session.flush()
+    return trip
+
+
+def delete_trip(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    trip = get_trip(session, trip_id, user_id)
+    if trip is None:
+        return False
+    session.delete(trip)
+    session.flush()
+    return True
+
+
+def trips_km_for_year(session: Session, user_id: uuid.UUID, year: int) -> Decimal:
+    """Sum of logged trip kilometres for a tax year (0 when none logged)."""
+    total = session.execute(
+        select(func.coalesce(func.sum(Trip.km), 0)).where(
+            Trip.user_id == user_id,
+            Trip.date >= date(year, 1, 1),
+            Trip.date < date(year + 1, 1, 1),
+        )
+    ).scalar_one()
+    return Decimal(str(total))
 
 
 # --- debts (things to pay off) -------------------------------------------

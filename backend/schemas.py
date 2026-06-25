@@ -1,6 +1,7 @@
 """Pydantic request/response DTOs for the REST API."""
 from __future__ import annotations
 
+import datetime as _dt
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -660,6 +661,41 @@ class DebtOut(BaseModel):
     amount: Decimal
     due_date: date | None = None
     paid: bool
+    created_at: datetime
+
+
+# --- trips (Fahrtenbuch) --------------------------------------------------
+
+
+class TripCreate(BaseModel):
+    # `_dt.date` (not `date`) so the field name `date` can't shadow the type at annotation-eval.
+    date: _dt.date
+    km: Decimal = Field(gt=0)
+    from_place: str = ""
+    to_place: str = ""
+    purpose: str = ""
+    client_id: uuid.UUID | None = None
+
+
+class TripUpdate(BaseModel):
+    date: _dt.date | None = None
+    km: Decimal | None = Field(default=None, gt=0)
+    from_place: str | None = None
+    to_place: str | None = None
+    purpose: str | None = None
+    client_id: uuid.UUID | None = None
+
+
+class TripOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    date: _dt.date
+    km: Decimal
+    from_place: str
+    to_place: str
+    purpose: str
+    client_id: uuid.UUID | None = None
     created_at: datetime
 
 

@@ -32,6 +32,7 @@ from backend.api import (
     taxes,
     time_entries,
     transactions,
+    trips,
 )
 from backend.config import get_settings
 
@@ -79,6 +80,7 @@ app.include_router(invoices.router, prefix=API)
 app.include_router(recurring_invoices.router, prefix=API)
 # Taxes: German freelance EÜR + ELSTER helper
 app.include_router(taxes.router, prefix=API)
+app.include_router(trips.router, prefix=API)
 
 
 @app.get("/", tags=["root"])
