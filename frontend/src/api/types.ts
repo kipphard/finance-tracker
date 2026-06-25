@@ -501,6 +501,31 @@ export interface AdvisorOut {
   clients: AdvisorClientOut[];
 }
 
+export interface WrappedCategoryOut {
+  name: string;
+  amount: string;
+}
+
+export interface WrappedOut {
+  year: number;
+  currency: string;
+  has_data: boolean;
+  total_income: string;
+  total_expense: string;
+  net: string;
+  top_categories: WrappedCategoryOut[];
+  biggest_expense_payee: string | null;
+  biggest_expense_amount: string;
+  priciest_month: string | null;
+  priciest_month_amount: string;
+  hours_worked: string;
+  invoices_count: number;
+  invoiced_total: string;
+  best_client_name: string | null;
+  best_client_rate: string;
+  net_worth_delta: string | null;
+}
+
 export interface TaxDeadlineOut {
   date: string;
   kind: string;

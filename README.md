@@ -35,7 +35,8 @@ accounts with a one-click **Apply this month** that books the transfers + debt p
 a **Steuerrücklage** tax-reserve jar (§32a-estimated income tax owed YTD vs. what you've set aside
 in an earmarked reserve account, with a recommended monthly set-aside that feeds the leftover split),
 debts, a planned-purchases wishlist (save €X/mo per item → a "Planned purchases fund" pot in the
-leftover split), alerts (incl. upcoming tax deadlines)); reports + a tax-advisor CSV export.
+leftover split), alerts (incl. upcoming tax deadlines)); analytics incl. a **Money Wrapped**
+year-in-review; reports + a tax-advisor CSV export.
 
 **🧑‍💻 Business** — start/stop timer (survives reloads) + manual entries; clients with hour
 budgets and projects with per-project rate/budget overrides; invoices built from tracked time

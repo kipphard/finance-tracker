@@ -116,6 +116,9 @@ const GROUPS: Group[] = [
       { id: "subscriptions", icon: "🔁", name: "Detected subscriptions", to: "/analytics",
         desc: "Recurring charges spotted in your transactions, to review or import.",
         how: "Analytics → Detected subscriptions." },
+      { id: "wrapped", icon: "💸", name: "Money Wrapped", to: "/analytics",
+        desc: "A year-in-review recap: earned/spent/net, hours, best client, priciest month, top categories.",
+        how: "Analytics → Money Wrapped; pick a year." },
     ],
   },
   {

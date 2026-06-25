@@ -149,3 +149,30 @@ def test_advisor_baseline(client):
     assert float(a["annual_profit"]) > 0
     acme = next(c for c in a["clients"] if c["name"] == "Acme")
     assert float(acme["monthly_income"]) > 0
+
+
+def test_wrapped_year_in_review(client):
+    year = datetime.now(timezone.utc).year
+    acc = _account(client)
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": f"{year}-01-15T00:00:00Z", "amount": "5000", "raw_payee": "Client"})
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": f"{year}-02-10T00:00:00Z", "amount": "-1200", "raw_payee": "Big Rent"})
+    client.post(f"/api/accounts/{acc}/transactions",
+                json={"ts": f"{year}-03-10T00:00:00Z", "amount": "-50", "raw_payee": "Coffee"})
+    cid = client.post("/api/clients", json={"name": "Acme", "hourly_rate": "100"}).json()["id"]
+    client.post("/api/time-entries",
+                json={"client_id": cid, "started_at": f"{year}-04-01T09:00:00Z", "minutes": 120})
+    client.post("/api/invoices", json={"client_id": cid})  # 2h @ 100 = 200
+
+    w = client.get("/api/reports/wrapped", params={"year": year}).json()
+    assert w["has_data"] is True
+    assert Decimal(str(w["total_income"])) == Decimal("5000.00")
+    assert Decimal(str(w["total_expense"])) == Decimal("1250.00")
+    assert w["biggest_expense_payee"] == "Big Rent"
+    assert Decimal(str(w["biggest_expense_amount"])) == Decimal("1200.00")
+    assert w["priciest_month"] == f"{year}-02"
+    assert Decimal(str(w["hours_worked"])) == Decimal("2.00")
+    assert w["invoices_count"] == 1
+    assert w["best_client_name"] == "Acme"
+    assert Decimal(str(w["best_client_rate"])) == Decimal("100.00")

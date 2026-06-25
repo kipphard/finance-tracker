@@ -13,6 +13,7 @@ from backend.insights.advisor import compute_advisor
 from backend.insights.liquidity import ILLIQUID_TYPES, liquid_balance
 from backend.insights.paycheck import compute_paycheck
 from backend.insights.service import build_forecast
+from backend.insights.wrapped import compute_wrapped
 from backend.persistence import repository
 from backend.reporting import income_expense, monthly_cashflow, transactions_csv
 from backend.schemas import (
@@ -27,6 +28,7 @@ from backend.schemas import (
     PaycheckOut,
     ProjectBurnOut,
     RunwayOut,
+    WrappedOut,
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -162,6 +164,15 @@ def advisor(session: SessionDep, user: CurrentUser) -> AdvisorOut:
     result = compute_advisor(session, user.id)
     session.commit()  # persists any default tax/business-profile rows created during the compute
     return AdvisorOut.model_validate(result)
+
+
+@router.get("/wrapped", response_model=WrappedOut)
+def wrapped(
+    session: SessionDep, user: CurrentUser, year: int = Query(default=None)
+) -> WrappedOut:
+    """Money Wrapped: a year-in-review recap derived from the ledger, time and invoices."""
+    y = year or datetime.now(timezone.utc).year
+    return WrappedOut.model_validate(compute_wrapped(session, user.id, y))
 
 
 @router.get("/freelance-insights", response_model=FreelanceInsightsOut)

@@ -1101,6 +1101,38 @@ class AdvisorOut(BaseModel):
     clients: list[AdvisorClientOut] = []
 
 
+# --- money wrapped (year in review) ---------------------------------------
+
+
+class WrappedCategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    amount: Decimal
+
+
+class WrappedOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    year: int
+    currency: str
+    has_data: bool
+    total_income: Decimal
+    total_expense: Decimal
+    net: Decimal
+    top_categories: list[WrappedCategoryOut] = []
+    biggest_expense_payee: str | None = None
+    biggest_expense_amount: Decimal
+    priciest_month: str | None = None
+    priciest_month_amount: Decimal
+    hours_worked: Decimal
+    invoices_count: int
+    invoiced_total: Decimal
+    best_client_name: str | None = None
+    best_client_rate: Decimal
+    net_worth_delta: Decimal | None = None
+
+
 # --- tax deadline calendar -----------------------------------------------
 
 

@@ -120,6 +120,10 @@ Charts and breakdowns — read-only, for spotting trends. Its own drag-to-reorde
 - **Spending by category** — a donut of where the money went, with a **CSV export** for your tax
   advisor.
 - **Detected subscriptions** — recurring charges spotted in your transactions you can review/import.
+- **💸 Money Wrapped** — a Spotify-Wrapped-style **year-in-review**: total earned / spent / net, hours
+  worked, invoices sent, net-worth change, your **best client** by €/h, **priciest month**, **biggest
+  single expense**, and **top spending categories**. Pick the year from the card. All derived from the
+  transactions, time and invoices you already track.
 
 > Tip: **Monthly cashflow** (planned recurring inflows/outflows that can be *materialized* into real
 > dated transactions) is edited from the leftover/forecast flow; the 12-month chart here shows the
