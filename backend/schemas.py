@@ -541,6 +541,28 @@ class OneoffDistributeResult(BaseModel):
     total_moved: Decimal
 
 
+class OneoffAllocationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    percent: Decimal = Field(gt=0, le=100)
+    account_id: uuid.UUID | None = None  # optional destination account for "Distribute now"
+
+
+class OneoffAllocationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    percent: Decimal | None = Field(default=None, gt=0, le=100)
+    account_id: uuid.UUID | None = None  # null clears the link
+
+
+class OneoffAllocationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    percent: Decimal
+    account_id: uuid.UUID | None = None
+    created_at: datetime
+
+
 class EmergencyFundUpdate(BaseModel):
     target_months: int | None = Field(default=None, ge=0, le=120)
     target_amount: Decimal | None = Field(default=None, ge=0)  # custom override; null = N× fixed

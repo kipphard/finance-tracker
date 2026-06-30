@@ -32,6 +32,7 @@ from backend.persistence.models import (
     Invoice,
     InvoiceItem,
     NetWorthSnapshot,
+    OneoffAllocation,
     PlannedPurchase,
     Project,
     Reconciliation,
@@ -81,6 +82,7 @@ def wipe(session, uid):
     session.execute(delete(Budget).where(Budget.user_id == uid))
     session.execute(delete(Debt).where(Debt.user_id == uid))
     session.execute(delete(Allocation).where(Allocation.user_id == uid))
+    session.execute(delete(OneoffAllocation).where(OneoffAllocation.user_id == uid))
     session.execute(delete(PlannedPurchase).where(PlannedPurchase.user_id == uid))
     session.execute(delete(EmergencyFund).where(EmergencyFund.user_id == uid))
     session.execute(delete(NetWorthSnapshot).where(NetWorthSnapshot.user_id == uid))
@@ -269,6 +271,13 @@ def seed_demo_for_user(session, user_id) -> dict:
                       ("Invest", 35), ("Fun", 15)]:
         session.add(Allocation(user_id=uid, name=name, percent=D(str(pct)),
                                account_id=bucket_accounts.get(name)))
+
+    # --- one-off distribution buckets (the windfall splitter's OWN set, separate from the monthly
+    #     buckets above) — split a bonus/gift/refund 50/30/20 into non-source accounts ---
+    for name, pct, oacc in [("Extra sparen", 50, savings.id),
+                            ("Investieren", 30, broker.id),
+                            ("Krypto-Wette", 20, crypto.id)]:
+        session.add(OneoffAllocation(user_id=uid, name=name, percent=D(str(pct)), account_id=oacc))
 
     # --- planned purchases (wishlist; a monthly_save feeds the "Planned purchases fund").
     #     "Urlaub" saves into the Tagesgeld account so "Apply this month" can transfer into it ---

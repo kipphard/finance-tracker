@@ -360,6 +360,25 @@ class Allocation(Base):
     )
 
 
+class OneoffAllocation(Base):
+    """A percentage bucket for the one-off "Distribute a windfall" card — its OWN set, separate from
+    the monthly `Allocation` buckets, so a bonus/gift/refund can be split however the user likes
+    without touching their monthly plan. Each bucket optionally points at a destination account."""
+
+    __tablename__ = "oneoff_allocations"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    percent: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+
 class EmergencyFund(Base):
     """Per-user emergency-fund goal: a target that is N× monthly fixed costs (or a custom
     amount), plus how much has been set aside so far. One row per user."""

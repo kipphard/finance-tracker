@@ -188,3 +188,53 @@ def test_distribute_oneoff_requires_positive_amount(client):
     src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
     assert client.post("/api/allocations/distribute-oneoff", json={
         "source_account_id": src, "amount": "0", "transfers": []}).status_code == 422
+
+
+# --- one-off allocation buckets (the windfall splitter's own, separate set) ---
+
+def test_oneoff_allocations_crud(client):
+    acc = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    r = client.post("/api/oneoff-allocations", json={"name": "Extra sparen", "percent": "50", "account_id": acc})
+    assert r.status_code == 201
+    bid = r.json()["id"]
+    assert r.json()["account_id"] == acc
+
+    listed = client.get("/api/oneoff-allocations").json()
+    assert [b["name"] for b in listed] == ["Extra sparen"]
+
+    # edit percent
+    r = client.patch(f"/api/oneoff-allocations/{bid}", json={"percent": "60"})
+    assert r.status_code == 200 and Decimal(str(r.json()["percent"])) == Decimal("60")
+
+    # clear the account link (null actually unlinks)
+    client.patch(f"/api/oneoff-allocations/{bid}", json={"account_id": None})
+    assert client.get("/api/oneoff-allocations").json()[0]["account_id"] is None
+
+    # delete
+    assert client.delete(f"/api/oneoff-allocations/{bid}").status_code == 204
+    assert client.get("/api/oneoff-allocations").json() == []
+
+
+def test_oneoff_allocation_percent_must_be_in_range(client):
+    assert client.post("/api/oneoff-allocations", json={"name": "X", "percent": "0"}).status_code == 422
+    assert client.post("/api/oneoff-allocations", json={"name": "X", "percent": "150"}).status_code == 422
+
+
+def test_oneoff_allocation_rejects_unknown_account(client):
+    import uuid
+    assert client.post("/api/oneoff-allocations", json={
+        "name": "X", "percent": "10", "account_id": str(uuid.uuid4())}).status_code == 404
+
+
+def test_oneoff_and_monthly_buckets_are_independent(client):
+    # A one-off bucket must NOT appear among the monthly allocations, and vice versa.
+    client.post("/api/allocations", json={"name": "Monthly Savings", "percent": "50"})
+    client.post("/api/oneoff-allocations", json={"name": "Windfall Savings", "percent": "50"})
+
+    monthly = [a["name"] for a in client.get("/api/allocations").json()]
+    oneoff = [b["name"] for b in client.get("/api/oneoff-allocations").json()]
+    assert monthly == ["Monthly Savings"]
+    assert oneoff == ["Windfall Savings"]
+    # the monthly plan likewise only reflects the monthly buckets
+    plan_names = [b["name"] for b in client.get("/api/allocations/plan").json()["buckets"]]
+    assert plan_names == ["Monthly Savings"]

@@ -274,6 +274,15 @@ export interface AllocationPlanOut {
 }
 
 // One-off windfall splitter (bonus/gift/refund) — separate from the monthly distribution.
+// Its own, persistent set of distribution buckets (independent of the monthly Allocation buckets).
+export interface OneoffAllocationOut {
+  id: string;
+  name: string;
+  percent: string;
+  account_id: string | null;
+  created_at: string;
+}
+
 export interface OneoffDistributeRequest {
   source_account_id: string;
   amount: string;

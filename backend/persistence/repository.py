@@ -34,6 +34,7 @@ from backend.persistence.models import (
     Invoice,
     InvoiceItem,
     NetWorthSnapshot,
+    OneoffAllocation,
     PlannedPurchase,
     Project,
     Reconciliation,
@@ -1029,6 +1030,60 @@ def delete_allocation(
     if allocation is None:
         return False
     session.delete(allocation)
+    session.flush()
+    return True
+
+
+# --- one-off allocation buckets (the windfall splitter's own set) --------------------------------
+def create_oneoff_allocation(
+    session: Session, *, user_id: uuid.UUID, name: str, percent: Decimal,
+    account_id: uuid.UUID | None = None,
+) -> OneoffAllocation:
+    bucket = OneoffAllocation(
+        user_id=user_id, name=name, percent=percent, account_id=account_id
+    )
+    session.add(bucket)
+    session.flush()
+    return bucket
+
+
+def get_oneoff_allocation(
+    session: Session, bucket_id: uuid.UUID, user_id: uuid.UUID
+) -> OneoffAllocation | None:
+    return session.execute(
+        select(OneoffAllocation).where(
+            OneoffAllocation.id == bucket_id, OneoffAllocation.user_id == user_id
+        )
+    ).scalars().first()
+
+
+def list_oneoff_allocations(session: Session, user_id: uuid.UUID) -> list[OneoffAllocation]:
+    return list(
+        session.execute(
+            select(OneoffAllocation)
+            .where(OneoffAllocation.user_id == user_id)
+            .order_by(OneoffAllocation.created_at)
+        ).scalars().all()
+    )
+
+
+def update_oneoff_allocation(
+    session: Session, bucket: OneoffAllocation, **fields
+) -> OneoffAllocation:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(bucket, key, value)
+    session.flush()
+    return bucket
+
+
+def delete_oneoff_allocation(
+    session: Session, bucket_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    bucket = get_oneoff_allocation(session, bucket_id, user_id)
+    if bucket is None:
+        return False
+    session.delete(bucket)
     session.flush()
     return True
 

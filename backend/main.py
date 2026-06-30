@@ -22,6 +22,7 @@ from backend.api import (
     invoices,
     me,
     networth,
+    oneoff_allocations,
     planned_purchases,
     projects,
     recurring,
@@ -67,6 +68,7 @@ app.include_router(alerts.router, prefix=API)
 app.include_router(forecast.router, prefix=API)
 app.include_router(debts.router, prefix=API)
 app.include_router(allocations.router, prefix=API)
+app.include_router(oneoff_allocations.router, prefix=API)
 app.include_router(planned_purchases.router, prefix=API)
 app.include_router(emergency_fund.router, prefix=API)
 app.include_router(tax_reserve.router, prefix=API)

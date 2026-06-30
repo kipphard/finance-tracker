@@ -78,15 +78,18 @@ toggle lives in the sidebar.
   marked paid). You preview and confirm the list first, and it **remembers when you last applied** —
   if you've already run it this month it warns you before booking duplicates.
 - **Distribute a one-off amount** — the windfall splitter for money that *isn't* monthly: a bonus, a
-  gift, a tax refund, a sold-something payment. Type the amount, pick the source account it landed
-  in, and it pre-fills a split across your existing %-buckets (each bucket's saved percentage of the
-  amount) — but **every € is editable**, and you can also send a slice to the emergency fund,
-  Steuerrücklage, planned-purchase items (the ones with a linked account) or pay down a ticked debt.
-  A live line shows whether you've fully allocated it, left some in the source, or over-allocated.
-  Hit **Distribute now** and it books the same real transfers/expenses as *Apply this month* — but
-  **immediately**, with **no waiting for month-end** and **no once-a-month limit** (run it as often
-  as windfalls arrive). It is completely **separate from the monthly leftover**: it never changes the
-  *Distribute leftover* math and never trips its "already applied this month" guard.
+  gift, a tax refund, a sold-something payment. It has its **own set of buckets** that you add right
+  here (separate from the monthly *Distribute leftover* buckets — it never shows or touches those),
+  so a windfall can be split however you like. Type the amount, pick the source account it landed in,
+  and: **debt, emergency fund, Steuerrücklage and planned purchases** are taken *off the top* (all
+  optional — tick a debt to pay it down, or type a € into any target), then your **% buckets** split
+  whatever's left. Each bucket links to a destination account (so the money can go *anywhere* you
+  choose) and you edit its %; an "Add" box at the bottom creates more. A live bar + line show what's
+  allocated and what stays in the source. Hit **Distribute now** and it books the same real
+  transfers/expenses as *Apply this month* — but **immediately**, with **no waiting for month-end**
+  and **no once-a-month limit** (run it as often as windfalls arrive). It is completely **separate
+  from the monthly leftover**: it never changes the *Distribute leftover* math and never trips its
+  "already applied this month" guard.
 - **Planned purchases** — a wishlist (e.g. *Nintendo Switch 2 · €499*, *Urlaub · €1000*). Give each
   item a **save €X/month** and it tells you when you'll have saved enough ("in ~5 months · by Nov
   2026"). The sum of those monthly saves becomes a **"Planned purchases fund"** pot that shows up in
