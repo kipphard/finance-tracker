@@ -18,6 +18,8 @@ from backend.schemas import (
     AllocationUpdate,
     ApplyAllocationRequest,
     ApplyAllocationResult,
+    OneoffDistributeRequest,
+    OneoffDistributeResult,
 )
 
 router = APIRouter(prefix="/allocations", tags=["allocations"])
@@ -109,22 +111,17 @@ def update_allocation(
     return AllocationOut.model_validate(allocation)
 
 
-@router.post("/apply", response_model=ApplyAllocationResult)
-def apply_allocation(
-    payload: ApplyAllocationRequest, session: SessionDep, user: CurrentUser
-) -> ApplyAllocationResult:
-    """Book this month's distribution in one atomic step: transfer each linked bucket's share from
-    the source account into it, and pay each ticked debt as an expense out of the source (reducing
-    or clearing the debt). Amounts are computed client-side from the plan."""
-    source = repository.get_account(session, payload.source_account_id, user.id)
-    if source is None:
-        raise HTTPException(status_code=404, detail="source account not found")
-
-    ts = payload.ts or datetime.now(timezone.utc)
+def _book_moves(session, user, *, source, ts, transfers, debt_payments) -> tuple[int, int, Decimal]:
+    """Book the money moves for a distribution: transfer each item's share from `source` into its
+    destination account (two legs, both flagged ``is_transfer``), and pay each ticked debt as an
+    expense out of `source` (reducing or clearing the debt). Returns
+    ``(transfers_made, debts_paid, total)``. Does NOT write an apply-log row and does NOT commit —
+    the caller owns both, which is what lets the monthly apply and the one-off distribute share this
+    logic while differing only in their side effects."""
     total = Decimal(0)
 
     # Savings-type moves → transfers (out of source, into the bucket account).
-    for t in payload.transfers:
+    for t in transfers:
         if t.to_account_id == source.id:
             raise HTTPException(status_code=400, detail="bucket account equals the source account")
         dst = repository.get_account(session, t.to_account_id, user.id)
@@ -144,7 +141,7 @@ def apply_allocation(
 
     # Debt payments → real expenses out of the source; reduce or clear the debt.
     debts_paid = 0
-    for p in payload.debt_payments:
+    for p in debt_payments:
         debt = repository.get_debt(session, p.debt_id, user.id)
         if debt is None:
             raise HTTPException(status_code=404, detail="debt not found")
@@ -160,10 +157,55 @@ def apply_allocation(
         debts_paid += 1
         total += p.amount
 
+    return len(transfers), debts_paid, total
+
+
+@router.post("/apply", response_model=ApplyAllocationResult)
+def apply_allocation(
+    payload: ApplyAllocationRequest, session: SessionDep, user: CurrentUser
+) -> ApplyAllocationResult:
+    """Book this month's distribution in one atomic step: transfer each linked bucket's share from
+    the source account into it, and pay each ticked debt as an expense out of the source (reducing
+    or clearing the debt). Amounts are computed client-side from the plan."""
+    source = repository.get_account(session, payload.source_account_id, user.id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="source account not found")
+
+    ts = payload.ts or datetime.now(timezone.utc)
+    transfers_made, debts_paid, total = _book_moves(
+        session, user, source=source, ts=ts,
+        transfers=payload.transfers, debt_payments=payload.debt_payments,
+    )
+
+    # The apply-log row is what the monthly card reads as "already applied this month".
     repository.create_allocation_apply(session, user_id=user.id, applied_at=ts, total_moved=_q(total))
     session.commit()
     return ApplyAllocationResult(
-        transfers_made=len(payload.transfers), debts_paid=debts_paid, total_moved=_q(total),
+        transfers_made=transfers_made, debts_paid=debts_paid, total_moved=_q(total),
+    )
+
+
+@router.post("/distribute-oneoff", response_model=OneoffDistributeResult)
+def distribute_oneoff(
+    payload: OneoffDistributeRequest, session: SessionDep, user: CurrentUser
+) -> OneoffDistributeResult:
+    """Distribute a one-off amount (a bonus, gift, refund — any windfall) across buckets/targets
+    right now. Same money moves as "Apply this month", but fed an arbitrary amount instead of the
+    computed monthly leftover. It deliberately does NOT write the monthly apply-log row (so the
+    "Distribute leftover" card is unaffected) and has no once-a-month guard — run it any time, any
+    number of times."""
+    source = repository.get_account(session, payload.source_account_id, user.id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="source account not found")
+
+    ts = payload.ts or datetime.now(timezone.utc)
+    transfers_made, debts_paid, total = _book_moves(
+        session, user, source=source, ts=ts,
+        transfers=payload.transfers, debt_payments=payload.debt_payments,
+    )
+    session.commit()
+    return OneoffDistributeResult(
+        transfers_made=transfers_made, debts_paid=debts_paid, total_moved=_q(total),
     )
 
 

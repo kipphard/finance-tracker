@@ -522,6 +522,25 @@ class ApplyAllocationResult(BaseModel):
     total_moved: Decimal
 
 
+class OneoffDistributeRequest(BaseModel):
+    """Distribute a one-off amount (a bonus, gift, refund — any windfall) across buckets/targets
+    immediately. `amount` is the windfall the user typed and is informational only; the server books
+    exactly the per-line transfer/debt amounts below, so the user can deliberately under- or
+    over-allocate. Unlike "Apply this month" this never writes the monthly apply-log and has no
+    once-a-month guard."""
+    source_account_id: uuid.UUID
+    amount: Decimal = Field(gt=0)
+    ts: datetime | None = None
+    transfers: list[ApplyTransferItem] = []
+    debt_payments: list[ApplyDebtPayment] = []
+
+
+class OneoffDistributeResult(BaseModel):
+    transfers_made: int
+    debts_paid: int
+    total_moved: Decimal
+
+
 class EmergencyFundUpdate(BaseModel):
     target_months: int | None = Field(default=None, ge=0, le=120)
     target_amount: Decimal | None = Field(default=None, ge=0)  # custom override; null = N× fixed

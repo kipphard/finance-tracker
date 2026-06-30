@@ -31,7 +31,9 @@ receipt attachments, transfers, recurring/series with auto-posting, off-balance 
 your liquid balance day-by-day from dated events and flags the tightest day, a **sustainable
 monthly pay** figure (trailing net − tax reserve − planned savings, capped by liquid),
 allocation buckets — linkable to real
-accounts with a one-click **Apply this month** that books the transfers + debt payments, emergency fund,
+accounts with a one-click **Apply this month** that books the transfers + debt payments (plus a
+standalone **Distribute a one-off amount** card that splits an arbitrary windfall — bonus, gift,
+refund — across the same buckets/targets and books it immediately), emergency fund,
 a **Steuerrücklage** tax-reserve jar (§32a-estimated income tax owed YTD vs. what you've set aside
 in an earmarked reserve account, with a recommended monthly set-aside that feeds the leftover split),
 debts, a planned-purchases wishlist (save €X/mo per item → a "Planned purchases fund" pot in the

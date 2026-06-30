@@ -114,3 +114,77 @@ def test_apply_records_last_applied_at(client):
         "transfers": [{"to_account_id": sav, "amount": "100", "label": "Savings"}],
     })
     assert client.get("/api/allocations/plan").json()["last_applied_at"] is not None
+
+
+def test_distribute_oneoff_books_transfers_and_debt_payments(client):
+    # A one-off windfall books the same kind of moves as "Apply this month", fed an arbitrary amount.
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    savings = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{src}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "2000", "raw_payee": "Opening"})
+    debt = client.post("/api/debts", json={"name": "Auto", "amount": "500"}).json()["id"]
+
+    res = client.post("/api/allocations/distribute-oneoff", json={
+        "source_account_id": src,
+        "amount": "1000",
+        "transfers": [{"to_account_id": savings, "amount": "300", "label": "Savings"}],
+        "debt_payments": [{"debt_id": debt, "amount": "200"}],
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["transfers_made"] == 1 and body["debts_paid"] == 1
+    assert Decimal(str(body["total_moved"])) == Decimal("500.00")
+
+    # Giro: 2000 − 300 (transfer out) − 200 (debt expense) = 1500 ; Tagesgeld: +300
+    bal = {a["name"]: a["latest_balance"] for a in client.get("/api/accounts").json()}
+    assert Decimal(str(bal["Giro"])) == Decimal("1500")
+    assert Decimal(str(bal["Tagesgeld"])) == Decimal("300")
+
+    # partial payment reduced the outstanding amount, debt still unpaid
+    d = client.get("/api/debts").json()[0]
+    assert d["paid"] is False
+    assert Decimal(str(d["amount"])) == Decimal("300")  # 500 − 200
+
+
+def test_distribute_oneoff_does_not_touch_monthly_apply_log(client):
+    # The critical separation: a one-off must NOT register as this month's monthly distribution,
+    # otherwise the "Distribute leftover" card would falsely warn "already applied this month".
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    sav = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{src}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "1000", "raw_payee": "x"})
+    assert client.get("/api/allocations/plan").json()["last_applied_at"] is None
+    res = client.post("/api/allocations/distribute-oneoff", json={
+        "source_account_id": src,
+        "amount": "500",
+        "transfers": [{"to_account_id": sav, "amount": "100", "label": "Savings"}],
+    })
+    assert res.status_code == 200
+    assert client.get("/api/allocations/plan").json()["last_applied_at"] is None
+
+
+def test_distribute_oneoff_rejects_unknown_source(client):
+    import uuid
+    assert client.post("/api/allocations/distribute-oneoff", json={
+        "source_account_id": str(uuid.uuid4()), "amount": "100",
+        "transfers": [], "debt_payments": []}).status_code == 404
+
+
+def test_distribute_oneoff_has_no_monthly_guard(client):
+    # One-offs can run any number of times, anytime — no once-a-month guard.
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    sav = client.post("/api/accounts", json={"type": "savings", "name": "Tagesgeld"}).json()["id"]
+    client.post(f"/api/accounts/{src}/transactions",
+                json={"ts": "2026-06-01T00:00:00Z", "amount": "1000", "raw_payee": "x"})
+    body = {"source_account_id": src, "amount": "100",
+            "transfers": [{"to_account_id": sav, "amount": "50", "label": "Savings"}]}
+    assert client.post("/api/allocations/distribute-oneoff", json=body).status_code == 200
+    assert client.post("/api/allocations/distribute-oneoff", json=body).status_code == 200
+    bal = {a["name"]: a["latest_balance"] for a in client.get("/api/accounts").json()}
+    assert Decimal(str(bal["Tagesgeld"])) == Decimal("100")  # 50 booked twice, no guard
+
+
+def test_distribute_oneoff_requires_positive_amount(client):
+    src = client.post("/api/accounts", json={"type": "checking", "name": "Giro"}).json()["id"]
+    assert client.post("/api/allocations/distribute-oneoff", json={
+        "source_account_id": src, "amount": "0", "transfers": []}).status_code == 422

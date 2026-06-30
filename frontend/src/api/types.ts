@@ -273,6 +273,20 @@ export interface AllocationPlanOut {
   last_applied_at: string | null;
 }
 
+// One-off windfall splitter (bonus/gift/refund) — separate from the monthly distribution.
+export interface OneoffDistributeRequest {
+  source_account_id: string;
+  amount: string;
+  transfers: { to_account_id: string; amount: string; label: string }[];
+  debt_payments: { debt_id: string; amount: string }[];
+}
+
+export interface OneoffDistributeResult {
+  transfers_made: number;
+  debts_paid: number;
+  total_moved: string;
+}
+
 export interface PlannedPurchaseOut {
   id: string;
   name: string;
