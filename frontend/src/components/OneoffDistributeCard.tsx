@@ -25,9 +25,11 @@ const isEfBucket = (name: string) => name.trim().toLowerCase() === "emergency fu
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // A one-off windfall (bonus, gift, refund) split across the same buckets/targets as the monthly
-// distribution, but applied immediately. It reuses the saved bucket percentages as a starting
-// point and books real transfers right away — see the backend /allocations/distribute-oneoff
-// endpoint, which deliberately does NOT touch the monthly "already applied this month" marker.
+// distribution, but applied immediately. Mirrors AllocationCard's layout (allocation bar, grouped
+// Debt box, per-bucket rows) so the two distribution cards feel like one family. It reuses the saved
+// bucket percentages as a starting point and books real transfers right away — see the backend
+// /allocations/distribute-oneoff endpoint, which deliberately does NOT touch the monthly "already
+// applied this month" marker.
 export function OneoffDistributeCard({ className }: { className?: string }) {
   const planApi = useApi<AllocationPlanOut>("/allocations/plan");
   const accountsApi = useApi<AccountOut[]>("/accounts");
@@ -39,7 +41,8 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");
   const [amounts, setAmounts] = useState<Record<string, string>>({}); // per-destination € overrides
-  const [debtPick, setDebtPick] = useState<Record<string, string>>({}); // debtId → € to pay
+  const [debtTicked, setDebtTicked] = useState<Record<string, boolean>>({}); // which debts to pay
+  const [payDraft, setPayDraft] = useState<Record<string, string>>({}); // per-debt € override
   const [applyOpen, setApplyOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -63,10 +66,10 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
           const plannedItems = (ppApi.data?.items ?? []).filter((it) => it.account_id);
           const unpaidDebts = (debtsApi.data ?? []).filter((d) => !d.paid);
 
-          // Destination rows that become transfers. Buckets pre-fill from their saved %; the
+          // Transfer destinations rendered as bucket rows. Buckets pre-fill from their saved %; the
           // special targets default to 0 (opt-in for this particular windfall). A bucket with no
           // linked account can't receive money — shown disabled with a hint. EF / Steuerrücklage /
-          // planned items only appear here once they have a linked account.
+          // planned items only appear once they have a linked account.
           type Row = {
             key: string;
             label: string;
@@ -100,7 +103,7 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
           ];
 
           const valFor = (r: Row) => num(amounts[r.key] ?? String(r.def));
-          const debtAmt = (id: string) => num(debtPick[id] ?? "");
+          const payOf = (d: DebtOut) => payDraft[d.id] ?? String(num(d.amount)); // default = full owed
 
           const transferMoves = rows
             .filter((r) => r.accountId && valFor(r) > 0)
@@ -109,16 +112,24 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
               amount: valFor(r),
               label: r.label,
               account: accById.get(r.accountId as string) ?? "?",
+              color: r.color,
             }));
           const debtMoves = unpaidDebts
-            .filter((d) => debtAmt(d.id) > 0)
-            .map((d) => ({ debt_id: d.id, amount: debtAmt(d.id), name: d.name }));
+            .filter((d) => debtTicked[d.id] && num(payOf(d)) > 0)
+            .map((d) => ({ debt_id: d.id, amount: num(payOf(d)), name: d.name }));
+          const debtPayTotal = debtMoves.reduce((s, m) => s + m.amount, 0);
 
-          const allocated =
-            transferMoves.reduce((s, m) => s + m.amount, 0) +
-            debtMoves.reduce((s, m) => s + m.amount, 0);
+          const allocated = transferMoves.reduce((s, m) => s + m.amount, 0) + debtPayTotal;
           const leftover = round2(entered - allocated);
           const canApply = entered > 0 && !!src && (transferMoves.length > 0 || debtMoves.length > 0);
+
+          // Stacked allocation bar — one segment per money move, plus a grey "stays in source" rest.
+          const segments = [
+            ...transferMoves.map((m) => ({ amount: m.amount, color: m.color })),
+            ...(debtPayTotal > 0 ? [{ amount: debtPayTotal, color: DEBT_COLOR }] : []),
+          ];
+          const denom = Math.max(entered, allocated) || 1;
+          const restPct = leftover > 0 ? (leftover / denom) * 100 : 0;
 
           const doApply = async () => {
             if (!canApply) return;
@@ -137,7 +148,8 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
               setApplyOpen(false);
               setAmount("");
               setAmounts({});
-              setDebtPick({});
+              setDebtTicked({});
+              setPayDraft({});
               accountsApi.reload();
               debtsApi.reload();
               efApi.reload();
@@ -182,7 +194,73 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
                     <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>to distribute</span>
                   </div>
 
+                  {segments.length > 0 && (
+                    <div className="alloc__bar">
+                      {segments.map((s, i) => (
+                        <div
+                          key={i}
+                          className="alloc__seg"
+                          style={{ width: `${(s.amount / denom) * 100}%`, background: s.color }}
+                        />
+                      ))}
+                      {restPct > 0 && (
+                        <div className="alloc__seg alloc__seg--rest" style={{ width: `${restPct}%` }} />
+                      )}
+                    </div>
+                  )}
+
                   <ul className="list">
+                    {/* Debt — grouped exactly like the monthly card: tick which debts to pay off. */}
+                    {unpaidDebts.length > 0 && (
+                      <li style={{ display: "block" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span className="li-main">
+                            <span className="alloc__dot" style={{ background: DEBT_COLOR }} />
+                            🎯 Pay off debt
+                          </span>
+                          <strong style={{ minWidth: 78, textAlign: "right" }}>
+                            {money(debtPayTotal, currency)}
+                          </strong>
+                        </div>
+                        <div className="alloc__debt">
+                          <div className="alloc__debtlist">
+                            {unpaidDebts.map((d) => {
+                              const checked = !!debtTicked[d.id];
+                              return (
+                                <div key={d.id} className="alloc__tick">
+                                  <input type="checkbox" checked={checked}
+                                    onChange={(e) => setDebtTicked((m) => ({ ...m, [d.id]: e.target.checked }))} />
+                                  <span>
+                                    {d.name} <span className="muted">· {money(d.amount, currency)}</span>
+                                  </span>
+                                  {checked && (
+                                    <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span className="muted" style={{ fontSize: 11 }}>pay</span>
+                                      <input
+                                        className="input alloc__amt"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={payOf(d)}
+                                        onChange={(e) => setPayDraft((m) => ({ ...m, [d.id]: e.target.value }))}
+                                      />
+                                      <span className="muted">€</span>
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="li-sub" style={{ marginTop: 6 }}>
+                            {debtMoves.length > 0
+                              ? `Paying ${money(debtPayTotal, currency)} across ${debtMoves.length} ${debtMoves.length === 1 ? "debt" : "debts"} with this windfall`
+                              : "Tick a debt to pay it down with this windfall."}
+                          </div>
+                        </div>
+                      </li>
+                    )}
+
+                    {/* Buckets + emergency fund / Steuerrücklage / planned targets */}
                     {rows.map((r) => (
                       <li key={r.key}>
                         <span className="li-main">
@@ -192,9 +270,9 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
                             <span className="muted" style={{ fontWeight: 400 }}> · {r.hint}</span>
                           )}
                         </span>
-                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {r.accountId && (
-                            <span className="muted" style={{ fontSize: 11 }}>→ {accById.get(r.accountId)}</span>
+                            <span className="muted" style={{ fontSize: 12 }}>→ {accById.get(r.accountId)}</span>
                           )}
                           <input
                             className="input alloc__amt"
@@ -210,52 +288,22 @@ export function OneoffDistributeCard({ className }: { className?: string }) {
                       </li>
                     ))}
 
-                    {unpaidDebts.map((d) => (
-                      <li key={`debt:${d.id}`}>
-                        <span className="li-main">
-                          <span className="alloc__dot" style={{ background: DEBT_COLOR }} />
-                          🎯 Pay {d.name}{" "}
-                          <span className="muted" style={{ fontWeight: 400 }}>· {money(d.amount, currency)} owed</span>
-                        </span>
-                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <input
-                            className="input alloc__amt"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0"
-                            value={debtPick[d.id] ?? ""}
-                            onChange={(e) => setDebtPick((m) => ({ ...m, [d.id]: e.target.value }))}
-                          />
-                          <span className="muted">€</span>
-                        </span>
-                      </li>
-                    ))}
-
-                    {rows.length === 0 && unpaidDebts.length === 0 && (
+                    {rows.length === 0 && unpaidDebts.length === 0 ? (
                       <li className="muted" style={{ justifyContent: "center" }}>
                         Add buckets in <b>Distribute leftover</b> to split this here.
                       </li>
-                    )}
+                    ) : leftover > 0 ? (
+                      <li style={{ opacity: 0.75 }}>
+                        <span className="li-main muted">Stays in source</span>
+                        <span className="muted">{money(leftover, currency)}</span>
+                      </li>
+                    ) : leftover < 0 ? (
+                      <li>
+                        <span className="li-main neg">⚠ Over-allocated — moving more than the windfall</span>
+                        <span className="neg">{money(-leftover, currency)}</span>
+                      </li>
+                    ) : null}
                   </ul>
-
-                  {(rows.length > 0 || unpaidDebts.length > 0) && (
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {leftover > 0 ? (
-                        <>
-                          Allocated {money(allocated, currency)} —{" "}
-                          <strong>{money(leftover, currency)}</strong> stays in source.
-                        </>
-                      ) : leftover < 0 ? (
-                        <span className="neg">
-                          ⚠ Over-allocated by {money(-leftover, currency)} — you're moving more than
-                          the windfall.
-                        </span>
-                      ) : (
-                        <>Fully allocated 🎉</>
-                      )}
-                    </div>
-                  )}
 
                   <div style={{ marginTop: 12 }}>
                     <button className="btn btn--sm" onClick={() => setApplyOpen(true)} disabled={!canApply}>
